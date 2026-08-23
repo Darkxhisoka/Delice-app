@@ -171,8 +171,8 @@ export const LoginModal: React.FC<LoginModalProps> = ({
 
           notifyToast({
             type: 'info',
-            title: `Connexion Démo Activée — ${userName}`,
-            message: `Accès au portail accordé pour ${userName}.`
+            title: `Connexion Directe — ${userName}`,
+            message: `Session active initialisée pour ${userName}.`
           });
 
           onClose();
@@ -460,12 +460,12 @@ export const LoginModal: React.FC<LoginModalProps> = ({
             </div>
           </div>
 
-          {/* Quick Demo Account Selector (for Sign In) */}
+          {/* Quick Account Profile Selector (for Sign In) */}
           {authMode === 'SIGN_IN' && (
             <div>
               <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1.5 flex items-center gap-1.5">
                 <UserCheck className="w-3.5 h-3.5 text-amber-400" />
-                Comptes Démo Préconfigurés
+                Profils & Rôles Préconfigurés
               </label>
               <select
                 value={email}

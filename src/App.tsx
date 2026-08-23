@@ -12,6 +12,7 @@ import { LoadingScreen } from './components/common/LoadingScreen';
 import { initBackgroundSync } from './services/backgroundSync';
 import { useDesktopShortcuts } from './hooks/useDesktopShortcuts';
 import { supabase } from './lib/supabaseClient';
+import { subscribeToSupabaseRealtime } from './services/supabaseService';
 import { 
   getActiveRole, 
   getAuthSession, 
@@ -148,11 +149,13 @@ export default function App() {
 
     window.addEventListener('popstate', handlePopState);
     const unsubscribe = subscribeToStoreChanges(handleStorageChange);
+    const unsubscribeSupabaseRealtime = subscribeToSupabaseRealtime();
 
     return () => {
       subscription.unsubscribe();
       window.removeEventListener('popstate', handlePopState);
       unsubscribe();
+      unsubscribeSupabaseRealtime();
     };
   }, []);
 

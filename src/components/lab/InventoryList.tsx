@@ -105,6 +105,7 @@ export const InventoryList: React.FC = () => {
   useEffect(() => {
     loadData();
     return subscribeToStoreChanges(() => {
+      setMaterials(getRawMaterials());
       setSfStockItems(getSemiFinishedStock());
       setRecipes(getRecipes());
     });

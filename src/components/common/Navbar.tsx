@@ -15,10 +15,11 @@ import {
   setActiveViewContext
 } from '../../services/storage';
 import { UserRole, StoreLocation, UserSession } from '../../types';
-import { Store, FlaskConical, RotateCcw, Building2, UserCheck, LogOut, ShieldAlert, Menu, X, Search, ChevronDown, Check, Shield } from 'lucide-react';
+import { Store, FlaskConical, RotateCcw, Building2, UserCheck, LogOut, ShieldAlert, Menu, X, Search, ChevronDown, Check, Shield, Settings } from 'lucide-react';
 import { CompanyLogo } from './CompanyLogo';
 import { GlobalSearchBar } from './GlobalSearchBar';
 import { LoginModal } from './LoginModal';
+import { SettingsModal } from './SettingsModal';
 
 interface NavbarProps {
   currentRole: UserRole;
@@ -31,6 +32,7 @@ export const Navbar: React.FC<NavbarProps> = ({ currentRole, onRoleChange, onNav
   const [activeStoreId, setActiveStoreIdState] = useState<string>('');
   const [activeContext, setActiveContextState] = useState<string>(() => getActiveViewContext());
   const [isLoginModalOpen, setIsLoginModalOpen] = useState<boolean>(false);
+  const [isSettingsModalOpen, setIsSettingsModalOpen] = useState<boolean>(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState<boolean>(false);
   const [isContextDropdownOpen, setIsContextDropdownOpen] = useState<boolean>(false);
   const [session, setSessionState] = useState<UserSession>(() => getAuthSession());
@@ -142,6 +144,51 @@ export const Navbar: React.FC<NavbarProps> = ({ currentRole, onRoleChange, onNav
               <GlobalSearchBar onNavigateToModule={onNavigateToModule} />
             </div>
 
+            {/* Visually distinct active facility indicator with subtle pulse animation */}
+            <div 
+              className={`hidden lg:flex items-center gap-2.5 px-3 py-1.5 rounded-xl border shadow-sm transition-all select-none ${
+                currentRole === 'CENTRAL_LAB'
+                  ? 'bg-gradient-to-r from-indigo-950/90 to-slate-900 border-indigo-500/60 text-indigo-100 shadow-indigo-950/50'
+                  : 'bg-gradient-to-r from-emerald-950/90 to-slate-900 border-emerald-500/60 text-emerald-100 shadow-emerald-950/50'
+              }`}
+              title={`Établissement actif : ${currentRole === 'CENTRAL_LAB' ? 'Laboratoire Central (Production)' : currentActiveStore?.name || 'Boutique'}`}
+            >
+              {/* Subtle Pulsing Beacon Indicator */}
+              <div className="relative flex h-3 w-3 shrink-0 items-center justify-center">
+                <span 
+                  className={`animate-ping absolute inline-flex h-full w-full rounded-full opacity-75 duration-1000 ${
+                    currentRole === 'CENTRAL_LAB' ? 'bg-indigo-400' : 'bg-emerald-400'
+                  }`} 
+                />
+                <span 
+                  className={`relative inline-flex rounded-full h-2 w-2 ring-2 ${
+                    currentRole === 'CENTRAL_LAB' 
+                      ? 'bg-indigo-400 ring-indigo-900' 
+                      : 'bg-emerald-400 ring-emerald-900'
+                  }`} 
+                />
+              </div>
+
+              <div className="flex flex-col text-left">
+                <span className="text-[9px] uppercase font-black tracking-widest text-slate-400 leading-tight flex items-center gap-1">
+                  {currentRole === 'CENTRAL_LAB' ? 'Hub Central' : 'Boutique Active'}
+                </span>
+                <span className="text-xs font-black tracking-tight text-white flex items-center gap-1 max-w-[180px] truncate">
+                  {currentRole === 'CENTRAL_LAB' ? (
+                    <>
+                      <FlaskConical className="w-3.5 h-3.5 text-indigo-400 shrink-0" />
+                      <span className="truncate">Laboratoire Central</span>
+                    </>
+                  ) : (
+                    <>
+                      <Store className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+                      <span className="truncate">{currentActiveStore?.name || 'Boutique'}</span>
+                    </>
+                  )}
+                </span>
+              </div>
+            </div>
+
             {/* Desktop Role Switcher & Controls */}
             <div className="hidden md:flex items-center gap-2 sm:gap-3 shrink-0">
               
@@ -150,11 +197,18 @@ export const Navbar: React.FC<NavbarProps> = ({ currentRole, onRoleChange, onNav
                 <div className="relative">
                   <button
                     onClick={() => setIsContextDropdownOpen(!isContextDropdownOpen)}
-                    className="flex items-center gap-2 bg-gradient-to-r from-slate-950 via-slate-900 to-slate-950 border border-amber-500/40 hover:border-amber-400 rounded-xl px-3 py-1.5 shadow-md transition-all text-left group min-h-[44px]"
+                    className="flex items-center gap-2.5 bg-gradient-to-r from-slate-950 via-slate-900 to-slate-950 border border-amber-500/40 hover:border-amber-400 rounded-xl px-3 py-1.5 shadow-md transition-all text-left group min-h-[44px]"
                     title="Ouvrir le menu de bascule de contexte (Laboratoire Central ou Magasin)"
                   >
-                    <div className={`p-1.5 rounded-lg border ${currentRole === 'CENTRAL_LAB' ? 'bg-indigo-600/30 text-indigo-300 border-indigo-500/40' : 'bg-emerald-600/30 text-emerald-300 border-emerald-500/40'}`}>
-                      {currentRole === 'CENTRAL_LAB' ? <FlaskConical className="w-4 h-4" /> : <Store className="w-4 h-4" />}
+                    <div className="relative">
+                      <div className={`p-1.5 rounded-lg border ${currentRole === 'CENTRAL_LAB' ? 'bg-indigo-600/30 text-indigo-300 border-indigo-500/40' : 'bg-emerald-600/30 text-emerald-300 border-emerald-500/40'}`}>
+                        {currentRole === 'CENTRAL_LAB' ? <FlaskConical className="w-4 h-4" /> : <Store className="w-4 h-4" />}
+                      </div>
+                      {/* Pulse beacon on the button icon */}
+                      <span className="absolute -top-1 -right-1 flex h-2.5 w-2.5">
+                        <span className={`animate-ping absolute inline-flex h-full w-full rounded-full opacity-75 ${currentRole === 'CENTRAL_LAB' ? 'bg-indigo-400' : 'bg-emerald-400'}`} />
+                        <span className={`relative inline-flex rounded-full h-2.5 w-2.5 ${currentRole === 'CENTRAL_LAB' ? 'bg-indigo-500' : 'bg-emerald-500'}`} />
+                      </span>
                     </div>
                     <div className="flex flex-col">
                       <span className="text-[10px] uppercase tracking-wider font-extrabold text-amber-400 leading-none flex items-center gap-1">
@@ -243,16 +297,20 @@ export const Navbar: React.FC<NavbarProps> = ({ currentRole, onRoleChange, onNav
                 </div>
               ) : (
                 /* Standard Store View (Store Manager - Locked to Assigned Store) */
-                <div className="hidden lg:flex items-center gap-2 bg-slate-800/80 border border-slate-700/80 rounded-lg px-3.5 py-1.5 shadow-sm">
+                <div className="hidden lg:flex items-center gap-2.5 bg-slate-900 border border-emerald-500/50 rounded-xl px-3.5 py-1.5 shadow-sm">
+                  <div className="relative flex h-3 w-3 shrink-0 items-center justify-center">
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75 duration-1000" />
+                    <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-400 ring-2 ring-emerald-900" />
+                  </div>
                   <Building2 className="w-4 h-4 text-emerald-400 shrink-0" />
                   <div className="flex flex-col">
-                    <span className="text-[10px] text-slate-400 font-medium uppercase leading-tight">Magasin Assigné</span>
-                    <span className="text-xs font-bold text-emerald-300">
+                    <span className="text-[9px] text-slate-400 font-bold uppercase tracking-wider leading-tight">Magasin Assigné</span>
+                    <span className="text-xs font-black text-emerald-300">
                       {currentActiveStore?.name || 'Point de Vente'}
                     </span>
                   </div>
-                  <span className="ml-1 text-[9px] uppercase tracking-wider px-1.5 py-0.5 rounded bg-slate-700/60 text-slate-400 border border-slate-600/50 font-bold">
-                    Verrouillé
+                  <span className="ml-1 text-[9px] uppercase tracking-wider px-1.5 py-0.5 rounded bg-emerald-950/80 text-emerald-300 border border-emerald-600/50 font-extrabold">
+                    Actif
                   </span>
                 </div>
               )}
@@ -267,6 +325,15 @@ export const Navbar: React.FC<NavbarProps> = ({ currentRole, onRoleChange, onNav
                 <span className="hidden sm:inline max-w-[100px] truncate">
                   {session?.user?.name || 'Session'}
                 </span>
+              </button>
+
+              {/* Settings & Manual Sync Trigger Button */}
+              <button
+                onClick={() => setIsSettingsModalOpen(true)}
+                className="p-2.5 min-h-[44px] min-w-[44px] flex items-center justify-center text-slate-300 hover:text-white bg-slate-800/90 hover:bg-slate-750 border border-slate-700 hover:border-slate-600 rounded-xl transition-all shadow-sm group"
+                title="Paramètres de synchronisation et gestion des stocks"
+              >
+                <Settings className="w-4 h-4 text-slate-400 group-hover:text-amber-400 transition-transform group-hover:rotate-45 duration-200" />
               </button>
 
               {/* Logout Button */}
@@ -314,6 +381,49 @@ export const Navbar: React.FC<NavbarProps> = ({ currentRole, onRoleChange, onNav
         {/* Collapsible Mobile Drawer Navigation (< 768px) */}
         {isMobileMenuOpen && (
           <div className="md:hidden bg-slate-950 border-b border-slate-800 px-4 py-4 space-y-4 animate-in slide-in-from-top duration-200">
+            {/* Mobile Active Facility Indicator */}
+            <div className={`p-3 rounded-xl border flex items-center justify-between shadow-sm ${
+              currentRole === 'CENTRAL_LAB'
+                ? 'bg-indigo-950/80 border-indigo-500/50 text-indigo-100'
+                : 'bg-emerald-950/80 border-emerald-500/50 text-emerald-100'
+            }`}>
+              <div className="flex items-center gap-2.5">
+                <div className="relative flex h-3 w-3 shrink-0 items-center justify-center">
+                  <span className={`animate-ping absolute inline-flex h-full w-full rounded-full opacity-75 duration-1000 ${
+                    currentRole === 'CENTRAL_LAB' ? 'bg-indigo-400' : 'bg-emerald-400'
+                  }`} />
+                  <span className={`relative inline-flex rounded-full h-2 w-2 ring-2 ${
+                    currentRole === 'CENTRAL_LAB' ? 'bg-indigo-400 ring-indigo-900' : 'bg-emerald-400 ring-emerald-900'
+                  }`} />
+                </div>
+                <div>
+                  <span className="text-[9px] uppercase font-black tracking-widest text-slate-400 block leading-tight">
+                    Établissement Actif
+                  </span>
+                  <span className="text-xs font-black text-white flex items-center gap-1">
+                    {currentRole === 'CENTRAL_LAB' ? (
+                      <>
+                        <FlaskConical className="w-3.5 h-3.5 text-indigo-400 shrink-0" />
+                        <span>Laboratoire Central</span>
+                      </>
+                    ) : (
+                      <>
+                        <Store className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+                        <span>{currentActiveStore?.name || 'Point de Vente'}</span>
+                      </>
+                    )}
+                  </span>
+                </div>
+              </div>
+              <span className={`text-[9px] font-black uppercase px-2 py-0.5 rounded-full border ${
+                currentRole === 'CENTRAL_LAB'
+                  ? 'bg-indigo-900/60 text-indigo-300 border-indigo-700/60'
+                  : 'bg-emerald-900/60 text-emerald-300 border-emerald-700/60'
+              }`}>
+                En Ligne
+              </span>
+            </div>
+
             {/* Global Search Bar in Drawer */}
             <div>
               <GlobalSearchBar onNavigateToModule={(mod, payload) => {
@@ -386,14 +496,25 @@ export const Navbar: React.FC<NavbarProps> = ({ currentRole, onRoleChange, onNav
               </div>
             )}
 
-            {/* Session Info & Actions */}
+            {/* Mobile Actions: Settings, Logout & Reset */}
             <div className="pt-2 border-t border-slate-800 flex items-center justify-between gap-2">
               <button
+                onClick={() => {
+                  setIsMobileMenuOpen(false);
+                  setIsSettingsModalOpen(true);
+                }}
+                className="flex-1 min-h-[44px] px-3 py-2 bg-slate-900 hover:bg-slate-800 text-slate-200 border border-slate-700 rounded-xl text-xs font-bold flex items-center justify-center gap-2"
+              >
+                <Settings className="w-4 h-4 text-amber-400" />
+                <span>Paramètres & Sync</span>
+              </button>
+
+              <button
                 onClick={handleLogout}
-                className="flex-1 min-h-[44px] px-3 py-2 bg-rose-950/80 text-rose-300 border border-rose-800 rounded-xl text-xs font-bold flex items-center justify-center gap-2"
+                className="min-h-[44px] px-3 py-2 bg-rose-950/80 hover:bg-rose-900 text-rose-300 border border-rose-800 rounded-xl text-xs font-bold flex items-center justify-center gap-2"
               >
                 <LogOut className="w-4 h-4 text-rose-400" />
-                <span>Se Déconnecter</span>
+                <span>Sortir</span>
               </button>
 
               <button
@@ -416,6 +537,12 @@ export const Navbar: React.FC<NavbarProps> = ({ currentRole, onRoleChange, onNav
         onRoleSelect={(role) => {
           onRoleChange(role);
         }}
+      />
+
+      {/* Dedicated Settings & Inventory Sync Modal */}
+      <SettingsModal
+        isOpen={isSettingsModalOpen}
+        onClose={() => setIsSettingsModalOpen(false)}
       />
     </>
   );

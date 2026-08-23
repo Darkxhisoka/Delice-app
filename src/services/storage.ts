@@ -2787,6 +2787,11 @@ export function getPackagingMaterials(): PackagingMaterial[] {
   return JSON.parse(data);
 }
 
+export function savePackagingMaterials(materials: PackagingMaterial[]): void {
+  localStorage.setItem(KEYS.PACKAGING_MATERIALS, JSON.stringify(materials));
+  notifyListeners();
+}
+
 export function receivePackagingSupplierShipment(
   packagingId: string,
   quantityReceived: number,

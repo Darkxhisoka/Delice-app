@@ -44,8 +44,19 @@ if (electronIsDev) {
   setupContentSecurityPolicy(myCapacitorApp.getCustomURLScheme());
   // Initialize our app, build windows, and load content.
   await myCapacitorApp.init();
-  // Check for updates if we are in a packaged app.
-  autoUpdater.checkForUpdatesAndNotify();
+  // Check for updates if we are in a packaged app without crashing on network/404 errors.
+  try {
+    autoUpdater.autoDownload = true;
+    autoUpdater.autoInstallOnAppQuit = true;
+    autoUpdater.on('error', (err) => {
+      console.warn('Auto-updater non-critical warning:', err?.message || err);
+    });
+    autoUpdater.checkForUpdatesAndNotify()?.catch((err: any) => {
+      console.warn('Auto-updater check failed non-critically (e.g. offline or 404):', err?.message || err);
+    });
+  } catch (err: any) {
+    console.warn('Auto-updater initialization warning:', err?.message || err);
+  }
 })();
 
 // Handle when all of our windows are close (platforms have their own expectations).
