@@ -1,6 +1,8 @@
 import express from "express";
 import path from "path";
 import { GoogleGenAI } from "@google/genai";
+import { requireAuth, AuthRequest } from "./src/middleware/auth.ts";
+import { getUsers, getOrCreateUser } from "./src/db/users.ts";
 
 async function startServer() {
   const app = express();
@@ -15,6 +17,36 @@ async function startServer() {
 
   app.get("/healthz", (req, res) => {
     res.status(200).send("OK");
+  });
+
+  // Cloud SQL User endpoints protected by Firebase Auth
+  app.get("/api/users", requireAuth, async (req: AuthRequest, res) => {
+    try {
+      const userList = await getUsers();
+      res.json(userList);
+    } catch (error: any) {
+      console.error("Failed to fetch users from Cloud SQL:", error);
+      res.status(500).json({ error: error.message || "Failed to fetch users" });
+    }
+  });
+
+  app.post("/api/users/sync", requireAuth, async (req: AuthRequest, res) => {
+    try {
+      const uid = req.user?.uid;
+      const email = req.user?.email || req.body?.email;
+      const displayName = req.body?.displayName;
+      const role = req.body?.role;
+
+      if (!uid || !email) {
+        return res.status(400).json({ error: "Missing uid or email for user synchronization" });
+      }
+
+      const syncedUser = await getOrCreateUser(uid, email, displayName, role);
+      res.json(syncedUser);
+    } catch (error: any) {
+      console.error("Failed to sync user to Cloud SQL:", error);
+      res.status(500).json({ error: error.message || "Failed to sync user" });
+    }
   });
 
   // API Endpoint for Lab Contextual Assistant Chatbot

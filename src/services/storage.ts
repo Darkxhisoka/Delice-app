@@ -416,7 +416,48 @@ export function setActiveStoreId(storeId: string) {
 export function getStores(): StoreLocation[] {
   initStorage();
   const data = localStorage.getItem(KEYS.STORES);
-  return data ? JSON.parse(data) : INITIAL_STORES;
+  if (!data) {
+    localStorage.setItem(KEYS.STORES, JSON.stringify(INITIAL_STORES));
+    return INITIAL_STORES;
+  }
+  try {
+    const parsed: StoreLocation[] = JSON.parse(data);
+    // Check if stored stores are using old placeholder names or missing default locations
+    const hasOutdatedData = parsed.some(
+      (s) => s.name?.includes('Downtown') || s.name?.includes('Uptown') || s.name?.includes('Westside') || s.name?.includes('Store #1')
+    );
+    if (hasOutdatedData || parsed.length < INITIAL_STORES.length) {
+      // Merge official stores with any newly created custom stores
+      const officialIds = new Set(INITIAL_STORES.map((s) => s.id));
+      const customStores = parsed.filter((s) => !officialIds.has(s.id) && !s.name?.includes('Downtown') && !s.name?.includes('Uptown') && !s.name?.includes('Westside'));
+      const mergedStores = [...INITIAL_STORES, ...customStores];
+      localStorage.setItem(KEYS.STORES, JSON.stringify(mergedStores));
+      return mergedStores;
+    }
+    return parsed;
+  } catch {
+    localStorage.setItem(KEYS.STORES, JSON.stringify(INITIAL_STORES));
+    return INITIAL_STORES;
+  }
+}
+
+export function saveStores(stores: StoreLocation[]) {
+  localStorage.setItem(KEYS.STORES, JSON.stringify(stores));
+  notifyListeners();
+}
+
+export function resetStoresToDefault(): StoreLocation[] {
+  localStorage.setItem(KEYS.STORES, JSON.stringify(INITIAL_STORES));
+  notifyListeners();
+  addActivityLog({
+    type: 'SUPPLIER_ADDED',
+    title: 'Stores Directory Reset',
+    description: 'Reset store locations network to official 6 Algerian branch outlets.',
+    actor: 'Central Lab Operations',
+    badgeText: 'NETWORK SYNC',
+    severity: 'info',
+  });
+  return INITIAL_STORES;
 }
 
 export function getActiveStore(): StoreLocation {
@@ -457,14 +498,60 @@ export function updateStore(id: string, updatedFields: Partial<Omit<StoreLocatio
   const index = stores.findIndex((s) => s.id === id);
   if (index === -1) return null;
 
+  const oldStore = stores[index];
   const updatedStore = {
     ...stores[index],
     ...updatedFields,
   };
   stores[index] = updatedStore;
   localStorage.setItem(KEYS.STORES, JSON.stringify(stores));
+
+  addActivityLog({
+    type: 'REQUISITION_STATUS_UPDATED',
+    title: 'Retail Store Information Updated',
+    description: `Updated info for ${updatedStore.name} (${updatedStore.code}). Manager: ${updatedStore.managerName}, Tel: ${updatedStore.phone}.`,
+    actor: 'Central Lab Operations',
+    badgeText: 'STORE DIRECTORY',
+    severity: 'info',
+    metadata: {
+      storeId: id,
+      storeName: updatedStore.name,
+      previousName: oldStore.name
+    },
+  });
+
   notifyListeners();
   return updatedStore;
+}
+
+export function deleteStore(id: string): boolean {
+  const stores = getStores();
+  const index = stores.findIndex((s) => s.id === id);
+  if (index === -1) return false;
+
+  const deletedStore = stores[index];
+  const filtered = stores.filter((s) => s.id !== id);
+  localStorage.setItem(KEYS.STORES, JSON.stringify(filtered));
+
+  if (getActiveStoreId() === id && filtered.length > 0) {
+    setActiveStoreId(filtered[0].id);
+  }
+
+  addActivityLog({
+    type: 'REQUISITION_STATUS_UPDATED',
+    title: 'Retail Store Removed',
+    description: `Removed outlet ${deletedStore.name} (${deletedStore.code}) from active network directory.`,
+    actor: 'Central Lab Operations',
+    badgeText: 'OUTLET REMOVED',
+    severity: 'warning',
+    metadata: {
+      storeId: id,
+      storeName: deletedStore.name
+    },
+  });
+
+  notifyListeners();
+  return true;
 }
 
 // Raw Materials
@@ -1473,6 +1560,16 @@ export function recordSaleTransaction(
     return s;
   });
   saveRetailStoreStock(updatedStock);
+
+  // Enqueue in IndexedDB / SQLite Offline Queue
+  enqueueOfflineAction({
+    entityType: 'CART_TRANSACTION',
+    actionType: 'CREATE',
+    entityId: newSale.id,
+    label: `Ticket Caisse POS : ${newSale.transactionNumber}`,
+    description: `Vente ${newSale.storeName} (${newSale.totalAmount.toFixed(2)} DZD - ${newSale.paymentMethod}) - ${newSale.items.length} article(s)`,
+    payload: newSale
+  }).catch((err) => console.warn('Offline enqueue sale error:', err));
 
   addActivityLog({
     type: 'SALE_RECORDED',
@@ -2669,30 +2766,30 @@ export function getTemperatureLogs(): TemperatureLog[] {
       },
       {
         id: 'tpl-3',
-        unitName: 'Display Fridge (Downtown Flagship)',
+        unitName: 'Display Fridge (Douera 01)',
         locationType: 'RETAIL_STORE',
         storeId: 'store-1',
-        storeName: 'Store #1 - Downtown Flagship',
+        storeName: 'Douera 01',
         temperatureCelsius: 3.5,
         targetMinCelsius: 1,
         targetMaxCelsius: 4,
         isCompliant: true,
-        recordedBy: 'Claire Vance (Manager)',
+        recordedBy: 'Hamza (Manager)',
         timestamp: '2026-08-05T08:00:00Z'
       },
       {
         id: 'tpl-4',
-        unitName: 'Gelato & Mousse Counter (Uptown Mall)',
+        unitName: 'Gelato & Mousse Counter (Douera 02)',
         locationType: 'RETAIL_STORE',
         storeId: 'store-2',
-        storeName: 'Store #2 - Uptown Mall Boulevard',
-        temperatureCelsius: 5.8,
+        storeName: 'Douera 02',
+        temperatureCelsius: 3.8,
         targetMinCelsius: 1,
         targetMaxCelsius: 4,
-        isCompliant: false,
-        recordedBy: 'Marcus Sterling',
+        isCompliant: true,
+        recordedBy: 'Billal (Manager)',
         timestamp: '2026-08-05T08:10:00Z',
-        notes: 'Alerte: Réglage thermostat réajusté'
+        notes: 'Contrôle conformité fraîcheur validé'
       }
     ];
     localStorage.setItem(KEYS.TEMPERATURE_LOGS, JSON.stringify(initialLogs));

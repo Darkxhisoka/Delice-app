@@ -354,8 +354,8 @@ export const INITIAL_REQUISITIONS: Requisition[] = [
     id: 'req-2001',
     requisitionNumber: 'REQ-2026-0802-001',
     storeId: 'store-1',
-    storeName: 'Store #1 - Downtown Flagship',
-    requestedBy: 'Claire Vance',
+    storeName: 'Douera 01',
+    requestedBy: 'Hamza (Gérant Douera 01)',
     dateRequested: '2026-08-02',
     dateNeeded: '2026-08-03',
     status: 'PENDING',
@@ -386,14 +386,14 @@ export const INITIAL_REQUISITIONS: Requisition[] = [
       },
     ],
     totalEstimatedCost: 400.00,
-    notes: 'High morning foot traffic expected on Monday; urgent delivery requested before 6:30 AM.',
+    notes: 'Forte affluence matinale attendue; livraison demandée avant 06h30.',
   },
   {
     id: 'req-2002',
     requisitionNumber: 'REQ-2026-0801-004',
     storeId: 'store-2',
-    storeName: 'Store #2 - Uptown Mall Boulevard',
-    requestedBy: 'Marcus Sterling',
+    storeName: 'Douera 02',
+    requestedBy: 'Billal (Gérant Douera 02)',
     dateRequested: '2026-08-01',
     dateNeeded: '2026-08-02',
     status: 'PROCESSING',
@@ -416,14 +416,14 @@ export const INITIAL_REQUISITIONS: Requisition[] = [
       },
     ],
     totalEstimatedCost: 183.60,
-    notes: 'Weekend catering display order fulfillment.',
+    notes: 'Réassort vitrine pour le weekend.',
   },
   {
     id: 'req-2003',
     requisitionNumber: 'REQ-2026-0731-002',
     storeId: 'store-3',
-    storeName: 'Store #3 - Westside Artisanal Hub',
-    requestedBy: 'Elena Rostova',
+    storeName: 'Oued Terfa',
+    requestedBy: 'Ryad (Gérant Oued Terfa)',
     dateRequested: '2026-07-31',
     dateNeeded: '2026-08-01',
     status: 'DELIVERED',
@@ -449,14 +449,14 @@ export const INITIAL_REQUISITIONS: Requisition[] = [
       },
     ],
     totalEstimatedCost: 302.00,
-    notes: 'Received in full by morning team.',
+    notes: 'Réceptionné conforme par l’équipe du matin.',
   },
   {
     id: 'req-2004',
     requisitionNumber: 'REQ-2026-0802-002',
     storeId: 'store-4',
-    storeName: 'Store #4 - Financial Center Express',
-    requestedBy: 'David Chen',
+    storeName: 'El Achour',
+    requestedBy: 'Ryad (Gérant El Achour)',
     dateRequested: '2026-08-02',
     dateNeeded: '2026-08-03',
     status: 'APPROVED',
@@ -479,7 +479,59 @@ export const INITIAL_REQUISITIONS: Requisition[] = [
       },
     ],
     totalEstimatedCost: 205.50,
-    notes: 'Corporate meeting gift box preparations.',
+    notes: 'Commandes traiteur et coffrets cadeaux.',
+  },
+  {
+    id: 'req-2005',
+    requisitionNumber: 'REQ-2026-0803-001',
+    storeId: 'store-5',
+    storeName: 'Blida',
+    requestedBy: 'Khaled (Gérant Blida)',
+    dateRequested: '2026-08-03',
+    dateNeeded: '2026-08-04',
+    status: 'PENDING',
+    items: [
+      {
+        id: 'rqi-10',
+        productName: 'Butter Croissants (Raw Laminated Frozen Batches)',
+        category: 'Croissants & Pastries',
+        quantityRequested: 180,
+        unit: 'units',
+        unitEstimatedCost: 0.95,
+      },
+      {
+        id: 'rqi-11',
+        productName: 'Valrhona Dark Chocolate Ganache Base',
+        category: 'Fillings & Creams',
+        quantityRequested: 8,
+        unit: 'kg',
+        unitEstimatedCost: 14.20,
+      },
+    ],
+    totalEstimatedCost: 284.60,
+    notes: 'Livraison circuit Mitidja matinée.',
+  },
+  {
+    id: 'req-2006',
+    requisitionNumber: 'REQ-2026-0803-002',
+    storeId: 'store-6',
+    storeName: 'Boufarik',
+    requestedBy: 'Ahmed (Gérant Boufarik)',
+    dateRequested: '2026-08-03',
+    dateNeeded: '2026-08-04',
+    status: 'APPROVED',
+    items: [
+      {
+        id: 'rqi-12',
+        productName: 'Pistachio Paris-Brest Choux Shells',
+        category: 'Finished Desserts',
+        quantityRequested: 60,
+        unit: 'units',
+        unitEstimatedCost: 2.80,
+      },
+    ],
+    totalEstimatedCost: 168.00,
+    notes: 'Réassort spécial viennoiseries et desserts.',
   },
 ];
 
@@ -687,14 +739,14 @@ export const INITIAL_ACTIVITY_LOGS: ActivityLogItem[] = [
     id: 'act-101',
     type: 'REQUISITION_CREATED',
     title: 'New Store Requisition Submitted',
-    description: 'Store #1 - Downtown Flagship submitted requisition REQ-2026-0802-001 (3 items, est. 400.00 DZD)',
+    description: 'Douera 01 submitted requisition REQ-2026-0802-001 (3 items, est. 400.00 DZD)',
     timestamp: '2026-08-02T10:15:00Z',
-    actor: 'Claire Vance (Store Manager)',
+    actor: 'Hamza (Gérant Douera 01)',
     badgeText: 'PENDING',
     severity: 'info',
     metadata: {
       amount: 400.00,
-      storeName: 'Store #1 - Downtown Flagship',
+      storeName: 'Douera 01',
       referenceNumber: 'REQ-2026-0802-001',
       itemCount: 3,
     },
@@ -703,14 +755,14 @@ export const INITIAL_ACTIVITY_LOGS: ActivityLogItem[] = [
     id: 'act-102',
     type: 'REQUISITION_STATUS_UPDATED',
     title: 'Requisition Approved',
-    description: 'Central Lab Head Chef approved REQ-2026-0802-002 for Store #4 - Financial Center Express.',
+    description: 'Central Lab Head Chef approved REQ-2026-0802-002 for El Achour.',
     timestamp: '2026-08-02T09:30:00Z',
-    actor: 'Head Chef Pierre',
+    actor: 'Chef Hakim',
     badgeText: 'APPROVED',
     severity: 'purple',
     metadata: {
       amount: 205.50,
-      storeName: 'Store #4 - Financial Center Express',
+      storeName: 'El Achour',
       referenceNumber: 'REQ-2026-0802-002',
       status: 'APPROVED',
     },
@@ -721,7 +773,7 @@ export const INITIAL_ACTIVITY_LOGS: ActivityLogItem[] = [
     title: 'Raw Material Purchase Received',
     description: 'Recorded receipt REC-2026-0801-01 from Isigny Sainte-Mère Dairy Co-op (682.00 DZD total). Stock & weighted unit costs auto-updated.',
     timestamp: '2026-08-01T14:30:00Z',
-    actor: 'Head Chef Pierre',
+    actor: 'Chef Hakim',
     badgeText: 'PURCHASE',
     severity: 'success',
     metadata: {
@@ -751,14 +803,14 @@ export const INITIAL_ACTIVITY_LOGS: ActivityLogItem[] = [
     id: 'act-105',
     type: 'REQUISITION_STATUS_UPDATED',
     title: 'Requisition Marked Delivered',
-    description: 'Requisition REQ-2026-0731-002 was fulfilled & successfully delivered to Store #3 - Westside Artisanal Hub.',
+    description: 'Requisition REQ-2026-0731-002 was fulfilled & successfully delivered to Oued Terfa.',
     timestamp: '2026-08-01T07:15:00Z',
     actor: 'Logistics Team',
     badgeText: 'DELIVERED',
     severity: 'success',
     metadata: {
       amount: 302.00,
-      storeName: 'Store #3 - Westside Artisanal Hub',
+      storeName: 'Oued Terfa',
       referenceNumber: 'REQ-2026-0731-002',
       status: 'DELIVERED',
     },
@@ -932,8 +984,8 @@ export const INITIAL_SALE_TRANSACTIONS: SaleTransaction[] = [
     id: 'sal-101',
     transactionNumber: 'SAL-STR01-20260802-001',
     storeId: 'store-1',
-    storeName: 'Store #1 - Downtown Flagship',
-    cashierName: 'Claire Vance',
+    storeName: 'Douera 01',
+    cashierName: 'Hamza (Gérant Douera 01)',
     timestamp: '2026-08-02T08:14:22Z',
     paymentMethod: 'CONTACTLESS',
     items: [
@@ -944,14 +996,14 @@ export const INITIAL_SALE_TRANSACTIONS: SaleTransaction[] = [
     discount: 0,
     tax: 1.22,
     totalAmount: 16.42,
-    notes: 'Morning walk-in customer'
+    notes: 'Vente matinale au comptoir'
   },
   {
     id: 'sal-102',
     transactionNumber: 'SAL-STR01-20260802-002',
     storeId: 'store-1',
-    storeName: 'Store #1 - Downtown Flagship',
-    cashierName: 'Claire Vance',
+    storeName: 'Douera 01',
+    cashierName: 'Hamza (Gérant Douera 01)',
     timestamp: '2026-08-02T09:45:10Z',
     paymentMethod: 'CARD',
     items: [
@@ -968,8 +1020,8 @@ export const INITIAL_SALE_TRANSACTIONS: SaleTransaction[] = [
     id: 'sal-103',
     transactionNumber: 'SAL-STR01-20260802-003',
     storeId: 'store-1',
-    storeName: 'Store #1 - Downtown Flagship',
-    cashierName: 'Claire Vance',
+    storeName: 'Douera 01',
+    cashierName: 'Hamza (Gérant Douera 01)',
     timestamp: '2026-08-02T11:20:00Z',
     paymentMethod: 'CASH',
     cashTendered: 30.00,
@@ -988,8 +1040,8 @@ export const INITIAL_SALE_TRANSACTIONS: SaleTransaction[] = [
     id: 'sal-104',
     transactionNumber: 'SAL-STR02-20260802-001',
     storeId: 'store-2',
-    storeName: 'Store #2 - Uptown Mall Boulevard',
-    cashierName: 'Marcus Sterling',
+    storeName: 'Douera 02',
+    cashierName: 'Billal (Gérant Douera 02)',
     timestamp: '2026-08-02T10:05:00Z',
     paymentMethod: 'MOBILE_PAY',
     items: [
@@ -1007,8 +1059,8 @@ export const INITIAL_UNSOLD_LOGS: UnsoldProductLog[] = [
     id: 'uns-101',
     logNumber: 'UNS-STR01-20260801-001',
     storeId: 'store-1',
-    storeName: 'Store #1 - Downtown Flagship',
-    recordedBy: 'Claire Vance',
+    storeName: 'Douera 01',
+    recordedBy: 'Hamza (Gérant Douera 01)',
     recordedAt: '2026-08-01T19:30:00Z',
     productId: 'prod-1',
     productName: 'Artisan Butter Croissant',
@@ -1025,8 +1077,8 @@ export const INITIAL_UNSOLD_LOGS: UnsoldProductLog[] = [
     id: 'uns-102',
     logNumber: 'UNS-STR01-20260801-002',
     storeId: 'store-1',
-    storeName: 'Store #1 - Downtown Flagship',
-    recordedBy: 'Claire Vance',
+    storeName: 'Douera 01',
+    recordedBy: 'Hamza (Gérant Douera 01)',
     recordedAt: '2026-08-01T15:10:00Z',
     productId: 'prod-5',
     productName: 'Madagascar Vanilla Bean Éclair',
@@ -1043,8 +1095,8 @@ export const INITIAL_UNSOLD_LOGS: UnsoldProductLog[] = [
     id: 'uns-103',
     logNumber: 'UNS-STR02-20260801-001',
     storeId: 'store-2',
-    storeName: 'Store #2 - Uptown Mall Boulevard',
-    recordedBy: 'Marcus Sterling',
+    storeName: 'Douera 02',
+    recordedBy: 'Billal (Gérant Douera 02)',
     recordedAt: '2026-08-01T19:45:00Z',
     productId: 'prod-10',
     productName: 'Spinach & Goat Cheese Quiche Slice',
@@ -1114,11 +1166,11 @@ export const INITIAL_LAB_WASTE_LOGS: LabWasteLog[] = [
 ];
 
 export const INITIAL_DAILY_STORE_INVENTORY: DailyStoreInventory[] = [
-  // Store 1 (Downtown Flagship) - Yesterday's Closed Reconciliation
+  // Store 1 (Douera 01) - Yesterday's Closed Reconciliation
   {
     id: 'dsi-str1-001',
     storeId: 'store-1',
-    storeName: 'Store #1 - Downtown Flagship',
+    storeName: 'Douera 01',
     date: '2026-08-03',
     pastryId: 'prod-1',
     pastryName: 'Artisan Butter Croissant',
@@ -1134,13 +1186,13 @@ export const INITIAL_DAILY_STORE_INVENTORY: DailyStoreInventory[] = [
     unaccountedWasteVariance: 0,
     status: 'CLOSED',
     closedAt: '2026-08-03T19:45:00Z',
-    closedBy: 'Claire Vance (Manager)',
+    closedBy: 'Hamza (Gérant Douera 01)',
     notes: 'Journée normale, stock concordant à 100%'
   },
   {
     id: 'dsi-str1-002',
     storeId: 'store-1',
-    storeName: 'Store #1 - Downtown Flagship',
+    storeName: 'Douera 01',
     date: '2026-08-03',
     pastryId: 'prod-2',
     pastryName: 'Valrhona Pain au Chocolat',
@@ -1156,13 +1208,13 @@ export const INITIAL_DAILY_STORE_INVENTORY: DailyStoreInventory[] = [
     unaccountedWasteVariance: 1,
     status: 'CLOSED',
     closedAt: '2026-08-03T19:45:00Z',
-    closedBy: 'Claire Vance (Manager)',
+    closedBy: 'Hamza (Gérant Douera 01)',
     notes: '1 pain au chocolat tombé par terre lors de la mise en vitrine'
   },
   {
     id: 'dsi-str1-003',
     storeId: 'store-1',
-    storeName: 'Store #1 - Downtown Flagship',
+    storeName: 'Douera 01',
     date: '2026-08-03',
     pastryId: 'prod-4',
     pastryName: 'Fresh Raspberry Almond Tartlet 4"',
@@ -1178,13 +1230,13 @@ export const INITIAL_DAILY_STORE_INVENTORY: DailyStoreInventory[] = [
     unaccountedWasteVariance: 0,
     status: 'CLOSED',
     closedAt: '2026-08-03T19:45:00Z',
-    closedBy: 'Claire Vance (Manager)'
+    closedBy: 'Hamza (Gérant Douera 01)'
   },
-  // Store 2 (Uptown Mall Boulevard) - Yesterday's Closed
+  // Store 2 (Douera 02) - Yesterday's Closed
   {
     id: 'dsi-str2-001',
     storeId: 'store-2',
-    storeName: 'Store #2 - Uptown Mall Boulevard',
+    storeName: 'Douera 02',
     date: '2026-08-03',
     pastryId: 'prod-1',
     pastryName: 'Artisan Butter Croissant',
@@ -1200,12 +1252,12 @@ export const INITIAL_DAILY_STORE_INVENTORY: DailyStoreInventory[] = [
     unaccountedWasteVariance: 2,
     status: 'CLOSED',
     closedAt: '2026-08-03T20:10:00Z',
-    closedBy: 'Marcus Sterling'
+    closedBy: 'Billal (Gérant Douera 02)'
   },
   {
     id: 'dsi-str2-002',
     storeId: 'store-2',
-    storeName: 'Store #2 - Uptown Mall Boulevard',
+    storeName: 'Douera 02',
     date: '2026-08-03',
     pastryId: 'prod-8',
     pastryName: 'Signature Macaron Gift Box (6 pcs)',
@@ -1221,7 +1273,7 @@ export const INITIAL_DAILY_STORE_INVENTORY: DailyStoreInventory[] = [
     unaccountedWasteVariance: 0,
     status: 'CLOSED',
     closedAt: '2026-08-03T20:10:00Z',
-    closedBy: 'Marcus Sterling'
+    closedBy: 'Billal (Gérant Douera 02)'
   }
 ];
 
@@ -1231,20 +1283,20 @@ export const INITIAL_DELIVERY_MANIFESTS: DeliveryManifest[] = [
     manifestNumber: 'MAN-2026-0804-001',
     date: '2026-08-04',
     driverName: 'Karim Bouzid',
-    driverPhone: '(555) 987-6543',
+    driverPhone: '(0550) 98-76-54',
     vehiclePlate: '16-342-99',
-    routeArea: 'North Metro - Downtown & Uptown Route',
+    routeArea: 'Circuit Alger Ouest (Douera 01 & Douera 02)',
     status: 'IN_TRANSIT',
     requisitionIds: ['req-2001', 'req-2002'],
     storeIds: ['store-1', 'store-2'],
-    storeNames: ['Store #1 - Downtown Flagship', 'Store #2 - Uptown Mall Boulevard'],
+    storeNames: ['Douera 01', 'Douera 02'],
     items: [
       {
         id: 'mitem-1',
         requisitionId: 'req-2001',
         requisitionNumber: 'REQ-2026-0802-001',
         storeId: 'store-1',
-        storeName: 'Store #1 - Downtown Flagship',
+        storeName: 'Douera 01',
         productId: 'prod-1',
         productName: 'Artisan Butter Croissant',
         category: 'Croissants & Pastries',
@@ -1259,7 +1311,7 @@ export const INITIAL_DELIVERY_MANIFESTS: DeliveryManifest[] = [
         requisitionId: 'req-2001',
         requisitionNumber: 'REQ-2026-0802-001',
         storeId: 'store-1',
-        storeName: 'Store #1 - Downtown Flagship',
+        storeName: 'Douera 01',
         productId: 'prod-2',
         productName: 'Valrhona Pain au Chocolat',
         category: 'Croissants & Pastries',
@@ -1274,7 +1326,7 @@ export const INITIAL_DELIVERY_MANIFESTS: DeliveryManifest[] = [
         requisitionId: 'req-2002',
         requisitionNumber: 'REQ-2026-0801-004',
         storeId: 'store-2',
-        storeName: 'Store #2 - Uptown Mall Boulevard',
+        storeName: 'Douera 02',
         productId: 'prod-4',
         productName: 'Raspberry Almond Tartlet 4"',
         category: 'Tart Shells & Desserts',
@@ -1286,7 +1338,7 @@ export const INITIAL_DELIVERY_MANIFESTS: DeliveryManifest[] = [
       }
     ],
     notes: 'Priorité livraison fraîcheur du matin. Camion frigorifique à 4°C.',
-    createdBy: 'Pierre (Chef de Lab)',
+    createdBy: 'Chef Hakim',
     createdAt: '2026-08-04T05:30:00Z',
     dispatchedAt: '2026-08-04T06:00:00Z'
   }
@@ -1301,7 +1353,7 @@ export const INITIAL_TRANSIT_WASTE_LOGS: TransitWasteLog[] = [
     requisitionId: 'req-1999',
     requisitionNumber: 'REQ-2026-0801-001',
     storeId: 'store-3',
-    storeName: 'Store #3 - Westside Artisanal Hub',
+    storeName: 'Oued Terfa',
     productId: 'prod-4',
     productName: 'Fresh Raspberry Almond Tartlet 4"',
     category: 'Tart Shells & Desserts',
@@ -1314,7 +1366,7 @@ export const INITIAL_TRANSIT_WASTE_LOGS: TransitWasteLog[] = [
     unitSellingPrice: 6.80,
     totalLossValue: 4.40,
     reason: 'PACKAGING_CRUSHED',
-    reportedBy: 'Elena Rostova',
+    reportedBy: 'Ryad (Gérant Oued Terfa)',
     reportedAt: '2026-08-02T08:15:00Z',
     notes: 'Boîte de transport écrasée durant le freinage du camion'
   }
@@ -1372,23 +1424,38 @@ export const INITIAL_PACKAGING_MATERIALS: PackagingMaterial[] = [
 ];
 
 export const INITIAL_STORE_PACKAGING_INVENTORY: StorePackagingInventory[] = [
-  // Store #1
+  // Douera 01 (Store 1)
   { id: 'spi-1-1', store_id: 'store-1', packaging_id: 'pkg-1', quantity_on_hand: 240 },
   { id: 'spi-1-2', store_id: 'store-1', packaging_id: 'pkg-2', quantity_on_hand: 25 },
   { id: 'spi-1-3', store_id: 'store-1', packaging_id: 'pkg-3', quantity_on_hand: 12 },
   { id: 'spi-1-4', store_id: 'store-1', packaging_id: 'pkg-4', quantity_on_hand: 180 },
   { id: 'spi-1-5', store_id: 'store-1', packaging_id: 'pkg-5', quantity_on_hand: 15 },
 
-  // Store #2
+  // Douera 02 (Store 2)
   { id: 'spi-2-1', store_id: 'store-2', packaging_id: 'pkg-1', quantity_on_hand: 150 },
   { id: 'spi-2-2', store_id: 'store-2', packaging_id: 'pkg-2', quantity_on_hand: 18 },
   { id: 'spi-2-3', store_id: 'store-2', packaging_id: 'pkg-3', quantity_on_hand: 30 },
   { id: 'spi-2-4', store_id: 'store-2', packaging_id: 'pkg-4', quantity_on_hand: 90 },
 
-  // Store #3
+  // Oued Terfa (Store 3)
   { id: 'spi-3-1', store_id: 'store-3', packaging_id: 'pkg-1', quantity_on_hand: 80 },
   { id: 'spi-3-2', store_id: 'store-3', packaging_id: 'pkg-2', quantity_on_hand: 8 },
   { id: 'spi-3-3', store_id: 'store-3', packaging_id: 'pkg-3', quantity_on_hand: 5 },
+
+  // El Achour (Store 4)
+  { id: 'spi-4-1', store_id: 'store-4', packaging_id: 'pkg-1', quantity_on_hand: 120 },
+  { id: 'spi-4-2', store_id: 'store-4', packaging_id: 'pkg-2', quantity_on_hand: 15 },
+  { id: 'spi-4-3', store_id: 'store-4', packaging_id: 'pkg-4', quantity_on_hand: 75 },
+
+  // Blida (Store 5)
+  { id: 'spi-5-1', store_id: 'store-5', packaging_id: 'pkg-1', quantity_on_hand: 190 },
+  { id: 'spi-5-2', store_id: 'store-5', packaging_id: 'pkg-2', quantity_on_hand: 20 },
+  { id: 'spi-5-3', store_id: 'store-5', packaging_id: 'pkg-3', quantity_on_hand: 25 },
+
+  // Boufarik (Store 6)
+  { id: 'spi-6-1', store_id: 'store-6', packaging_id: 'pkg-1', quantity_on_hand: 110 },
+  { id: 'spi-6-2', store_id: 'store-6', packaging_id: 'pkg-2', quantity_on_hand: 12 },
+  { id: 'spi-6-3', store_id: 'store-6', packaging_id: 'pkg-5', quantity_on_hand: 18 },
 ];
 
 export const INITIAL_PACKAGING_DISPATCHES: PackagingDispatch[] = [
@@ -1396,7 +1463,7 @@ export const INITIAL_PACKAGING_DISPATCHES: PackagingDispatch[] = [
     id: 'pdisp-1',
     dispatch_number: 'PKG-DISP-2026-0805-01',
     target_store_id: 'store-1',
-    target_store_name: 'Store #1 - Downtown Flagship',
+    target_store_name: 'Douera 01',
     status: 'IN_TRANSIT',
     created_at: '2026-08-05T07:30:00Z',
     created_by: 'Chef Hakim',
@@ -1429,12 +1496,12 @@ export const INITIAL_PACKAGING_DISPATCHES: PackagingDispatch[] = [
     id: 'pdisp-2',
     dispatch_number: 'PKG-DISP-2026-0804-02',
     target_store_id: 'store-2',
-    target_store_name: 'Store #2 - Uptown Mall Boulevard',
+    target_store_name: 'Douera 02',
     status: 'RECEIVED',
     created_at: '2026-08-04T09:15:00Z',
     created_by: 'Chef Hakim',
     received_at: '2026-08-04T11:20:00Z',
-    received_by: 'Marcus Sterling',
+    received_by: 'Billal (Gérant Douera 02)',
     notes: 'Livraison hebdomadaire emballages',
     items: [
       {
@@ -1462,8 +1529,8 @@ export const INITIAL_PACKAGING_REQUISITIONS: PackagingRequisition[] = [
     id: 'preq-1',
     requisition_number: 'PKG-REQ-2026-0805-01',
     store_id: 'store-3',
-    store_name: 'Store #3 - Westside Artisanal Hub',
-    requested_by: 'Elena Rostova',
+    store_name: 'Oued Terfa',
+    requested_by: 'Ryad (Gérant Oued Terfa)',
     created_at: '2026-08-05T06:45:00Z',
     status: 'PENDING',
     notes: 'Stock emballages presque épuisé pour le weekend',

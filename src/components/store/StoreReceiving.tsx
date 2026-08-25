@@ -24,9 +24,11 @@ import {
   HelpCircle
 } from 'lucide-react';
 import { formatCurrency } from '../../utils/formatters';
+import { useHapticsAndSound } from '../../hooks/useHapticsAndSound';
 
 export const StoreReceivingView: React.FC = () => {
   const activeStore = getActiveStore();
+  const { triggerSuccess, triggerQuantityChange } = useHapticsAndSound();
   const [manifests, setManifests] = useState<DeliveryManifest[]>([]);
   const [requisitions, setRequisitions] = useState<Requisition[]>([]);
   const [transitWasteLogs, setTransitWasteLogs] = useState<TransitWasteLog[]>([]);
@@ -101,6 +103,7 @@ export const StoreReceivingView: React.FC = () => {
 
   const handleQuantityChange = (idx: number, field: 'receivedQty' | 'damagedQty' | 'missingQty', delta: number) => {
     if (!activeVerification) return;
+    triggerQuantityChange();
 
     const newItems = [...activeVerification.items];
     const currentVal = newItems[idx][field];
@@ -136,6 +139,7 @@ export const StoreReceivingView: React.FC = () => {
       verifiedItems: activeVerification.items
     });
 
+    triggerSuccess();
     setActiveVerification(null);
   };
 

@@ -57,7 +57,7 @@ export const StoreReturnsManager: React.FC = () => {
     setSelectedProductName(name);
     const prod = products.find(p => p.name === name);
     if (prod) {
-      setUnitCost(prod.unit_cost || 48.5);
+      setUnitCost(prod.costPrice || (prod as any).unit_cost || 48.5);
     }
   };
 
@@ -285,7 +285,7 @@ export const StoreReturnsManager: React.FC = () => {
                 >
                   <option value="">Sélectionner une pâtisserie...</option>
                   {products.map(p => (
-                    <option key={p.id} value={p.name}>{p.name} ({p.unit_cost || 48.5} DZD)</option>
+                    <option key={p.id} value={p.name}>{p.name} ({p.costPrice || (p as any).unit_cost || 48.5} DZD)</option>
                   ))}
                 </select>
               </div>

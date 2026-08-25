@@ -16,6 +16,7 @@ import {
   subscribeToStoreChanges
 } from '../../services/storage';
 import { SaleReceiptModal } from './SaleReceiptModal';
+import { useHapticsAndSound } from '../../hooks/useHapticsAndSound';
 import {
   ShoppingCart,
   Plus,
@@ -65,6 +66,16 @@ const CATEGORY_LABELS_FR: Record<string, string> = {
 };
 
 export const RetailSalesPOS: React.FC<RetailSalesPOSProps> = ({ currentStore }) => {
+  const {
+    triggerAddCart,
+    triggerQuantityChange,
+    triggerItemDelete,
+    triggerClick,
+    triggerCheckoutSuccess,
+    triggerCoinPayment,
+    triggerError,
+  } = useHapticsAndSound();
+
   const [stockItems, setStockItems] = useState<RetailStoreStock[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<'ALL' | RetailCategory>('ALL');
@@ -104,7 +115,12 @@ export const RetailSalesPOS: React.FC<RetailSalesPOSProps> = ({ currentStore }) 
 
   // Cart operations
   const addToCart = (product: RetailStoreStock) => {
-    if (product.currentStock <= 0) return;
+    if (product.currentStock <= 0) {
+      triggerError();
+      return;
+    }
+
+    triggerAddCart();
 
     setCartItems((prev) => {
       const existingIdx = prev.findIndex((i) => i.productId === product.productId);
@@ -138,6 +154,7 @@ export const RetailSalesPOS: React.FC<RetailSalesPOSProps> = ({ currentStore }) 
   };
 
   const updateQuantity = (productId: string, delta: number) => {
+    triggerQuantityChange();
     setCartItems((prev) => {
       const stock = stockItems.find((s) => s.productId === productId);
       const maxStock = stock ? stock.currentStock : 999;
@@ -161,10 +178,12 @@ export const RetailSalesPOS: React.FC<RetailSalesPOSProps> = ({ currentStore }) 
   };
 
   const removeFromCart = (productId: string) => {
+    triggerItemDelete();
     setCartItems((prev) => prev.filter((i) => i.productId !== productId));
   };
 
   const clearCart = () => {
+    triggerItemDelete();
     setCartItems([]);
     setDiscountPercent(0);
     setCashTendered('');
@@ -186,7 +205,8 @@ export const RetailSalesPOS: React.FC<RetailSalesPOSProps> = ({ currentStore }) 
     if (cartItems.length === 0) return;
 
     if (paymentMethod === 'CASH' && numericCashTendered < totalAmount) {
-      alert(`Cash tendered ($${numericCashTendered.toFixed(2)}) is less than total amount ($${totalAmount.toFixed(2)})`);
+      triggerError();
+      alert(`Montant reçu (${numericCashTendered.toFixed(2)} DZD) inférieur au total (${totalAmount.toFixed(2)} DZD)`);
       return;
     }
 
@@ -205,6 +225,7 @@ export const RetailSalesPOS: React.FC<RetailSalesPOSProps> = ({ currentStore }) 
       notes: orderNotes.trim() || undefined,
     });
 
+    triggerCheckoutSuccess();
     setLastCompletedSale(sale);
     clearCart();
   };
@@ -480,7 +501,10 @@ export const RetailSalesPOS: React.FC<RetailSalesPOSProps> = ({ currentStore }) 
                     <button
                       key={pct}
                       type="button"
-                      onClick={() => setDiscountPercent(pct)}
+                      onClick={() => {
+                        triggerClick();
+                        setDiscountPercent(pct);
+                      }}
                       className={`py-1 rounded-xl font-bold transition-all border ${
                         discountPercent === pct
                           ? 'bg-amber-500 text-slate-950 border-amber-500 shadow-xs'
@@ -511,7 +535,10 @@ export const RetailSalesPOS: React.FC<RetailSalesPOSProps> = ({ currentStore }) 
                       <button
                         key={pm.id}
                         type="button"
-                        onClick={() => setPaymentMethod(pm.id as PaymentMethod)}
+                        onClick={() => {
+                          triggerClick();
+                          setPaymentMethod(pm.id as PaymentMethod);
+                        }}
                         className={`flex items-center justify-center gap-1.5 py-2 rounded-xl font-bold transition-all border ${
                           paymentMethod === pm.id
                             ? 'bg-slate-900 text-white border-slate-900 shadow-xs'
@@ -527,9 +554,9 @@ export const RetailSalesPOS: React.FC<RetailSalesPOSProps> = ({ currentStore }) 
               </div>
             )}
 
-            {/* Cash Tendered Input */}
+            {/* Cash Tendered Input & Quick Shortcuts */}
             {cartItems.length > 0 && paymentMethod === 'CASH' && (
-              <div className="bg-emerald-50 p-3 rounded-xl border border-emerald-200 space-y-2">
+              <div className="bg-emerald-50 p-3 rounded-xl border border-emerald-200 space-y-2.5">
                 <div className="flex items-center justify-between text-xs">
                   <label className="font-bold text-emerald-900">Montant Reçu (DZD) :</label>
                   <input
@@ -542,6 +569,37 @@ export const RetailSalesPOS: React.FC<RetailSalesPOSProps> = ({ currentStore }) 
                     className="w-28 px-2.5 py-1 bg-white font-mono font-bold text-slate-900 rounded-lg border border-emerald-300 text-right text-xs outline-none focus:ring-2 focus:ring-emerald-500"
                   />
                 </div>
+
+                {/* Quick Tendered Amount Presets */}
+                <div className="flex items-center gap-1.5 overflow-x-auto pb-0.5">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      triggerCoinPayment();
+                      setCashTendered(totalAmount.toFixed(2));
+                    }}
+                    className="px-2 py-1 bg-emerald-100 hover:bg-emerald-200 text-emerald-900 rounded-lg text-[10px] font-bold border border-emerald-300 transition-colors shrink-0"
+                  >
+                    Exact ({totalAmount.toFixed(0)} DZD)
+                  </button>
+                  {[500, 1000, 2000].map((preset) => {
+                    if (preset < totalAmount && totalAmount > 2000) return null;
+                    return (
+                      <button
+                        key={preset}
+                        type="button"
+                        onClick={() => {
+                          triggerCoinPayment();
+                          setCashTendered(String(preset));
+                        }}
+                        className="px-2 py-1 bg-white hover:bg-emerald-100 text-emerald-800 rounded-lg text-[10px] font-mono font-bold border border-emerald-200 transition-colors shrink-0"
+                      >
+                        {preset} DZD
+                      </button>
+                    );
+                  })}
+                </div>
+
                 <div className="flex justify-between items-center text-xs font-mono pt-1 border-t border-emerald-200">
                   <span className="font-semibold text-emerald-800">Rendu Monnaie :</span>
                   <span className="text-emerald-900 font-black text-sm">

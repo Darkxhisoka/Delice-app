@@ -9,6 +9,68 @@
     <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,600;0,700;0,800;1,600&display=swap" rel="stylesheet">
     <link rel="manifest" href="/manifest.json" />
     <title>Pâtisserie le Délice - Gestion Lab & Boutique</title>
+    <script>
+      (function() {
+        try {
+          var origFetch = (typeof window !== 'undefined' && window.fetch) ? window.fetch.bind(window) : null;
+          var customFetch = origFetch;
+
+          // 1. Prototype-level accessor with both getter and setter
+          if (typeof Window !== 'undefined' && Window.prototype) {
+            try {
+              Object.defineProperty(Window.prototype, 'fetch', {
+                configurable: true,
+                enumerable: true,
+                get: function() {
+                  return (this && this._customFetch) || customFetch;
+                },
+                set: function(fn) {
+                  if (this) {
+                    this._customFetch = fn;
+                  }
+                  customFetch = fn;
+                }
+              });
+            } catch (e) {}
+          }
+
+          // 2. Instance-level accessor on window
+          if (typeof window !== 'undefined') {
+            try {
+              Object.defineProperty(window, 'fetch', {
+                configurable: true,
+                enumerable: true,
+                get: function() {
+                  return this._customFetch || customFetch;
+                },
+                set: function(fn) {
+                  this._customFetch = fn;
+                  customFetch = fn;
+                }
+              });
+            } catch (e) {}
+          }
+
+          // 3. globalThis accessor if distinct
+          if (typeof globalThis !== 'undefined' && globalThis !== window) {
+            try {
+              Object.defineProperty(globalThis, 'fetch', {
+                configurable: true,
+                enumerable: true,
+                get: function() {
+                  return customFetch;
+                },
+                set: function(fn) {
+                  customFetch = fn;
+                }
+              });
+            } catch (e) {}
+          }
+        } catch (err) {
+          console.warn('Polyfill fetch setter error:', err);
+        }
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>

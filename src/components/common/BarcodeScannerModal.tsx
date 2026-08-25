@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { RawMaterial } from '../../types';
+import { useHapticsAndSound } from '../../hooks/useHapticsAndSound';
 import {
   Camera,
   X,
@@ -27,40 +28,15 @@ export const BarcodeScannerModal: React.FC<BarcodeScannerModalProps> = ({
   rawMaterials,
   onDetected,
 }) => {
+  const { soundEnabled, setSoundEnabled, triggerScanSuccess, triggerError } = useHapticsAndSound();
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const [stream, setStream] = useState<MediaStream | null>(null);
   const [hasCameraAccess, setHasCameraAccess] = useState<boolean | null>(null);
   const [cameraError, setCameraError] = useState<string>('');
   const [manualCode, setManualCode] = useState<string>('');
   const [lastScanned, setLastScanned] = useState<{ material: RawMaterial; barcode: string; time: string } | null>(null);
-  const [soundEnabled, setSoundEnabled] = useState<boolean>(true);
   const [facingMode, setFacingMode] = useState<'environment' | 'user'>('environment');
   const [isScanning, setIsScanning] = useState<boolean>(false);
-
-  // Web Audio API beep
-  const playBeep = () => {
-    if (!soundEnabled) return;
-    try {
-      const AudioCtx = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
-      if (!AudioCtx) return;
-      const ctx = new AudioCtx();
-      const osc = ctx.createOscillator();
-      const gain = ctx.createGain();
-
-      osc.type = 'sine';
-      osc.frequency.setValueAtTime(880, ctx.currentTime); // A5 pitch
-      gain.gain.setValueAtTime(0.15, ctx.currentTime);
-      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.15);
-
-      osc.connect(gain);
-      gain.connect(ctx.destination);
-
-      osc.start();
-      osc.stop(ctx.currentTime + 0.15);
-    } catch {
-      // Audio context ignore error
-    }
-  };
 
   // Start Camera Stream
   const startCamera = async () => {
@@ -176,7 +152,7 @@ export const BarcodeScannerModal: React.FC<BarcodeScannerModalProps> = ({
     );
 
     if (matched) {
-      playBeep();
+      triggerScanSuccess();
       const timeStr = new Date().toLocaleTimeString();
       setLastScanned({ material: matched, barcode: code, time: timeStr });
       onDetected(matched, code);
@@ -196,12 +172,13 @@ export const BarcodeScannerModal: React.FC<BarcodeScannerModalProps> = ({
     );
 
     if (matched) {
-      playBeep();
+      triggerScanSuccess();
       const timeStr = new Date().toLocaleTimeString();
       setLastScanned({ material: matched, barcode: manualCode.trim(), time: timeStr });
       onDetected(matched, manualCode.trim());
       setManualCode('');
     } else {
+      triggerError();
       alert(`Aucune matière première trouvée pour le code: "${manualCode}"`);
     }
   };

@@ -252,7 +252,9 @@ export interface ActivityLogItem {
   severity?: 'info' | 'success' | 'warning' | 'purple' | 'danger';
   metadata?: {
     amount?: number;
+    storeId?: string;
     storeName?: string;
+    previousName?: string;
     referenceNumber?: string;
     supplierName?: string;
     recipeName?: string;

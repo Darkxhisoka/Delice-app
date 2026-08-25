@@ -1007,7 +1007,9 @@ export const PackagingLab: React.FC = () => {
         isOpen={isAddEditModalOpen}
         onClose={() => setIsAddEditModalOpen(false)}
         editingItem={editingItem}
-        onSuccess={refetchPackagingInventory}
+        onSuccess={() => {
+          refetchPackagingInventory();
+        }}
       />
 
     </div>

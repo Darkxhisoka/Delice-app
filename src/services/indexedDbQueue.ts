@@ -11,7 +11,8 @@ import {
   RequisitionStatus,
   InventoryAdjustment,
   RawMaterial,
-  Receipt
+  Receipt,
+  SaleTransaction
 } from '../types';
 import { syncToFirestore } from '../lib/firebaseSync';
 import {
@@ -20,8 +21,15 @@ import {
   insertInventoryAdjustmentToSupabase,
   upsertRawMaterialToSupabase
 } from './supabaseService';
+import {
+  markOfflineRecordSynced,
+  saveCartTransactionOffline,
+  saveInventoryAdjustmentOffline,
+  saveReceiptOffline
+} from './sqliteStorage';
 
 export type QueueEntityType =
+  | 'CART_TRANSACTION'
   | 'REQUISITION'
   | 'INVENTORY_ADJUSTMENT'
   | 'RECEIPT'
@@ -273,6 +281,8 @@ export function calculatePayloadChecksum(payload: any): string {
  */
 export function getFirebaseCollectionForEntity(entityType: QueueEntityType): string {
   switch (entityType) {
+    case 'CART_TRANSACTION':
+      return 'sale_transactions';
     case 'REQUISITION':
       return 'store_requisitions';
     case 'INVENTORY_ADJUSTMENT':
@@ -331,14 +341,19 @@ export async function enqueueOfflineAction(params: {
     store.put(queueItem);
   });
 
-  // 2. Also cache in the appropriate entity store for instant offline UI reads
+  // 2. Also cache in the appropriate entity store and SQLite for instant offline UI reads
   try {
-    if (params.entityType === 'REQUISITION') {
-      await withTransaction(STORES.LOCAL_REQUISITIONS, 'readwrite', (store) => {
+    if (params.entityType === 'CART_TRANSACTION') {
+      await saveCartTransactionOffline(params.payload, 'PENDING');
+    } else if (params.entityType === 'INVENTORY_ADJUSTMENT') {
+      await saveInventoryAdjustmentOffline(params.payload, 'PENDING');
+      await withTransaction(STORES.LOCAL_INVENTORY_LOGS, 'readwrite', (store) => {
         store.put(params.payload);
       });
-    } else if (params.entityType === 'INVENTORY_ADJUSTMENT') {
-      await withTransaction(STORES.LOCAL_INVENTORY_LOGS, 'readwrite', (store) => {
+    } else if (params.entityType === 'RECEIPT') {
+      await saveReceiptOffline(params.payload, 'PENDING');
+    } else if (params.entityType === 'REQUISITION') {
+      await withTransaction(STORES.LOCAL_REQUISITIONS, 'readwrite', (store) => {
         store.put(params.payload);
       });
     } else if (params.entityType === 'RAW_MATERIAL_STOCK') {
@@ -347,7 +362,7 @@ export async function enqueueOfflineAction(params: {
       });
     }
   } catch (cacheErr) {
-    console.warn('IndexedDB secondary cache update notice:', cacheErr);
+    console.warn('IndexedDB/SQLite secondary cache update notice:', cacheErr);
   }
 
   notifyStatsUpdate();
@@ -562,7 +577,13 @@ export async function syncOfflineQueue(
 
       try {
         // Execute sync according to entity and action type
-        if (item.entityType === 'REQUISITION') {
+        if (item.entityType === 'CART_TRANSACTION') {
+          if (item.actionType === 'CREATE') {
+            await syncToFirestore('sale_transactions', item.payload.id || item.entityId, item.payload);
+            await markOfflineRecordSynced('cart_transactions', item.payload.id || item.entityId);
+          }
+          success = true;
+        } else if (item.entityType === 'REQUISITION') {
           if (item.actionType === 'CREATE') {
             await insertRequisitionToSupabase(item.payload);
             await syncToFirestore('store_requisitions', item.payload.id || item.entityId, item.payload);
@@ -580,6 +601,7 @@ export async function syncOfflineQueue(
           if (item.actionType === 'CREATE') {
             await insertInventoryAdjustmentToSupabase(item.payload);
             await syncToFirestore('inventory_adjustments', item.payload.id || item.entityId, item.payload);
+            await markOfflineRecordSynced('inventory_adjustments', item.payload.id || item.entityId);
           }
           success = true;
         } else if (item.entityType === 'RAW_MATERIAL_STOCK') {
@@ -591,6 +613,7 @@ export async function syncOfflineQueue(
         } else if (item.entityType === 'RECEIPT') {
           if (item.actionType === 'CREATE') {
             await syncToFirestore('receipts', item.payload.id || item.entityId, item.payload);
+            await markOfflineRecordSynced('receipts', item.payload.id || item.entityId);
           }
           success = true;
         } else {

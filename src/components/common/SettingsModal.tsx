@@ -32,6 +32,11 @@ import {
 } from '../../services/realtimeSync';
 import { getQueueStats, isAppOffline, getIsSimulatedOffline } from '../../services/indexedDbQueue';
 import { getRawMaterials, getProductionBatches, getRecipes, resetToDemoData, notifyToast } from '../../services/storage';
+import { SoundHapticsSettingsPanel } from './SoundHapticsSettingsPanel';
+import { OfflineSyncCenterModal } from './OfflineSyncCenterModal';
+import { DataBackupModal } from './DataBackupModal';
+import { registerBackButtonHandler } from '../../hooks/useAndroidBackButton';
+import { FileJson } from 'lucide-react';
 
 interface SettingsModalProps {
   isOpen: boolean;
@@ -48,6 +53,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   const [isRefreshing, setIsRefreshing] = useState<boolean>(false);
   const [refreshProgress, setRefreshProgress] = useState<ForceRefreshProgress | null>(null);
   const [lastRefreshResult, setLastRefreshResult] = useState<ForceRefreshResult | null>(null);
+  const [isSyncCenterOpen, setIsSyncCenterOpen] = useState<boolean>(false);
+  const [isBackupModalOpen, setIsBackupModalOpen] = useState<boolean>(false);
   const [queueCount, setQueueCount] = useState<number>(0);
   const [lastSyncTime, setLastSyncTime] = useState<string | null>(null);
   const [inventoryStats, setInventoryStats] = useState({
@@ -55,6 +62,17 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
     productionBatches: 0,
     recipes: 0
   });
+
+  useEffect(() => {
+    if (!isOpen) return;
+
+    const unregister = registerBackButtonHandler('settings-modal', () => {
+      onClose();
+      return true;
+    }, 90);
+
+    return () => unregister();
+  }, [isOpen, onClose]);
 
   const isOffline = typeof navigator !== 'undefined' ? (!navigator.onLine || getIsSimulatedOffline()) : false;
 
@@ -328,7 +346,10 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
             </div>
           </div>
 
-          {/* 2. SYSTEM PREFERENCES & DATA MANAGEMENT */}
+          {/* 2. AUDIO & HAPTICS FEEDBACK ENGINE */}
+          <SoundHapticsSettingsPanel />
+
+          {/* 3. SYSTEM PREFERENCES & DATA MANAGEMENT */}
           <div className="bg-slate-950/60 border border-slate-800 rounded-2xl p-5 space-y-4">
             <div className="flex items-center gap-2.5">
               <div className="p-2 bg-amber-500/20 text-amber-400 border border-amber-500/30 rounded-xl">
@@ -345,6 +366,53 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              {/* SQLite & Offline Engine Card */}
+              <div className="p-3 bg-slate-900 border border-slate-800 rounded-xl space-y-2">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-1.5 text-xs font-bold text-slate-200">
+                    <Database className="w-3.5 h-3.5 text-indigo-400" />
+                    Base SQLite & Offline Sync
+                  </div>
+                  <span className="text-[10px] font-mono font-bold text-amber-300 bg-amber-500/10 px-1.5 py-0.5 rounded border border-amber-500/20">
+                    {queueCount} en attente
+                  </span>
+                </div>
+                <div className="text-[11px] text-slate-400">
+                  Consulter les tables locales SQLite / IndexedDB, auditer les checksums et piloter la file de réplication.
+                </div>
+                <button
+                  onClick={() => setIsSyncCenterOpen(true)}
+                  className="w-full py-1.5 px-2.5 rounded-lg bg-indigo-600/20 hover:bg-indigo-600/30 text-indigo-300 border border-indigo-500/30 text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer"
+                >
+                  <Database className="w-3.5 h-3.5" />
+                  <span>Ouvrir le Centre de Persistance SQLite</span>
+                </button>
+              </div>
+
+              {/* Dexie JSON Backup & Restore Card */}
+              <div className="p-3 bg-slate-900 border border-slate-800 rounded-xl space-y-2">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-1.5 text-xs font-bold text-slate-200">
+                    <FileJson className="w-3.5 h-3.5 text-emerald-400" />
+                    Sauvegarde & Restauration Dexie
+                  </div>
+                  <span className="text-[10px] font-mono font-bold text-emerald-400 bg-emerald-500/10 px-1.5 py-0.5 rounded border border-emerald-500/20">
+                    JSON Export
+                  </span>
+                </div>
+                <div className="text-[11px] text-slate-400">
+                  Exporter les bases Dexie (ventes, articles, panier) en JSON ou restaurer un backup local.
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setIsBackupModalOpen(true)}
+                  className="w-full py-1.5 px-2.5 rounded-lg bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-300 border border-emerald-500/30 text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer"
+                >
+                  <FileJson className="w-3.5 h-3.5" />
+                  <span>Gérer Sauvegardes JSON</span>
+                </button>
+              </div>
+
               {/* Thermal Printer Settings Card */}
               <div className="p-3 bg-slate-900 border border-slate-800 rounded-xl space-y-1.5">
                 <div className="flex items-center gap-1.5 text-xs font-bold text-slate-200">
@@ -353,17 +421,6 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                 </div>
                 <div className="text-[11px] text-slate-400">
                   Impression directe silencieuse configurée pour tickets 80mm & étiquettes de production.
-                </div>
-              </div>
-
-              {/* Keyboard Shortcuts Card */}
-              <div className="p-3 bg-slate-900 border border-slate-800 rounded-xl space-y-1.5">
-                <div className="flex items-center gap-1.5 text-xs font-bold text-slate-200">
-                  <Shield className="w-3.5 h-3.5 text-emerald-400" />
-                  Raccourcis Clavier
-                </div>
-                <div className="text-[11px] text-slate-400">
-                  <span className="font-mono text-amber-300">Ctrl+N</span> (Nouveau), <span className="font-mono text-amber-300">Ctrl+F</span> (Recherche), <span className="font-mono text-amber-300">Ctrl+P</span> (Imprimer).
                 </div>
               </div>
             </div>
@@ -401,6 +458,22 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
         </div>
 
       </div>
+
+      <OfflineSyncCenterModal
+        isOpen={isSyncCenterOpen}
+        onClose={() => {
+          setIsSyncCenterOpen(false);
+          loadCurrentStats();
+        }}
+      />
+
+      <DataBackupModal
+        isOpen={isBackupModalOpen}
+        onClose={() => {
+          setIsBackupModalOpen(false);
+          loadCurrentStats();
+        }}
+      />
     </div>
   );
 };

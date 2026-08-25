@@ -7,6 +7,8 @@ import {
 import { queryClient } from './queryClient';
 import { syncOfflineQueue } from './indexedDbQueue';
 import { backgroundSyncService } from './backgroundSync';
+import { soundEffects } from './soundEffects';
+import { hapticsEngine } from './haptics';
 import {
   getRawMaterials,
   setRawMaterials,
@@ -225,6 +227,9 @@ export async function forceRefreshInventoryData(
       percent: 100
     });
 
+    soundEffects.playSyncComplete();
+    hapticsEngine.notificationSuccess();
+
     notifyToast({
       type: 'success',
       title: 'Inventaire Actualisé',
@@ -240,6 +245,8 @@ export async function forceRefreshInventoryData(
     };
   } catch (err: any) {
     console.error('Force refresh inventory data error:', err);
+    soundEffects.playError();
+    hapticsEngine.notificationError();
     const errorMsg = err?.message || 'Erreur lors du rafraîchissement des données';
     onProgress?.({
       step: `Erreur : ${errorMsg}`,

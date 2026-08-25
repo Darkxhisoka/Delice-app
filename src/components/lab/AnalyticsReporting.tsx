@@ -376,7 +376,7 @@ export const AnalyticsReporting: React.FC = () => {
         catRecipes.forEach((r) => {
           const uCost = getRecipeUnitCost(r, recipes, rawMaterials);
           const matchedRetail = retailProducts.find((p) => p.name.toLowerCase() === r.name.toLowerCase());
-          const price = matchedRetail ? matchedRetail.price : (r.sellingPrice || uCost * 2.5);
+          const price = matchedRetail ? matchedRetail.price : ((r as any).sellingPrice || uCost * 2.5);
 
           totalUnitCost += uCost;
           totalSellingPrice += price;
@@ -413,7 +413,7 @@ export const AnalyticsReporting: React.FC = () => {
   const totalReqsValue = filteredRequisitions.reduce((sum, r) => sum + r.totalEstimatedCost, 0);
   const deliveredReqsCount = filteredRequisitions.filter((r) => r.status === 'DELIVERED').length;
   const fulfillmentRate = totalReqsCount > 0 ? Math.round((deliveredReqsCount / totalReqsCount) * 100) : 100;
-  const topStore = storeFrequencyData[0]?.storeName || 'Downtown Flagship';
+  const topStore = storeFrequencyData[0]?.storeName || (stores[0]?.name ?? 'Douera 01');
 
   // Export Summary to CSV
   const handleExportCSV = () => {

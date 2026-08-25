@@ -256,7 +256,7 @@ export const DailyProductionPlan: React.FC = () => {
                   🎙️ {voiceNotes.length} Note{voiceNotes.length > 1 ? 's' : ''} Vocale{voiceNotes.length > 1 ? 's' : ''} de Tournée Active{voiceNotes.length > 1 ? 's' : ''}
                 </strong>
                 <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-200 text-amber-900">
-                  Dernier enregistrement : {voiceNotes[0]?.chefName} ({new Date(voiceNotes[0]?.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })})
+                  Dernier enregistrement : {voiceNotes[0]?.chefName} ({new Date(voiceNotes[0]?.createdAt || Date.now()).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })})
                 </span>
               </div>
               <p className="text-slate-600 mt-1 line-clamp-1 italic">

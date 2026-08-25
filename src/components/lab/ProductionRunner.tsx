@@ -105,7 +105,7 @@ export const ProductionRunner: React.FC<ProductionRunnerProps> = ({
       (p) => p.name.toLowerCase() === selectedRecipe.name.toLowerCase() || p.sku === selectedRecipe.id
     );
 
-    const retailPrice = matchedRetail ? matchedRetail.price : (selectedRecipe.sellingPrice || estimatedUnitCost * 2.2);
+    const retailPrice = matchedRetail ? matchedRetail.price : ((selectedRecipe as any).sellingPrice || estimatedUnitCost * 2.2);
     const totalSimulatedRevenue = retailPrice * targetQuantity;
     const totalGrossProfit = totalSimulatedRevenue - totalRawMaterialCost;
     const marginPercent = totalSimulatedRevenue > 0 ? (totalGrossProfit / totalSimulatedRevenue) * 100 : 0;

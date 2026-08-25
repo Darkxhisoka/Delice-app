@@ -6,6 +6,7 @@ import {
   getQualityInspections,
   recordQualityInspection,
   getDeliveryManifests,
+  getStores,
   subscribeToStoreChanges,
   notifyToast
 } from '../../services/storage';
@@ -186,14 +187,25 @@ export const QualityControl: React.FC = () => {
                 <label className="block font-bold text-slate-700 mb-1">Enceinte Frigorifique / Vitrine :</label>
                 <select
                   value={unitName}
-                  onChange={(e) => setUnitName(e.target.value)}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    setUnitName(val);
+                    if (val.includes('Store') || val.includes('Boutique') || val.includes('Vitrine')) {
+                      setLocationType('RETAIL_STORE');
+                    } else {
+                      setLocationType('CENTRAL_LAB');
+                    }
+                  }}
                   className="w-full p-2.5 rounded-xl border border-slate-200 font-semibold bg-slate-50 focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
                 >
                   <option value="Chambre Froide Labo #1 (+2°C)">Chambre Froide Labo #1 (+2°C)</option>
                   <option value="Chambre Froide Surgélation Labo (-20°C)">Chambre Froide Surgélation Labo (-20°C)</option>
-                  <option value="Meuble Vitrine Réfrigérée Store #1 Downtown">Meuble Vitrine Store #1 Downtown</option>
-                  <option value="Vitrine Mousse & Entremets Store #2 Uptown">Vitrine Mousse Store #2 Uptown</option>
                   <option value="Camionnette Frigorifique K-300">Camionnette Frigorifique K-300</option>
+                  {getStores().map((st) => (
+                    <option key={st.id} value={`Meuble Vitrine Réfrigérée ${st.name} (${st.code})`}>
+                      Meuble Vitrine Réfrigérée {st.name} ({st.code})
+                    </option>
+                  ))}
                 </select>
               </div>
 
