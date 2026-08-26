@@ -8,14 +8,13 @@ import {
   getAuthSession,
   logoutUser,
   subscribeToStoreChanges,
-  resetToDemoData,
   notifyToast,
   isCentralLabAdmin,
   getActiveViewContext,
   setActiveViewContext
 } from '../../services/storage';
 import { UserRole, StoreLocation, UserSession } from '../../types';
-import { Store, FlaskConical, RotateCcw, Building2, UserCheck, LogOut, ShieldAlert, Menu, X, Search, ChevronDown, Check, Shield, Settings } from 'lucide-react';
+import { Store, FlaskConical, Building2, UserCheck, LogOut, ShieldAlert, Menu, X, Search, ChevronDown, Check, Shield, Settings } from 'lucide-react';
 import { CompanyLogo } from './CompanyLogo';
 import { GlobalSearchBar } from './GlobalSearchBar';
 import { LoginModal } from './LoginModal';
@@ -90,19 +89,6 @@ export const Navbar: React.FC<NavbarProps> = ({ currentRole, onRoleChange, onNav
     window.history.pushState({}, '', '/login');
     window.dispatchEvent(new Event('popstate'));
     setIsLoginModalOpen(true);
-  };
-
-  const handleReset = () => {
-    if (window.confirm('Réinitialiser tous les stocks, réceptions et réquisitions aux données de démonstration ?')) {
-      resetToDemoData();
-      setIsMobileMenuOpen(false);
-      setIsContextDropdownOpen(false);
-      notifyToast({
-        type: 'warning',
-        title: 'Réinitialisation effectuée',
-        message: 'Toutes les données de démonstration ont été restaurées.',
-      });
-    }
   };
 
   const currentActiveStore = stores.find((s) => s.id === activeStoreId) || stores[0];
@@ -345,15 +331,6 @@ export const Navbar: React.FC<NavbarProps> = ({ currentRole, onRoleChange, onNav
                 <LogOut className="w-4 h-4 text-rose-400" />
                 <span>Déconnexion</span>
               </button>
-
-              {/* Reset Demo Data Button */}
-              <button
-                onClick={handleReset}
-                className="p-2.5 min-h-[44px] min-w-[44px] flex items-center justify-center text-slate-400 hover:text-amber-400 hover:bg-slate-800 rounded-lg transition-colors border border-transparent hover:border-slate-700"
-                title="Réinitialiser les données de démonstration"
-              >
-                <RotateCcw className="w-4 h-4" />
-              </button>
             </div>
 
             {/* Mobile Hamburger Menu Toggle (< 768px) */}
@@ -515,14 +492,6 @@ export const Navbar: React.FC<NavbarProps> = ({ currentRole, onRoleChange, onNav
               >
                 <LogOut className="w-4 h-4 text-rose-400" />
                 <span>Sortir</span>
-              </button>
-
-              <button
-                onClick={handleReset}
-                className="p-3 min-h-[44px] min-w-[44px] bg-slate-900 text-slate-400 hover:text-amber-400 border border-slate-800 rounded-xl flex items-center justify-center"
-                title="Réinitialiser la démo"
-              >
-                <RotateCcw className="w-4 h-4" />
               </button>
             </div>
           </div>

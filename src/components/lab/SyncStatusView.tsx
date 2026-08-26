@@ -225,96 +225,6 @@ export const SyncStatusView: React.FC = () => {
     });
   };
 
-  const handleCreateTestRequisition = async () => {
-    const stores = ['Alger Centre (Didouche)', 'Hydra Val d\'Hydra', 'Oran Es Sénia', 'Constantine', 'Bab Ezzouar Mall'];
-    const selectedStore = stores[Math.floor(Math.random() * stores.length)];
-    const testReqNumber = `REQ-LOCAL-${Math.floor(1000 + Math.random() * 9000)}`;
-    const testId = `req-local-${Date.now()}`;
-
-    await enqueueOfflineAction({
-      entityType: 'REQUISITION',
-      actionType: 'CREATE',
-      entityId: testId,
-      label: `Demande Boutique : ${testReqNumber}`,
-      description: `${selectedStore} - 24x Millefeuille Praliné & 12x Éclair Chocolat`,
-      payload: {
-        id: testId,
-        requisitionNumber: testReqNumber,
-        storeId: `store-${Math.floor(Math.random() * 5) + 1}`,
-        storeName: selectedStore,
-        status: 'PENDING',
-        orderDate: new Date().toISOString(),
-        deliveryDate: new Date(Date.now() + 86400000).toISOString(),
-        items: [
-          {
-            recipeId: 'rec-1',
-            recipeName: 'Millefeuille Vanille Bourbon',
-            requestedQuantity: 24,
-            unitCost: 145,
-            totalCost: 3480
-          },
-          {
-            recipeId: 'rec-2',
-            recipeName: 'Éclair Chocolat Grand Cru',
-            requestedQuantity: 12,
-            unitCost: 120,
-            totalCost: 1440
-          }
-        ],
-        totalEstimatedCost: 4920,
-        notes: 'Commande locale générée pour validation intégrité hors-ligne',
-        createdBy: 'Direction Labo Central'
-      }
-    });
-
-    await loadData();
-    notifyToast({
-      type: 'success',
-      title: 'Réquisition Locale Créée !',
-      message: `${testReqNumber} enregistrée dans IndexedDB. Prête pour réplication Firebase.`
-    });
-  };
-
-  const handleCreateTestDestocking = async () => {
-    const rawMaterials = getRawMaterials();
-    const sampleMat = rawMaterials[Math.floor(Math.random() * rawMaterials.length)] || {
-      id: 'rm-1',
-      name: 'Farine T55 Label Rouge',
-      unit: 'kg',
-      currentAvgCost: 85
-    };
-    const sampleQty = Math.floor(Math.random() * 4) + 1;
-    const testId = `adj-local-${Date.now()}`;
-
-    await enqueueOfflineAction({
-      entityType: 'INVENTORY_ADJUSTMENT',
-      actionType: 'CREATE',
-      entityId: testId,
-      label: `Déstockage : ${sampleMat.name}`,
-      description: `Perte/Avarie qualité de ${sampleQty} ${sampleMat.unit} au laboratoire central`,
-      payload: {
-        id: testId,
-        raw_material_id: sampleMat.id,
-        raw_material_name: sampleMat.name,
-        unit: sampleMat.unit,
-        quantity_removed: sampleQty,
-        unit_cost_at_time: sampleMat.currentAvgCost || 85,
-        total_loss_value: sampleQty * (sampleMat.currentAvgCost || 85),
-        reason_category: 'QUALITY_DAMAGE',
-        notes: 'Changement local enregistré en attente de synchronisation Firebase',
-        created_by: 'Chef Hakim',
-        created_at: new Date().toISOString()
-      }
-    });
-
-    await loadData();
-    notifyToast({
-      type: 'success',
-      title: 'Déstockage Local Enregistré !',
-      message: `${sampleQty} ${sampleMat.unit} de ${sampleMat.name} ajoutés à la file locale.`
-    });
-  };
-
   const handleExportJSON = async () => {
     try {
       const jsonString = await exportSyncLogAsJSON();
@@ -649,27 +559,6 @@ export const SyncStatusView: React.FC = () => {
               Suivi de la réplication par collection Firestore avec vérification des flux
             </p>
           </div>
-
-          <div className="flex items-center gap-2">
-            <button
-              type="button"
-              onClick={handleCreateTestRequisition}
-              className="px-3 py-1.5 rounded-xl text-xs font-semibold bg-indigo-500/20 text-indigo-300 hover:bg-indigo-500/30 border border-indigo-500/40 transition-colors flex items-center gap-1.5"
-              title="Créer une réquisition locale pour tester la file"
-            >
-              <PlusCircle className="w-3.5 h-3.5" />
-              <span>+ Test Réquisition</span>
-            </button>
-            <button
-              type="button"
-              onClick={handleCreateTestDestocking}
-              className="px-3 py-1.5 rounded-xl text-xs font-semibold bg-amber-500/20 text-amber-300 hover:bg-amber-500/30 border border-amber-500/40 transition-colors flex items-center gap-1.5"
-              title="Créer un déstockage local pour tester la file"
-            >
-              <PlusCircle className="w-3.5 h-3.5" />
-              <span>+ Test Déstockage</span>
-            </button>
-          </div>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
@@ -823,16 +712,6 @@ export const SyncStatusView: React.FC = () => {
               <p className="text-xs text-slate-500 max-w-md mx-auto mt-1">
                 Toutes les modifications locales créées dans les modules de réquisitions, réceptions ou inventaire apparaissent ici avec leur état Firebase.
               </p>
-              <div className="flex justify-center gap-2 mt-4">
-                <button
-                  type="button"
-                  onClick={handleCreateTestRequisition}
-                  className="px-4 py-2 rounded-xl text-xs font-bold bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 hover:bg-indigo-500/30 inline-flex items-center gap-2"
-                >
-                  <PlusCircle className="w-4 h-4" />
-                  <span>Tester avec une réquisition</span>
-                </button>
-              </div>
             </div>
           ) : (
             filteredItems.map((item) => {

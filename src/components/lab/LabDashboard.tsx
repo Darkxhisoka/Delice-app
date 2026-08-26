@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
 import { subscribeToSupabaseRealtime } from '../../services/supabaseService';
 import { notifyToast } from '../../services/storage';
@@ -54,9 +54,6 @@ import {
   Truck,
   Utensils,
   ShieldCheck,
-  ClipboardCheck,
-  ListTodo,
-  Sparkles,
   Package,
   Trash2,
   Radio,
@@ -73,7 +70,7 @@ import {
   X
 } from 'lucide-react';
 
-type LabModule = 
+export type LabModule = 
   | 'EXECUTIVE_DASHBOARD'
   | 'VOICE_NOTES'
   | 'MARGIN_ANALYTICS' 
@@ -108,8 +105,8 @@ type LabModule =
 
 interface ModuleCategory {
   title: string;
-  icon: any;
-  items: { id: LabModule; label: string; desc: string; icon: any; color: string }[];
+  icon: React.ComponentType<{ className?: string }>;
+  items: { id: LabModule; label: string; desc: string; icon: React.ComponentType<{ className?: string }>; color: string }[];
 }
 
 const LAB_CATEGORIES: ModuleCategory[] = [
@@ -130,7 +127,7 @@ const LAB_CATEGORIES: ModuleCategory[] = [
     icon: Utensils,
     items: [
       { id: 'VOICE_NOTES', label: 'Dictée Vocale & Notes Chefs', desc: 'Enregistrement mains-libres & modifications recettes', icon: Mic, color: 'text-amber-400 bg-amber-400/20' },
-      { id: 'PRODUCTION_BATCH_PLANNER', label: 'Planification IA & Fournées', desc: 'Ordonnancement et calcul des batchs', icon: Sparkles, color: 'text-amber-400 bg-amber-400/20' },
+      { id: 'PRODUCTION_BATCH_PLANNER', label: 'Planification IA & Fournées', desc: 'Ordonnancement et calcul des batchs', icon: SparklesIcon, color: 'text-amber-400 bg-amber-400/20' },
       { id: 'DAILY_PRODUCTION_PLAN', label: 'Task List Pâtissiers', desc: 'Planning du jour et fiches postes', icon: Utensils, color: 'text-amber-400 bg-amber-400/20' },
       { id: 'PRODUCTION_RUNNER', label: 'Lancer Production (Cascade NOM)', desc: 'Déstockage automatique et sous-lots', icon: Zap, color: 'text-amber-400 bg-amber-400/20' },
       { id: 'RECIPES', label: 'Fiches Techniques & COGS', desc: 'Formules et calcul des coûts', icon: ChefHat, color: 'text-indigo-400 bg-indigo-400/20' },
@@ -176,6 +173,149 @@ const LAB_CATEGORIES: ModuleCategory[] = [
   }
 ];
 
+function SparklesIcon(props: { className?: string }) {
+  return <Zap {...props} />;
+}
+
+interface LabDesktopTabConfig {
+  module: LabModule;
+  label: string;
+  icon: React.ComponentType<{ className?: string }>;
+  variant?: 'amber-solid' | 'amber-outline' | 'indigo-solid' | 'indigo-outline' | 'emerald' | 'slate';
+}
+
+const LAB_DESKTOP_TABS: LabDesktopTabConfig[] = [
+  { module: 'EXECUTIVE_DASHBOARD', label: '👑 Executive Dashboard', icon: Crown, variant: 'amber-solid' },
+  { module: 'VOICE_NOTES', label: '🎙️ Dictée Vocale & Notes', icon: Mic, variant: 'amber-outline' },
+  { module: 'DAILY_PRODUCTION_PLAN', label: '👩‍🍳 Task List Pâtissiers', icon: Utensils, variant: 'amber-outline' },
+  { module: 'SUPPLIER_PO', label: '🛒 Commandes Fournisseurs (PO)', icon: ShoppingCart, variant: 'indigo-outline' },
+  { module: 'DELIVERY_LOGISTICS', label: '🚚 Expéditions & Bordereaux', icon: Truck, variant: 'indigo-outline' },
+  { module: 'REQUISITIONS', label: 'Commandes Boutiques', icon: FlaskConical, variant: 'slate' },
+  { module: 'PRODUCTION_RUNNER', label: '⚡ Lancer Production', icon: Zap, variant: 'amber-outline' },
+  { module: 'QUALITY_CONTROL', label: '🛡️ Qualité & HACCP', icon: ShieldCheck, variant: 'indigo-outline' },
+  { module: 'MARGIN_ANALYTICS', label: '📊 Marges & COGS', icon: TrendingUp, variant: 'emerald' },
+  { module: 'INVENTORY', label: 'Stock Matières', icon: Boxes, variant: 'slate' },
+  { module: 'RECIPES', label: 'Fiches Techniques', icon: ChefHat, variant: 'slate' },
+];
+
+/**
+ * Memoized Desktop Tab Navigation Button
+ */
+const LabDesktopTabButton = React.memo<{
+  module: LabModule;
+  isActive: boolean;
+  label: string;
+  icon: React.ComponentType<{ className?: string }>;
+  variant?: LabDesktopTabConfig['variant'];
+  onSelect: (module: LabModule) => void;
+}>(({ module, isActive, label, icon: Icon, variant = 'slate', onSelect }) => {
+  const handleClick = useCallback(() => {
+    onSelect(module);
+  }, [onSelect, module]);
+
+  let activeClass = 'bg-indigo-600 text-white shadow-sm';
+  let inactiveClass = 'text-slate-300 hover:bg-white/10 hover:text-white';
+
+  if (variant === 'amber-solid') {
+    activeClass = 'bg-amber-400 text-slate-950 font-black shadow-lg ring-2 ring-amber-300';
+    inactiveClass = 'bg-amber-400/20 text-amber-300 hover:bg-amber-400/30 border border-amber-400/30';
+  } else if (variant === 'amber-outline') {
+    activeClass = 'bg-amber-400 text-slate-950 font-black shadow-md ring-2 ring-amber-300';
+    inactiveClass = 'bg-amber-500/20 text-amber-300 hover:bg-amber-500/30';
+  } else if (variant === 'indigo-outline') {
+    activeClass = 'bg-indigo-600 text-white shadow-sm ring-2 ring-indigo-400 font-black';
+    inactiveClass = 'bg-indigo-500/20 text-indigo-300 hover:bg-indigo-500/30';
+  } else if (variant === 'emerald') {
+    activeClass = 'bg-emerald-500 text-slate-950 font-black shadow-md ring-2 ring-emerald-300';
+    inactiveClass = 'bg-emerald-500/20 text-emerald-300 hover:bg-emerald-500/30';
+  }
+
+  return (
+    <button
+      type="button"
+      onClick={handleClick}
+      className={`flex items-center gap-2 min-h-[44px] px-3.5 sm:px-4 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition-all cursor-pointer ${
+        isActive ? activeClass : inactiveClass
+      }`}
+    >
+      <Icon className="w-4 h-4 shrink-0" />
+      <span>{label}</span>
+    </button>
+  );
+});
+LabDesktopTabButton.displayName = 'LabDesktopTabButton';
+
+/**
+ * Memoized Mobile Material 3 Bottom Nav Item for Lab
+ */
+const LabMobileBottomNavButton = React.memo<{
+  isActive: boolean;
+  label: string;
+  icon: React.ComponentType<{ className?: string }>;
+  activeColorClass: string;
+  hasBadge?: boolean;
+  onClick: () => void;
+}>(({ isActive, label, icon: Icon, activeColorClass, hasBadge, onClick }) => {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`flex-1 flex flex-col items-center justify-center min-h-[48px] py-1 px-1 rounded-2xl transition-all active:scale-95 cursor-pointer ${
+        isActive ? `${activeColorClass} font-black` : 'text-slate-400 hover:text-slate-200'
+      }`}
+    >
+      <div className="relative">
+        <Icon className={`w-5 h-5 transition-transform ${isActive ? 'scale-110' : ''}`} />
+        {hasBadge && (
+          <span className="absolute -top-1 -right-1 w-2 h-2 rounded-full bg-amber-400 animate-pulse" />
+        )}
+      </div>
+      <span className="text-[10px] tracking-tight mt-0.5">{label}</span>
+    </button>
+  );
+});
+LabMobileBottomNavButton.displayName = 'LabMobileBottomNavButton';
+
+/**
+ * Memoized Lab Module Card Item for Bottom Sheet Modal
+ */
+const LabModuleCardItem = React.memo<{
+  id: LabModule;
+  label: string;
+  desc: string;
+  icon: React.ComponentType<{ className?: string }>;
+  color: string;
+  isActive: boolean;
+  onSelect: (mod: LabModule) => void;
+}>(({ id, label, desc, icon: Icon, color, isActive, onSelect }) => {
+  const handleClick = useCallback(() => {
+    onSelect(id);
+  }, [onSelect, id]);
+
+  return (
+    <button
+      type="button"
+      onClick={handleClick}
+      className={`p-3 rounded-2xl border text-left flex items-start gap-3 transition-all active:scale-95 cursor-pointer ${
+        isActive
+          ? 'bg-amber-500 text-slate-950 border-amber-400 font-bold shadow-md'
+          : 'bg-slate-800/80 border-slate-700/80 hover:bg-slate-800 text-slate-200'
+      }`}
+    >
+      <div className={`p-2 rounded-xl shrink-0 ${isActive ? 'bg-slate-950 text-amber-400' : color}`}>
+        <Icon className="w-4 h-4" />
+      </div>
+      <div className="min-w-0 flex-1">
+        <div className="text-xs font-bold truncate">{label}</div>
+        <div className={`text-[10px] line-clamp-1 ${isActive ? 'text-slate-800 font-medium' : 'text-slate-400'}`}>
+          {desc}
+        </div>
+      </div>
+    </button>
+  );
+});
+LabModuleCardItem.displayName = 'LabModuleCardItem';
+
 export const LabDashboard: React.FC = () => {
   const [activeModule, setActiveModule] = useState<LabModule>('EXECUTIVE_DASHBOARD');
   const [isModuleSheetOpen, setIsModuleSheetOpen] = useState<boolean>(false);
@@ -205,12 +345,53 @@ export const LabDashboard: React.FC = () => {
     };
   }, []);
 
-  const handleSelectModule = (mod: LabModule) => {
+  const handleSelectModule = useCallback((mod: LabModule) => {
     setActiveModule(mod);
     setIsModuleSheetOpen(false);
-  };
+  }, []);
 
-  const isOtherActive = !['EXECUTIVE_DASHBOARD', 'DAILY_PRODUCTION_PLAN', 'SUPPLIER_PO', 'DELIVERY_LOGISTICS'].includes(activeModule);
+  const handleOpenModuleSheet = useCallback(() => {
+    setIsModuleSheetOpen(true);
+  }, []);
+
+  const handleCloseModuleSheet = useCallback(() => {
+    setIsModuleSheetOpen(false);
+  }, []);
+
+  const handleOpenOfflineQueue = useCallback(() => {
+    setIsOfflineQueueDrawerOpen(true);
+  }, []);
+
+  const handleCloseOfflineQueue = useCallback(() => {
+    setIsOfflineQueueDrawerOpen(false);
+  }, []);
+
+  const handleClearModuleSearch = useCallback(() => {
+    setModuleSearch('');
+  }, []);
+
+  const isOtherActive = useMemo(() => {
+    return !['EXECUTIVE_DASHBOARD', 'DAILY_PRODUCTION_PLAN', 'SUPPLIER_PO', 'DELIVERY_LOGISTICS'].includes(activeModule);
+  }, [activeModule]);
+
+  const totalModulesCount = useMemo(() => {
+    return LAB_CATEGORIES.reduce((acc, cat) => acc + cat.items.length, 0);
+  }, []);
+
+  const filteredCategories = useMemo(() => {
+    const query = moduleSearch.toLowerCase().trim();
+    if (!query) return LAB_CATEGORIES;
+
+    return LAB_CATEGORIES.map((cat) => {
+      const items = cat.items.filter(
+        (item) =>
+          item.label.toLowerCase().includes(query) ||
+          item.desc.toLowerCase().includes(query) ||
+          cat.title.toLowerCase().includes(query)
+      );
+      return { ...cat, items };
+    }).filter((cat) => cat.items.length > 0);
+  }, [moduleSearch]);
 
   return (
     <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 py-3 sm:py-8 space-y-4 sm:space-y-6 pb-28 md:pb-8">
@@ -236,7 +417,7 @@ export const LabDashboard: React.FC = () => {
                   <Radio className="w-3 h-3 text-emerald-400" />
                   <span>Realtime • {lastSyncTime}</span>
                 </span>
-                <OfflineQueueStatusPill onOpenDrawer={() => setIsOfflineQueueDrawerOpen(true)} />
+                <OfflineQueueStatusPill onOpenDrawer={handleOpenOfflineQueue} />
               </div>
               <p className="text-xs text-slate-300 mt-0.5 sm:mt-1">
                 Approvisionnement, ordonnancement cascade, stocks matières & marges de fabrication.
@@ -249,7 +430,7 @@ export const LabDashboard: React.FC = () => {
             <button
               id="lab-header-voice-notes-btn"
               type="button"
-              onClick={() => setActiveModule('VOICE_NOTES')}
+              onClick={() => handleSelectModule('VOICE_NOTES')}
               className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-black transition-all shadow-md active:scale-95 cursor-pointer ${
                 activeModule === 'VOICE_NOTES'
                   ? 'bg-amber-400 text-slate-950 ring-2 ring-amber-300'
@@ -264,147 +445,26 @@ export const LabDashboard: React.FC = () => {
 
         {/* Central Lab Horizontal Module Navigation Tabs (Desktop Scrollable) */}
         <div className="hidden md:flex mt-6 pt-4 border-t border-indigo-900/50 items-center gap-2 overflow-x-auto pb-1 scrollbar-none">
-          
-          <button
-            onClick={() => setActiveModule('EXECUTIVE_DASHBOARD')}
-            className={`flex items-center gap-2 min-h-[44px] px-4 py-2 rounded-xl text-xs font-black uppercase tracking-wide whitespace-nowrap transition-all ${
-              activeModule === 'EXECUTIVE_DASHBOARD'
-                ? 'bg-amber-400 text-slate-950 font-black shadow-lg ring-2 ring-amber-300'
-                : 'bg-amber-400/20 text-amber-300 hover:bg-amber-400/30 border border-amber-400/30'
-            }`}
-          >
-            <Crown className="w-4 h-4 text-amber-400 fill-amber-400" />
-            <span>👑 Executive Dashboard</span>
-          </button>
+          {LAB_DESKTOP_TABS.map((tab) => (
+            <LabDesktopTabButton
+              key={tab.module}
+              module={tab.module}
+              isActive={activeModule === tab.module}
+              label={tab.label}
+              icon={tab.icon}
+              variant={tab.variant}
+              onSelect={handleSelectModule}
+            />
+          ))}
 
           <button
-            onClick={() => setActiveModule('VOICE_NOTES')}
-            className={`flex items-center gap-2 min-h-[44px] px-4 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition-all ${
-              activeModule === 'VOICE_NOTES'
-                ? 'bg-amber-400 text-slate-950 font-black shadow-md ring-2 ring-amber-300'
-                : 'bg-amber-500/20 text-amber-300 hover:bg-amber-500/30'
-            }`}
-          >
-            <Mic className="w-4 h-4 text-amber-400" />
-            <span>🎙️ Dictée Vocale & Notes</span>
-          </button>
-
-          <button
-            onClick={() => setActiveModule('DAILY_PRODUCTION_PLAN')}
-            className={`flex items-center gap-2 min-h-[44px] px-4 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition-all ${
-              activeModule === 'DAILY_PRODUCTION_PLAN'
-                ? 'bg-amber-400 text-slate-950 font-black shadow-md ring-2 ring-amber-300'
-                : 'bg-amber-500/20 text-amber-300 hover:bg-amber-500/30'
-            }`}
-          >
-            <Utensils className="w-4 h-4 text-amber-400" />
-            <span>👩‍🍳 Task List Pâtissiers</span>
-          </button>
-
-          <button
-            onClick={() => setActiveModule('SUPPLIER_PO')}
-            className={`flex items-center gap-2 min-h-[44px] px-4 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition-all ${
-              activeModule === 'SUPPLIER_PO'
-                ? 'bg-indigo-600 text-white shadow-sm ring-2 ring-indigo-400 font-black'
-                : 'bg-indigo-500/20 text-indigo-300 hover:bg-indigo-500/30'
-            }`}
-          >
-            <ShoppingCart className="w-4 h-4 text-indigo-300" />
-            <span>🛒 Commandes Fournisseurs (PO)</span>
-          </button>
-
-          <button
-            onClick={() => setActiveModule('DELIVERY_LOGISTICS')}
-            className={`flex items-center gap-2 min-h-[44px] px-4 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition-all ${
-              activeModule === 'DELIVERY_LOGISTICS'
-                ? 'bg-indigo-600 text-white shadow-sm ring-2 ring-indigo-400'
-                : 'bg-indigo-500/20 text-indigo-300 hover:bg-indigo-500/30'
-            }`}
-          >
-            <Truck className="w-4 h-4 text-indigo-300" />
-            <span>🚚 Expéditions & Bordereaux</span>
-          </button>
-
-          <button
-            onClick={() => setActiveModule('REQUISITIONS')}
-            className={`flex items-center gap-2 min-h-[44px] px-4 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition-all ${
-              activeModule === 'REQUISITIONS'
-                ? 'bg-indigo-600 text-white shadow-sm'
-                : 'text-slate-300 hover:bg-white/10 hover:text-white'
-            }`}
-          >
-            <FlaskConical className="w-4 h-4" />
-            <span>Commandes Boutiques</span>
-          </button>
-
-          <button
-            onClick={() => setActiveModule('PRODUCTION_RUNNER')}
-            className={`flex items-center gap-2 min-h-[44px] px-4 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition-all ${
-              activeModule === 'PRODUCTION_RUNNER'
-                ? 'bg-amber-400 text-slate-950 font-black shadow-md ring-2 ring-amber-300'
-                : 'bg-amber-500/20 text-amber-300 hover:bg-amber-500/30'
-            }`}
-          >
-            <Zap className="w-4 h-4 text-amber-400 fill-amber-400" />
-            <span>⚡ Lancer Production</span>
-          </button>
-
-          <button
-            onClick={() => setActiveModule('QUALITY_CONTROL')}
-            className={`flex items-center gap-2 min-h-[44px] px-4 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition-all ${
-              activeModule === 'QUALITY_CONTROL'
-                ? 'bg-indigo-600 text-white shadow-sm ring-2 ring-indigo-400 font-black'
-                : 'bg-indigo-500/20 text-indigo-300 hover:bg-indigo-500/30'
-            }`}
-          >
-            <ShieldCheck className="w-4 h-4 text-indigo-300" />
-            <span>🛡️ Qualité & HACCP</span>
-          </button>
-
-          <button
-            onClick={() => setActiveModule('MARGIN_ANALYTICS')}
-            className={`flex items-center gap-2 min-h-[44px] px-4 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition-all ${
-              activeModule === 'MARGIN_ANALYTICS'
-                ? 'bg-emerald-500 text-slate-950 font-black shadow-md ring-2 ring-emerald-300'
-                : 'bg-emerald-500/20 text-emerald-300 hover:bg-emerald-500/30'
-            }`}
-          >
-            <TrendingUp className="w-4 h-4 text-emerald-400" />
-            <span>📊 Marges & COGS</span>
-          </button>
-
-          <button
-            onClick={() => setActiveModule('INVENTORY')}
-            className={`flex items-center gap-2 min-h-[44px] px-4 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition-all ${
-              activeModule === 'INVENTORY'
-                ? 'bg-indigo-600 text-white shadow-sm'
-                : 'text-slate-300 hover:bg-white/10 hover:text-white'
-            }`}
-          >
-            <Boxes className="w-4 h-4" />
-            <span>Stock Matières</span>
-          </button>
-
-          <button
-            onClick={() => setActiveModule('RECIPES')}
-            className={`flex items-center gap-2 min-h-[44px] px-4 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition-all ${
-              activeModule === 'RECIPES'
-                ? 'bg-indigo-600 text-white shadow-sm'
-                : 'text-slate-300 hover:bg-white/10 hover:text-white'
-            }`}
-          >
-            <ChefHat className="w-4 h-4" />
-            <span>Fiches Techniques</span>
-          </button>
-
-          <button
-            onClick={() => setIsModuleSheetOpen(true)}
-            className="flex items-center gap-1.5 min-h-[44px] px-3 py-2 rounded-xl text-xs font-bold bg-slate-800 text-amber-300 border border-slate-700 hover:bg-slate-700 whitespace-nowrap"
+            type="button"
+            onClick={handleOpenModuleSheet}
+            className="flex items-center gap-1.5 min-h-[44px] px-3 py-2 rounded-xl text-xs font-bold bg-slate-800 text-amber-300 border border-slate-700 hover:bg-slate-700 whitespace-nowrap cursor-pointer"
           >
             <LayoutGrid className="w-4 h-4" />
-            <span>Tous les Modules ({LAB_CATEGORIES.reduce((a, c) => a + c.items.length, 0)})</span>
+            <span>Tous les Modules ({totalModulesCount})</span>
           </button>
-
         </div>
       </div>
 
@@ -436,7 +496,7 @@ export const LabDashboard: React.FC = () => {
           {activeModule === 'PRODUCTION_OVERVIEW' && <ProductionOverview />}
           {activeModule === 'WASTE_LOSS' && <WasteLossManager />}
           {activeModule === 'RECONCILIATION_WASTE' && <LabWasteAnalytics />}
-          {activeModule === 'NEW_RECEIPT' && <ReceiptForm onSuccess={() => setActiveModule('RECEIPT_HISTORY')} />}
+          {activeModule === 'NEW_RECEIPT' && <ReceiptForm onSuccess={() => handleSelectModule('RECEIPT_HISTORY')} />}
           {activeModule === 'INVENTORY' && <InventoryList />}
           {activeModule === 'DESTOCKING' && <RawMaterialDestocking />}
           {activeModule === 'RECIPES' && <RecipeCosting />}
@@ -454,76 +514,50 @@ export const LabDashboard: React.FC = () => {
       <div className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-slate-950/95 backdrop-blur-xl border-t border-slate-800 shadow-2xl px-1.5 pt-1.5 pb-[calc(0.5rem+env(safe-area-inset-bottom,0px))] flex items-center justify-around">
         
         {/* 1. Executive Dashboard */}
-        <button
+        <LabMobileBottomNavButton
+          isActive={activeModule === 'EXECUTIVE_DASHBOARD'}
+          label="Direction"
+          icon={Crown}
+          activeColorClass="text-amber-400 bg-amber-500/15"
           onClick={() => handleSelectModule('EXECUTIVE_DASHBOARD')}
-          className={`flex-1 flex flex-col items-center justify-center min-h-[48px] py-1 px-1 rounded-2xl transition-all active:scale-95 ${
-            activeModule === 'EXECUTIVE_DASHBOARD'
-              ? 'text-amber-400 font-black bg-amber-500/15'
-              : 'text-slate-400 hover:text-slate-200'
-          }`}
-        >
-          <Crown className={`w-5 h-5 transition-transform ${activeModule === 'EXECUTIVE_DASHBOARD' ? 'scale-110 fill-amber-400' : ''}`} />
-          <span className="text-[10px] tracking-tight mt-0.5">Direction</span>
-        </button>
+        />
 
         {/* 2. Task List Production */}
-        <button
+        <LabMobileBottomNavButton
+          isActive={activeModule === 'DAILY_PRODUCTION_PLAN'}
+          label="Production"
+          icon={Utensils}
+          activeColorClass="text-amber-400 bg-amber-500/15"
           onClick={() => handleSelectModule('DAILY_PRODUCTION_PLAN')}
-          className={`flex-1 flex flex-col items-center justify-center min-h-[48px] py-1 px-1 rounded-2xl transition-all active:scale-95 ${
-            activeModule === 'DAILY_PRODUCTION_PLAN'
-              ? 'text-amber-400 font-black bg-amber-500/15'
-              : 'text-slate-400 hover:text-slate-200'
-          }`}
-        >
-          <Utensils className={`w-5 h-5 transition-transform ${activeModule === 'DAILY_PRODUCTION_PLAN' ? 'scale-110' : ''}`} />
-          <span className="text-[10px] tracking-tight mt-0.5">Production</span>
-        </button>
+        />
 
         {/* 3. Achats Supplier PO */}
-        <button
+        <LabMobileBottomNavButton
+          isActive={activeModule === 'SUPPLIER_PO'}
+          label="Achats PO"
+          icon={ShoppingCart}
+          activeColorClass="text-indigo-400 bg-indigo-500/15"
           onClick={() => handleSelectModule('SUPPLIER_PO')}
-          className={`flex-1 flex flex-col items-center justify-center min-h-[48px] py-1 px-1 rounded-2xl transition-all active:scale-95 ${
-            activeModule === 'SUPPLIER_PO'
-              ? 'text-indigo-400 font-black bg-indigo-500/15'
-              : 'text-slate-400 hover:text-slate-200'
-          }`}
-        >
-          <ShoppingCart className={`w-5 h-5 transition-transform ${activeModule === 'SUPPLIER_PO' ? 'scale-110' : ''}`} />
-          <span className="text-[10px] tracking-tight mt-0.5">Achats PO</span>
-        </button>
+        />
 
         {/* 4. Expéditions Logistics */}
-        <button
+        <LabMobileBottomNavButton
+          isActive={activeModule === 'DELIVERY_LOGISTICS'}
+          label="Expéditions"
+          icon={Truck}
+          activeColorClass="text-indigo-400 bg-indigo-500/15"
           onClick={() => handleSelectModule('DELIVERY_LOGISTICS')}
-          className={`flex-1 flex flex-col items-center justify-center min-h-[48px] py-1 px-1 rounded-2xl transition-all active:scale-95 ${
-            activeModule === 'DELIVERY_LOGISTICS'
-              ? 'text-indigo-400 font-black bg-indigo-500/15'
-              : 'text-slate-400 hover:text-slate-200'
-          }`}
-        >
-          <Truck className={`w-5 h-5 transition-transform ${activeModule === 'DELIVERY_LOGISTICS' ? 'scale-110' : ''}`} />
-          <span className="text-[10px] tracking-tight mt-0.5">Expéditions</span>
-        </button>
+        />
 
         {/* 5. All 22 Modules Sheet */}
-        <button
-          onClick={() => setIsModuleSheetOpen(true)}
-          className={`flex-1 flex flex-col items-center justify-center min-h-[48px] py-1 px-1 rounded-2xl transition-all active:scale-95 ${
-            isOtherActive
-              ? 'text-amber-300 font-black bg-amber-500/20 border border-amber-500/30'
-              : 'text-slate-400 hover:text-slate-200'
-          }`}
-        >
-          <div className="relative">
-            <LayoutGrid className={`w-5 h-5 transition-transform ${isOtherActive ? 'scale-110' : ''}`} />
-            {isOtherActive && (
-              <span className="absolute -top-1 -right-1 w-2 h-2 rounded-full bg-amber-400 animate-pulse" />
-            )}
-          </div>
-          <span className="text-[10px] tracking-tight mt-0.5 font-bold">
-            {isOtherActive ? 'Module...' : 'Hub Labo'}
-          </span>
-        </button>
+        <LabMobileBottomNavButton
+          isActive={isOtherActive}
+          label={isOtherActive ? 'Module...' : 'Hub Labo'}
+          icon={LayoutGrid}
+          activeColorClass="text-amber-300 bg-amber-500/20 border border-amber-500/30"
+          hasBadge={isOtherActive}
+          onClick={handleOpenModuleSheet}
+        />
       </div>
 
       {/* ANDROID MATERIAL 3 SEARCHABLE BOTTOM SHEET FOR ALL 22 LAB MODULES */}
@@ -535,7 +569,7 @@ export const LabDashboard: React.FC = () => {
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              onClick={() => setIsModuleSheetOpen(false)}
+              onClick={handleCloseModuleSheet}
               className="absolute inset-0 bg-slate-950/75 backdrop-blur-xs"
             />
 
@@ -562,8 +596,9 @@ export const LabDashboard: React.FC = () => {
                   </div>
                 </div>
                 <button
-                  onClick={() => setIsModuleSheetOpen(false)}
-                  className="p-2 rounded-xl text-slate-400 hover:text-white bg-slate-800"
+                  type="button"
+                  onClick={handleCloseModuleSheet}
+                  className="p-2 rounded-xl text-slate-400 hover:text-white bg-slate-800 cursor-pointer"
                 >
                   <X className="w-4 h-4" />
                 </button>
@@ -581,8 +616,9 @@ export const LabDashboard: React.FC = () => {
                 />
                 {moduleSearch && (
                   <button
-                    onClick={() => setModuleSearch('')}
-                    className="absolute right-3 top-2.5 text-xs text-slate-400 hover:text-white"
+                    type="button"
+                    onClick={handleClearModuleSearch}
+                    className="absolute right-3 top-2.5 text-xs text-slate-400 hover:text-white cursor-pointer"
                   >
                     ✕
                   </button>
@@ -591,51 +627,27 @@ export const LabDashboard: React.FC = () => {
 
               {/* Scrollable Categories & Module List */}
               <div className="flex-1 overflow-y-auto space-y-4 pr-1 scrollbar-none">
-                {LAB_CATEGORIES.map((cat, idx) => {
-                  const filteredItems = cat.items.filter(
-                    (item) =>
-                      item.label.toLowerCase().includes(moduleSearch.toLowerCase()) ||
-                      item.desc.toLowerCase().includes(moduleSearch.toLowerCase()) ||
-                      cat.title.toLowerCase().includes(moduleSearch.toLowerCase())
-                  );
-
-                  if (filteredItems.length === 0) return null;
-
-                  return (
-                    <div key={idx} className="space-y-2">
-                      <h4 className="text-[11px] font-extrabold uppercase text-amber-400 tracking-wider px-1">
-                        {cat.title}
-                      </h4>
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                        {filteredItems.map((item) => {
-                          const Icon = item.icon;
-                          const isCurrent = activeModule === item.id;
-                          return (
-                            <button
-                              key={item.id}
-                              onClick={() => handleSelectModule(item.id)}
-                              className={`p-3 rounded-2xl border text-left flex items-start gap-3 transition-all active:scale-95 ${
-                                isCurrent
-                                  ? 'bg-amber-500 text-slate-950 border-amber-400 font-bold shadow-md'
-                                  : 'bg-slate-800/80 border-slate-700/80 hover:bg-slate-800 text-slate-200'
-                              }`}
-                            >
-                              <div className={`p-2 rounded-xl shrink-0 ${isCurrent ? 'bg-slate-950 text-amber-400' : item.color}`}>
-                                <Icon className="w-4 h-4" />
-                              </div>
-                              <div className="min-w-0 flex-1">
-                                <div className="text-xs font-bold truncate">{item.label}</div>
-                                <div className={`text-[10px] line-clamp-1 ${isCurrent ? 'text-slate-800 font-medium' : 'text-slate-400'}`}>
-                                  {item.desc}
-                                </div>
-                              </div>
-                            </button>
-                          );
-                        })}
-                      </div>
+                {filteredCategories.map((cat, idx) => (
+                  <div key={idx} className="space-y-2">
+                    <h4 className="text-[11px] font-extrabold uppercase text-amber-400 tracking-wider px-1">
+                      {cat.title}
+                    </h4>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                      {cat.items.map((item) => (
+                        <LabModuleCardItem
+                          key={item.id}
+                          id={item.id}
+                          label={item.label}
+                          desc={item.desc}
+                          icon={item.icon}
+                          color={item.color}
+                          isActive={activeModule === item.id}
+                          onSelect={handleSelectModule}
+                        />
+                      ))}
                     </div>
-                  );
-                })}
+                  </div>
+                ))}
               </div>
             </motion.div>
           </div>
@@ -645,9 +657,10 @@ export const LabDashboard: React.FC = () => {
       {/* OFFLINE QUEUE (INDEXEDDB) MANAGEMENT DRAWER */}
       <OfflineQueueDrawer
         isOpen={isOfflineQueueDrawerOpen}
-        onClose={() => setIsOfflineQueueDrawerOpen(false)}
+        onClose={handleCloseOfflineQueue}
       />
 
     </div>
   );
 };
+

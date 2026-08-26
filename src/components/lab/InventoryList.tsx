@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import {
   getRawMaterials,
   saveRawMaterials,
@@ -185,36 +185,66 @@ export const InventoryList: React.FC = () => {
     }
   };
 
-  const semiFinishedRecipes = recipes.filter((r) => r.recipeType === 'SEMI_FINISHED');
+  const semiFinishedRecipes = useMemo(
+    () => recipes.filter((r) => r.recipeType === 'SEMI_FINISHED'),
+    [recipes]
+  );
 
-  // Filtered Raw Materials
-  const rawMaterialCategories = Array.from(new Set(materials.map((m) => m.category)));
-  const filteredMaterials = materials.filter((m) => {
-    const matchesCat = categoryFilter === 'ALL' || m.category === categoryFilter;
-    const matchesSearch =
-      m.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      m.sku.toLowerCase().includes(searchTerm.toLowerCase());
-    return matchesCat && matchesSearch;
-  });
+  // Filtered Raw Materials with useMemo
+  const rawMaterialCategories = useMemo(
+    () => Array.from(new Set(materials.map((m) => m.category))),
+    [materials]
+  );
 
-  // Filtered Semi-Finished Stock
-  const sfCategories = Array.from(new Set(sfStockItems.map((sf) => sf.category)));
-  const filteredSfStock = sfStockItems.filter((sf) => {
-    const matchesCat = categoryFilter === 'ALL' || sf.category === categoryFilter;
-    const matchesSearch = sf.recipeName.toLowerCase().includes(searchTerm.toLowerCase());
-    return matchesCat && matchesSearch;
-  });
+  const filteredMaterials = useMemo(() => {
+    const term = searchTerm.toLowerCase().trim();
+    return materials.filter((m) => {
+      const matchesCat = categoryFilter === 'ALL' || m.category === categoryFilter;
+      const matchesSearch =
+        !term ||
+        m.name.toLowerCase().includes(term) ||
+        m.sku.toLowerCase().includes(term);
+      return matchesCat && matchesSearch;
+    });
+  }, [materials, categoryFilter, searchTerm]);
 
-  // Valuations
-  const totalRawValue = materials.reduce((sum, m) => sum + m.currentStock * m.currentAvgCost, 0);
-  const lowStockRawCount = materials.filter((m) => m.currentStock <= m.reorderLevel).length;
+  // Filtered Semi-Finished Stock with useMemo
+  const sfCategories = useMemo(
+    () => Array.from(new Set(sfStockItems.map((sf) => sf.category))),
+    [sfStockItems]
+  );
 
-  const totalSfValue = sfStockItems.reduce((sum, sf) => {
-    const recipe = recipes.find((r) => r.id === sf.recipeId);
-    const unitCost = recipe ? getRecipeUnitCost(recipe, recipes, materials) : 0;
-    return sum + sf.currentStock * unitCost;
-  }, 0);
-  const lowStockSfCount = sfStockItems.filter((sf) => sf.currentStock <= sf.minStockLevel).length;
+  const filteredSfStock = useMemo(() => {
+    const term = searchTerm.toLowerCase().trim();
+    return sfStockItems.filter((sf) => {
+      const matchesCat = categoryFilter === 'ALL' || sf.category === categoryFilter;
+      const matchesSearch = !term || sf.recipeName.toLowerCase().includes(term);
+      return matchesCat && matchesSearch;
+    });
+  }, [sfStockItems, categoryFilter, searchTerm]);
+
+  // Valuations with useMemo
+  const { totalRawValue, lowStockRawCount } = useMemo(() => {
+    let val = 0;
+    let lowCount = 0;
+    for (const m of materials) {
+      val += m.currentStock * m.currentAvgCost;
+      if (m.currentStock <= m.reorderLevel) lowCount++;
+    }
+    return { totalRawValue: val, lowStockRawCount: lowCount };
+  }, [materials]);
+
+  const { totalSfValue, lowStockSfCount } = useMemo(() => {
+    let val = 0;
+    let lowCount = 0;
+    for (const sf of sfStockItems) {
+      const recipe = recipes.find((r) => r.id === sf.recipeId);
+      const unitCost = recipe ? getRecipeUnitCost(recipe, recipes, materials) : 0;
+      val += sf.currentStock * unitCost;
+      if (sf.currentStock <= sf.minStockLevel) lowCount++;
+    }
+    return { totalSfValue: val, lowStockSfCount: lowCount };
+  }, [sfStockItems, recipes, materials]);
 
   // Handlers for Semi-Finished edit
   const handleOpenEditSf = (sf: SemiFinishedStockItem) => {

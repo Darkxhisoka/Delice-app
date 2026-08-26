@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
 import { subscribeToSupabaseRealtime } from '../../services/supabaseService';
 import { notifyToast } from '../../services/storage';
@@ -16,6 +16,7 @@ import { CustomCakePreOrders } from './CustomCakePreOrders';
 import { CustomerLoyaltyManager } from './CustomerLoyaltyManager';
 import { CashDrawerZReportView } from './CashDrawerZReportView';
 import { StoreReturnsManager } from './StoreReturnsManager';
+import { EmergencyDataExportModal } from './EmergencyDataExportModal';
 import { getActiveStore } from '../../services/storage';
 import { CompanyLogo } from '../common/CompanyLogo';
 import { 
@@ -33,35 +34,192 @@ import {
   Radio,
   LayoutGrid,
   X,
-  Sparkles,
   Cake,
   Crown,
   Receipt,
-  RotateCcw
+  RotateCcw,
+  HardDrive
 } from 'lucide-react';
 
+export type StoreTab = 
+  | 'POS_SALES' 
+  | 'CUSTOM_CAKES'
+  | 'LOYALTY_VIP'
+  | 'CASH_Z_REPORT'
+  | 'STORE_RETURNS'
+  | 'RECEIVING' 
+  | 'RECONCILIATION' 
+  | 'UNSOLD_LOGS' 
+  | 'SALES_ANALYTICS' 
+  | 'NEW_REQ' 
+  | 'HISTORY' 
+  | 'PACKAGING' 
+  | 'ACTIVITY_FEED';
+
+interface DesktopTabConfig {
+  id: StoreTab;
+  label: string;
+  icon: React.ComponentType<{ className?: string }>;
+  variant?: 'amber-solid' | 'amber-outline' | 'pink' | 'purple' | 'emerald-solid' | 'emerald-outline' | 'indigo' | 'slate';
+}
+
+const DESKTOP_TABS: DesktopTabConfig[] = [
+  { id: 'POS_SALES', label: 'Caisse / Ventes', icon: ShoppingCart, variant: 'amber-solid' },
+  { id: 'CUSTOM_CAKES', label: '🎂 Gâteaux Sur-Mesure', icon: Cake, variant: 'pink' },
+  { id: 'LOYALTY_VIP', label: '👑 Club VIP & Fidélité', icon: Crown, variant: 'purple' },
+  { id: 'CASH_Z_REPORT', label: 'Clôture Caisse (Z)', icon: Receipt, variant: 'emerald-outline' },
+  { id: 'STORE_RETURNS', label: 'Bons de Retour', icon: RotateCcw, variant: 'amber-outline' },
+  { id: 'RECEIVING', label: '🚚 Réception Livraisons', icon: Truck, variant: 'indigo' },
+  { id: 'PACKAGING', label: '📦 Emballages & Colisage', icon: Package, variant: 'amber-outline' },
+  { id: 'RECONCILIATION', label: '⚡ Clôture Stock EOD', icon: Calculator, variant: 'amber-outline' },
+  { id: 'UNSOLD_LOGS', label: 'Invendus & Casse', icon: PackageX, variant: 'amber-solid' },
+  { id: 'SALES_ANALYTICS', label: 'Analytique Ventes', icon: BarChart3, variant: 'amber-solid' },
+  { id: 'NEW_REQ', label: 'Demande Approvisionnement', icon: ShoppingBag, variant: 'emerald-solid' },
+  { id: 'HISTORY', label: 'Historique Commandes', icon: History, variant: 'emerald-solid' },
+  { id: 'ACTIVITY_FEED', label: '⚡ Audit', icon: Activity, variant: 'amber-solid' },
+];
+
+/**
+ * Memoized Desktop Navigation Tab Button
+ */
+const StoreDesktopTabItem = React.memo<{
+  id: StoreTab;
+  isActive: boolean;
+  label: string;
+  icon: React.ComponentType<{ className?: string }>;
+  variant?: DesktopTabConfig['variant'];
+  onSelect: (tab: StoreTab) => void;
+}>(({ id, isActive, label, icon: Icon, variant = 'slate', onSelect }) => {
+  const handleClick = useCallback(() => {
+    onSelect(id);
+  }, [onSelect, id]);
+
+  let activeClass = 'bg-amber-500 text-slate-950 font-black shadow-sm';
+  let inactiveClass = 'text-slate-400 hover:text-slate-200 hover:bg-slate-800';
+
+  if (variant === 'pink') {
+    activeClass = 'bg-pink-600 text-white font-black shadow-md ring-2 ring-pink-400';
+    inactiveClass = 'bg-pink-500/20 text-pink-300 hover:bg-pink-500/30';
+  } else if (variant === 'purple') {
+    activeClass = 'bg-purple-600 text-white font-black shadow-md ring-2 ring-purple-400';
+    inactiveClass = 'bg-purple-500/20 text-purple-300 hover:bg-purple-500/30';
+  } else if (variant === 'emerald-outline') {
+    activeClass = 'bg-emerald-600 text-white font-black shadow-md ring-2 ring-emerald-400';
+    inactiveClass = 'bg-emerald-500/20 text-emerald-300 hover:bg-emerald-500/30';
+  } else if (variant === 'emerald-solid') {
+    activeClass = 'bg-emerald-600 text-white shadow-sm';
+    inactiveClass = 'text-slate-400 hover:text-slate-200 hover:bg-slate-800';
+  } else if (variant === 'indigo') {
+    activeClass = 'bg-indigo-600 text-white font-black shadow-md ring-2 ring-indigo-400';
+    inactiveClass = 'bg-indigo-500/20 text-indigo-300 hover:bg-indigo-500/30';
+  } else if (variant === 'amber-outline') {
+    activeClass = 'bg-amber-400 text-slate-950 font-black shadow-md ring-2 ring-amber-300';
+    inactiveClass = 'bg-amber-500/20 text-amber-300 hover:bg-amber-500/30';
+  }
+
+  return (
+    <button
+      type="button"
+      onClick={handleClick}
+      className={`flex items-center gap-2 min-h-[44px] px-3.5 py-2 rounded-lg text-xs font-bold whitespace-nowrap transition-all cursor-pointer ${
+        isActive ? activeClass : inactiveClass
+      }`}
+    >
+      <Icon className="w-4 h-4 shrink-0" />
+      <span>{label}</span>
+    </button>
+  );
+});
+StoreDesktopTabItem.displayName = 'StoreDesktopTabItem';
+
+/**
+ * Memoized Mobile Material 3 Bottom Nav Item
+ */
+const StoreMobileBottomNavButton = React.memo<{
+  isActive: boolean;
+  label: string;
+  icon: React.ComponentType<{ className?: string }>;
+  activeColorClass: string;
+  hasBadge?: boolean;
+  onClick: () => void;
+}>(({ isActive, label, icon: Icon, activeColorClass, hasBadge, onClick }) => {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`flex-1 flex flex-col items-center justify-center min-h-[48px] py-1 px-1 rounded-2xl transition-all active:scale-95 cursor-pointer ${
+        isActive ? `${activeColorClass} font-black` : 'text-slate-400 hover:text-slate-200'
+      }`}
+    >
+      <div className="relative">
+        <Icon className={`w-5 h-5 transition-transform ${isActive ? 'scale-110' : ''}`} />
+        {hasBadge && (
+          <span className="absolute -top-1 -right-1 w-2 h-2 rounded-full bg-amber-400 animate-pulse" />
+        )}
+      </div>
+      <span className="text-[10px] tracking-tight mt-0.5">{label}</span>
+    </button>
+  );
+});
+StoreMobileBottomNavButton.displayName = 'StoreMobileBottomNavButton';
+
+/**
+ * Memoized Secondary Module Item for Bottom Sheet
+ */
+const StoreModuleCardItem = React.memo<{
+  tab: StoreTab;
+  isActive: boolean;
+  title: string;
+  subtitle: string;
+  icon: React.ComponentType<{ className?: string }>;
+  iconColor: string;
+  activeBgClass?: string;
+  fullWidth?: boolean;
+  badge?: string;
+  onSelect: (tab: StoreTab) => void;
+}>(({ tab, isActive, title, subtitle, icon: Icon, iconColor, activeBgClass = 'bg-amber-500 text-slate-950 border-amber-400 font-bold', fullWidth = false, badge, onSelect }) => {
+  const handleClick = useCallback(() => {
+    onSelect(tab);
+  }, [onSelect, tab]);
+
+  return (
+    <button
+      type="button"
+      onClick={handleClick}
+      className={`${fullWidth ? 'col-span-2' : ''} p-3 rounded-2xl border text-left flex ${
+        fullWidth ? 'items-center justify-between gap-3' : 'flex-col justify-between gap-2'
+      } transition-all active:scale-95 cursor-pointer ${
+        isActive
+          ? activeBgClass
+          : 'bg-slate-800/80 border-slate-700 text-slate-200 hover:bg-slate-800'
+      }`}
+    >
+      <div className={fullWidth ? 'flex items-center gap-2.5 min-w-0' : 'contents'}>
+        <Icon className={`w-5 h-5 shrink-0 ${isActive && activeBgClass.includes('text-slate-950') ? 'text-slate-950' : iconColor}`} />
+        <div className="min-w-0">
+          <div className="text-xs font-extrabold truncate">{title}</div>
+          <div className={`text-[10px] truncate ${isActive ? 'opacity-90' : 'opacity-75'}`}>{subtitle}</div>
+        </div>
+      </div>
+      {badge && (
+        <span className="text-[10px] uppercase font-black bg-amber-400/20 text-amber-300 px-2 py-0.5 rounded-full border border-amber-400/30 shrink-0">
+          {badge}
+        </span>
+      )}
+    </button>
+  );
+});
+StoreModuleCardItem.displayName = 'StoreModuleCardItem';
+
 export const StoreDashboard: React.FC = () => {
-  const [activeTab, setActiveTab] = useState<
-    | 'POS_SALES' 
-    | 'CUSTOM_CAKES'
-    | 'LOYALTY_VIP'
-    | 'CASH_Z_REPORT'
-    | 'STORE_RETURNS'
-    | 'RECEIVING' 
-    | 'RECONCILIATION' 
-    | 'UNSOLD_LOGS' 
-    | 'SALES_ANALYTICS' 
-    | 'NEW_REQ' 
-    | 'HISTORY' 
-    | 'PACKAGING' 
-    | 'ACTIVITY_FEED'
-  >('POS_SALES');
+  const [activeTab, setActiveTab] = useState<StoreTab>('POS_SALES');
   const [isMoreSheetOpen, setIsMoreSheetOpen] = useState<boolean>(false);
+  const [isEmergencyModalOpen, setIsEmergencyModalOpen] = useState<boolean>(false);
   const activeStore = getActiveStore();
   const [lastSyncTime, setLastSyncTime] = useState<string>(new Date().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit', second: '2-digit' }));
 
   useEffect(() => {
-    const unsubscribe = subscribeToSupabaseRealtime((table, payload) => {
+    const unsubscribe = subscribeToSupabaseRealtime((table) => {
       setLastSyncTime(new Date().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit', second: '2-digit' }));
 
       let tableLabel = 'Mise à jour en direct';
@@ -81,12 +239,22 @@ export const StoreDashboard: React.FC = () => {
     };
   }, []);
 
-  const handleTabSelect = (tab: typeof activeTab) => {
+  const handleTabSelect = useCallback((tab: StoreTab) => {
     setActiveTab(tab);
     setIsMoreSheetOpen(false);
-  };
+  }, []);
 
-  const isMoreActive = ['RECONCILIATION', 'UNSOLD_LOGS', 'SALES_ANALYTICS', 'HISTORY', 'ACTIVITY_FEED'].includes(activeTab);
+  const handleOpenMoreSheet = useCallback(() => {
+    setIsMoreSheetOpen(true);
+  }, []);
+
+  const handleCloseMoreSheet = useCallback(() => {
+    setIsMoreSheetOpen(false);
+  }, []);
+
+  const isMoreActive = useMemo(() => {
+    return ['CUSTOM_CAKES', 'LOYALTY_VIP', 'CASH_Z_REPORT', 'STORE_RETURNS', 'RECONCILIATION', 'UNSOLD_LOGS', 'SALES_ANALYTICS', 'HISTORY', 'ACTIVITY_FEED'].includes(activeTab);
+  }, [activeTab]);
 
   return (
     <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 py-3 sm:py-8 space-y-4 sm:space-y-6 pb-28 md:pb-8">
@@ -112,6 +280,17 @@ export const StoreDashboard: React.FC = () => {
                   <Radio className="w-3 h-3 text-emerald-400" />
                   <span>Realtime • {lastSyncTime}</span>
                 </span>
+
+                {/* Emergency Dump Button */}
+                <button
+                  type="button"
+                  onClick={() => setIsEmergencyModalOpen(true)}
+                  className="px-2.5 py-0.5 rounded-full text-[10px] sm:text-[11px] font-bold bg-amber-400/20 hover:bg-amber-400/30 text-amber-300 border border-amber-400/40 flex items-center gap-1 transition-colors cursor-pointer"
+                  title="Exporter les bases IndexedDB sur le stockage local (Mesure de secours)"
+                >
+                  <HardDrive className="w-3 h-3 text-amber-400" />
+                  <span>Dump Secours</span>
+                </button>
               </div>
               <p className="text-xs text-slate-300 mt-0.5 sm:mt-1">
                 {activeStore.address} • Gérant : {activeStore.managerName}
@@ -121,161 +300,17 @@ export const StoreDashboard: React.FC = () => {
 
           {/* Desktop Module Tab Navigation (Horizontal Scrollable) */}
           <div className="hidden md:flex bg-slate-950/90 p-1.5 rounded-xl border border-slate-700/90 items-center gap-1 overflow-x-auto scrollbar-none self-start md:self-auto max-w-full">
-            <button
-              onClick={() => setActiveTab('POS_SALES')}
-              className={`flex items-center gap-2 min-h-[44px] px-3.5 py-2 rounded-lg text-xs font-bold whitespace-nowrap transition-all ${
-                activeTab === 'POS_SALES'
-                  ? 'bg-amber-500 text-slate-950 font-black shadow-sm'
-                  : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800'
-              }`}
-            >
-              <ShoppingCart className="w-4 h-4" />
-              <span>Caisse / Ventes</span>
-            </button>
-
-            <button
-              onClick={() => setActiveTab('CUSTOM_CAKES')}
-              className={`flex items-center gap-2 min-h-[44px] px-3.5 py-2 rounded-lg text-xs font-bold whitespace-nowrap transition-all ${
-                activeTab === 'CUSTOM_CAKES'
-                  ? 'bg-pink-600 text-white font-black shadow-md ring-2 ring-pink-400'
-                  : 'bg-pink-500/20 text-pink-300 hover:bg-pink-500/30'
-              }`}
-            >
-              <Cake className="w-4 h-4 text-pink-300" />
-              <span>🎂 Gâteaux Sur-Mesure</span>
-            </button>
-
-            <button
-              onClick={() => setActiveTab('LOYALTY_VIP')}
-              className={`flex items-center gap-2 min-h-[44px] px-3.5 py-2 rounded-lg text-xs font-bold whitespace-nowrap transition-all ${
-                activeTab === 'LOYALTY_VIP'
-                  ? 'bg-purple-600 text-white font-black shadow-md ring-2 ring-purple-400'
-                  : 'bg-purple-500/20 text-purple-300 hover:bg-purple-500/30'
-              }`}
-            >
-              <Crown className="w-4 h-4 text-purple-300" />
-              <span>👑 Club VIP & Fidélité</span>
-            </button>
-
-            <button
-              onClick={() => setActiveTab('CASH_Z_REPORT')}
-              className={`flex items-center gap-2 min-h-[44px] px-3.5 py-2 rounded-lg text-xs font-bold whitespace-nowrap transition-all ${
-                activeTab === 'CASH_Z_REPORT'
-                  ? 'bg-emerald-600 text-white font-black shadow-md ring-2 ring-emerald-400'
-                  : 'bg-emerald-500/20 text-emerald-300 hover:bg-emerald-500/30'
-              }`}
-            >
-              <Receipt className="w-4 h-4 text-emerald-300" />
-              <span>Clôture Caisse (Z)</span>
-            </button>
-
-            <button
-              onClick={() => setActiveTab('STORE_RETURNS')}
-              className={`flex items-center gap-2 min-h-[44px] px-3.5 py-2 rounded-lg text-xs font-bold whitespace-nowrap transition-all ${
-                activeTab === 'STORE_RETURNS'
-                  ? 'bg-amber-400 text-slate-950 font-black shadow-md ring-2 ring-amber-300'
-                  : 'bg-amber-500/20 text-amber-300 hover:bg-amber-500/30'
-              }`}
-            >
-              <RotateCcw className="w-4 h-4 text-amber-400" />
-              <span>Bons de Retour</span>
-            </button>
-
-            <button
-              onClick={() => setActiveTab('RECEIVING')}
-              className={`flex items-center gap-2 min-h-[44px] px-3.5 py-2 rounded-lg text-xs font-bold whitespace-nowrap transition-all ${
-                activeTab === 'RECEIVING'
-                  ? 'bg-indigo-600 text-white font-black shadow-md ring-2 ring-indigo-400'
-                  : 'bg-indigo-500/20 text-indigo-300 hover:bg-indigo-500/30'
-              }`}
-            >
-              <Truck className="w-4 h-4 text-indigo-300" />
-              <span>🚚 Réception Livraisons</span>
-            </button>
-
-            <button
-              onClick={() => setActiveTab('PACKAGING')}
-              className={`flex items-center gap-2 min-h-[44px] px-3.5 py-2 rounded-lg text-xs font-bold whitespace-nowrap transition-all ${
-                activeTab === 'PACKAGING'
-                  ? 'bg-amber-400 text-slate-950 font-black shadow-md ring-2 ring-amber-300'
-                  : 'bg-amber-500/20 text-amber-300 hover:bg-amber-500/30'
-              }`}
-            >
-              <Package className="w-4 h-4 text-amber-400" />
-              <span>📦 Emballages & Colisage</span>
-            </button>
-
-            <button
-              onClick={() => setActiveTab('RECONCILIATION')}
-              className={`flex items-center gap-2 min-h-[44px] px-3.5 py-2 rounded-lg text-xs font-bold whitespace-nowrap transition-all ${
-                activeTab === 'RECONCILIATION'
-                  ? 'bg-amber-400 text-slate-950 font-black shadow-md ring-2 ring-amber-300'
-                  : 'bg-amber-500/20 text-amber-300 hover:bg-amber-500/30'
-              }`}
-            >
-              <Calculator className="w-4 h-4 text-amber-400" />
-              <span>⚡ Clôture Stock EOD</span>
-            </button>
-
-            <button
-              onClick={() => setActiveTab('UNSOLD_LOGS')}
-              className={`flex items-center gap-2 min-h-[44px] px-3.5 py-2 rounded-lg text-xs font-bold whitespace-nowrap transition-all ${
-                activeTab === 'UNSOLD_LOGS'
-                  ? 'bg-amber-500 text-slate-950 font-black shadow-sm'
-                  : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800'
-              }`}
-            >
-              <PackageX className="w-4 h-4" />
-              <span>Invendus & Casse</span>
-            </button>
-
-            <button
-              onClick={() => setActiveTab('SALES_ANALYTICS')}
-              className={`flex items-center gap-2 min-h-[44px] px-3.5 py-2 rounded-lg text-xs font-bold whitespace-nowrap transition-all ${
-                activeTab === 'SALES_ANALYTICS'
-                  ? 'bg-amber-500 text-slate-950 font-black shadow-sm'
-                  : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800'
-              }`}
-            >
-              <BarChart3 className="w-4 h-4" />
-              <span>Analytique Ventes</span>
-            </button>
-
-            <button
-              onClick={() => setActiveTab('NEW_REQ')}
-              className={`flex items-center gap-2 min-h-[44px] px-3.5 py-2 rounded-lg text-xs font-bold whitespace-nowrap transition-all ${
-                activeTab === 'NEW_REQ'
-                  ? 'bg-emerald-600 text-white shadow-sm'
-                  : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800'
-              }`}
-            >
-              <ShoppingBag className="w-4 h-4" />
-              <span>Demande Approvisionnement</span>
-            </button>
-
-            <button
-              onClick={() => setActiveTab('HISTORY')}
-              className={`flex items-center gap-2 min-h-[44px] px-3.5 py-2 rounded-lg text-xs font-bold whitespace-nowrap transition-all ${
-                activeTab === 'HISTORY'
-                  ? 'bg-emerald-600 text-white shadow-sm'
-                  : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800'
-              }`}
-            >
-              <History className="w-4 h-4" />
-              <span>Historique Commandes</span>
-            </button>
-
-            <button
-              onClick={() => setActiveTab('ACTIVITY_FEED')}
-              className={`flex items-center gap-2 min-h-[44px] px-3.5 py-2 rounded-lg text-xs font-bold whitespace-nowrap transition-all ${
-                activeTab === 'ACTIVITY_FEED'
-                  ? 'bg-amber-500 text-slate-950 font-black shadow-md ring-2 ring-amber-300'
-                  : 'bg-amber-500/20 text-amber-300 hover:bg-amber-500/30'
-              }`}
-            >
-              <Activity className="w-4 h-4 text-amber-400" />
-              <span>⚡ Audit</span>
-            </button>
+            {DESKTOP_TABS.map((tab) => (
+              <StoreDesktopTabItem
+                key={tab.id}
+                id={tab.id}
+                isActive={activeTab === tab.id}
+                label={tab.label}
+                icon={tab.icon}
+                variant={tab.variant}
+                onSelect={handleTabSelect}
+              />
+            ))}
           </div>
         </div>
       </div>
@@ -299,7 +334,7 @@ export const StoreDashboard: React.FC = () => {
           {activeTab === 'RECONCILIATION' && <StoreReconciliation currentStore={activeStore} />}
           {activeTab === 'UNSOLD_LOGS' && <UnsoldProductsManager currentStore={activeStore} />}
           {activeTab === 'SALES_ANALYTICS' && <SalesAnalyticsView currentStore={activeStore} />}
-          {activeTab === 'NEW_REQ' && <RequisitionForm onSuccess={() => setActiveTab('HISTORY')} />}
+          {activeTab === 'NEW_REQ' && <RequisitionForm onSuccess={() => handleTabSelect('HISTORY')} />}
           {activeTab === 'HISTORY' && <StoreRequisitionHistory />}
           {activeTab === 'ACTIVITY_FEED' && <ActivityFeed initialInterface="STORE" />}
         </motion.div>
@@ -308,91 +343,57 @@ export const StoreDashboard: React.FC = () => {
       {/* Floating Action Button for fast 1-tap reporting of unsellable products */}
       <QuickActionsFloatingButton
         currentStore={activeStore}
-        onNavigateTab={(tab) => setActiveTab(tab)}
+        onNavigateTab={handleTabSelect}
       />
 
       {/* ANDROID / MOBILE MATERIAL 3 BOTTOM NAVIGATION BAR (< 768px) */}
       <div className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-slate-950/95 backdrop-blur-xl border-t border-slate-800 shadow-2xl px-1.5 pt-1.5 pb-[calc(0.5rem+env(safe-area-inset-bottom,0px))] flex items-center justify-around">
         
         {/* 1. Caisse (POS) */}
-        <button
+        <StoreMobileBottomNavButton
+          isActive={activeTab === 'POS_SALES'}
+          label="Caisse"
+          icon={ShoppingCart}
+          activeColorClass="text-amber-400 bg-amber-500/15"
           onClick={() => handleTabSelect('POS_SALES')}
-          className={`flex-1 flex flex-col items-center justify-center min-h-[48px] py-1 px-1 rounded-2xl transition-all active:scale-95 ${
-            activeTab === 'POS_SALES'
-              ? 'text-amber-400 font-black bg-amber-500/15'
-              : 'text-slate-400 hover:text-slate-200'
-          }`}
-        >
-          <div className="relative">
-            <ShoppingCart className={`w-5 h-5 transition-transform ${activeTab === 'POS_SALES' ? 'scale-110' : ''}`} />
-          </div>
-          <span className="text-[10px] tracking-tight mt-0.5">Caisse</span>
-        </button>
+        />
 
         {/* 2. Réception Livraisons */}
-        <button
+        <StoreMobileBottomNavButton
+          isActive={activeTab === 'RECEIVING'}
+          label="Livraisons"
+          icon={Truck}
+          activeColorClass="text-indigo-400 bg-indigo-500/15"
           onClick={() => handleTabSelect('RECEIVING')}
-          className={`flex-1 flex flex-col items-center justify-center min-h-[48px] py-1 px-1 rounded-2xl transition-all active:scale-95 ${
-            activeTab === 'RECEIVING'
-              ? 'text-indigo-400 font-black bg-indigo-500/15'
-              : 'text-slate-400 hover:text-slate-200'
-          }`}
-        >
-          <div className="relative">
-            <Truck className={`w-5 h-5 transition-transform ${activeTab === 'RECEIVING' ? 'scale-110' : ''}`} />
-          </div>
-          <span className="text-[10px] tracking-tight mt-0.5">Livraisons</span>
-        </button>
+        />
 
         {/* 3. Demandes Approvisionnement */}
-        <button
+        <StoreMobileBottomNavButton
+          isActive={activeTab === 'NEW_REQ'}
+          label="Demandes"
+          icon={ShoppingBag}
+          activeColorClass="text-emerald-400 bg-emerald-500/15"
           onClick={() => handleTabSelect('NEW_REQ')}
-          className={`flex-1 flex flex-col items-center justify-center min-h-[48px] py-1 px-1 rounded-2xl transition-all active:scale-95 ${
-            activeTab === 'NEW_REQ'
-              ? 'text-emerald-400 font-black bg-emerald-500/15'
-              : 'text-slate-400 hover:text-slate-200'
-          }`}
-        >
-          <div className="relative">
-            <ShoppingBag className={`w-5 h-5 transition-transform ${activeTab === 'NEW_REQ' ? 'scale-110' : ''}`} />
-          </div>
-          <span className="text-[10px] tracking-tight mt-0.5">Demandes</span>
-        </button>
+        />
 
         {/* 4. Colisage & Emballages */}
-        <button
+        <StoreMobileBottomNavButton
+          isActive={activeTab === 'PACKAGING'}
+          label="Colisage"
+          icon={Package}
+          activeColorClass="text-amber-400 bg-amber-500/15"
           onClick={() => handleTabSelect('PACKAGING')}
-          className={`flex-1 flex flex-col items-center justify-center min-h-[48px] py-1 px-1 rounded-2xl transition-all active:scale-95 ${
-            activeTab === 'PACKAGING'
-              ? 'text-amber-400 font-black bg-amber-500/15'
-              : 'text-slate-400 hover:text-slate-200'
-          }`}
-        >
-          <div className="relative">
-            <Package className={`w-5 h-5 transition-transform ${activeTab === 'PACKAGING' ? 'scale-110' : ''}`} />
-          </div>
-          <span className="text-[10px] tracking-tight mt-0.5">Colisage</span>
-        </button>
+        />
 
         {/* 5. More Hub / Menu */}
-        <button
-          onClick={() => setIsMoreSheetOpen(true)}
-          className={`flex-1 flex flex-col items-center justify-center min-h-[48px] py-1 px-1 rounded-2xl transition-all active:scale-95 ${
-            isMoreActive
-              ? 'text-indigo-300 font-black bg-indigo-500/20 border border-indigo-500/30'
-              : 'text-slate-400 hover:text-slate-200'
-          }`}
-        >
-          <div className="relative">
-            <LayoutGrid className={`w-5 h-5 transition-transform ${isMoreActive ? 'scale-110' : ''}`} />
-            {isMoreActive && (
-              <span className="absolute -top-1 -right-1 w-2 h-2 rounded-full bg-amber-400 animate-pulse" />
-            )}
-          </div>
-          <span className="text-[10px] tracking-tight mt-0.5 font-bold">
-            {isMoreActive ? 'Actif' : 'Plus...'}
-          </span>
-        </button>
+        <StoreMobileBottomNavButton
+          isActive={isMoreActive}
+          label={isMoreActive ? 'Actif' : 'Plus...'}
+          icon={LayoutGrid}
+          activeColorClass="text-indigo-300 bg-indigo-500/20 border border-indigo-500/30"
+          hasBadge={isMoreActive}
+          onClick={handleOpenMoreSheet}
+        />
       </div>
 
       {/* ANDROID MATERIAL 3 BOTTOM SHEET FOR "PLUS / MODULES" */}
@@ -404,7 +405,7 @@ export const StoreDashboard: React.FC = () => {
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              onClick={() => setIsMoreSheetOpen(false)}
+              onClick={handleCloseMoreSheet}
               className="absolute inset-0 bg-slate-950/70 backdrop-blur-xs"
             />
 
@@ -431,8 +432,9 @@ export const StoreDashboard: React.FC = () => {
                   </div>
                 </div>
                 <button
-                  onClick={() => setIsMoreSheetOpen(false)}
-                  className="p-2 rounded-xl text-slate-400 hover:text-white bg-slate-800"
+                  type="button"
+                  onClick={handleCloseMoreSheet}
+                  className="p-2 rounded-xl text-slate-400 hover:text-white bg-slate-800 cursor-pointer"
                 >
                   <X className="w-4 h-4" />
                 </button>
@@ -440,143 +442,125 @@ export const StoreDashboard: React.FC = () => {
 
               {/* Grid of Secondary Modules */}
               <div className="grid grid-cols-2 gap-2.5">
-                <button
-                  onClick={() => handleTabSelect('CUSTOM_CAKES')}
-                  className={`p-3 rounded-2xl border text-left flex flex-col justify-between gap-2 transition-all active:scale-95 ${
-                    activeTab === 'CUSTOM_CAKES'
-                      ? 'bg-pink-600 text-white border-pink-400 font-bold'
-                      : 'bg-slate-800/80 border-slate-700 text-slate-200'
-                  }`}
-                >
-                  <Cake className="w-5 h-5 text-pink-400" />
-                  <div>
-                    <div className="text-xs font-extrabold">Gâteaux Sur-Mesure</div>
-                    <div className="text-[10px] opacity-75">Commandes événements & labo</div>
-                  </div>
-                </button>
+                <StoreModuleCardItem
+                  tab="CUSTOM_CAKES"
+                  isActive={activeTab === 'CUSTOM_CAKES'}
+                  title="Gâteaux Sur-Mesure"
+                  subtitle="Commandes événements & labo"
+                  icon={Cake}
+                  iconColor="text-pink-400"
+                  activeBgClass="bg-pink-600 text-white border-pink-400 font-bold"
+                  onSelect={handleTabSelect}
+                />
 
-                <button
-                  onClick={() => handleTabSelect('LOYALTY_VIP')}
-                  className={`p-3 rounded-2xl border text-left flex flex-col justify-between gap-2 transition-all active:scale-95 ${
-                    activeTab === 'LOYALTY_VIP'
-                      ? 'bg-purple-600 text-white border-purple-400 font-bold'
-                      : 'bg-slate-800/80 border-slate-700 text-slate-200'
-                  }`}
-                >
-                  <Crown className="w-5 h-5 text-purple-400" />
-                  <div>
-                    <div className="text-xs font-extrabold">Club VIP & Fidélité</div>
-                    <div className="text-[10px] opacity-75">Points & profils clients</div>
-                  </div>
-                </button>
+                <StoreModuleCardItem
+                  tab="LOYALTY_VIP"
+                  isActive={activeTab === 'LOYALTY_VIP'}
+                  title="Club VIP & Fidélité"
+                  subtitle="Points & profils clients"
+                  icon={Crown}
+                  iconColor="text-purple-400"
+                  activeBgClass="bg-purple-600 text-white border-purple-400 font-bold"
+                  onSelect={handleTabSelect}
+                />
 
-                <button
-                  onClick={() => handleTabSelect('CASH_Z_REPORT')}
-                  className={`p-3 rounded-2xl border text-left flex flex-col justify-between gap-2 transition-all active:scale-95 ${
-                    activeTab === 'CASH_Z_REPORT'
-                      ? 'bg-emerald-600 text-white border-emerald-400 font-bold'
-                      : 'bg-slate-800/80 border-slate-700 text-slate-200'
-                  }`}
-                >
-                  <Receipt className="w-5 h-5 text-emerald-400" />
-                  <div>
-                    <div className="text-xs font-extrabold">Clôture Caisse (Z)</div>
-                    <div className="text-[10px] opacity-75">Comptage espèces & TPE</div>
-                  </div>
-                </button>
+                <StoreModuleCardItem
+                  tab="CASH_Z_REPORT"
+                  isActive={activeTab === 'CASH_Z_REPORT'}
+                  title="Clôture Caisse (Z)"
+                  subtitle="Comptage espèces & TPE"
+                  icon={Receipt}
+                  iconColor="text-emerald-400"
+                  activeBgClass="bg-emerald-600 text-white border-emerald-400 font-bold"
+                  onSelect={handleTabSelect}
+                />
 
-                <button
-                  onClick={() => handleTabSelect('STORE_RETURNS')}
-                  className={`p-3 rounded-2xl border text-left flex flex-col justify-between gap-2 transition-all active:scale-95 ${
-                    activeTab === 'STORE_RETURNS'
-                      ? 'bg-amber-500 text-slate-950 border-amber-400 font-bold'
-                      : 'bg-slate-800/80 border-slate-700 text-slate-200'
-                  }`}
-                >
-                  <RotateCcw className="w-5 h-5 text-amber-400" />
-                  <div>
-                    <div className="text-xs font-extrabold">Bons de Retour</div>
-                    <div className="text-[10px] opacity-75">Invendus & recyclage labo</div>
-                  </div>
-                </button>
+                <StoreModuleCardItem
+                  tab="STORE_RETURNS"
+                  isActive={activeTab === 'STORE_RETURNS'}
+                  title="Bons de Retour"
+                  subtitle="Invendus & recyclage labo"
+                  icon={RotateCcw}
+                  iconColor="text-amber-400"
+                  activeBgClass="bg-amber-500 text-slate-950 border-amber-400 font-bold"
+                  onSelect={handleTabSelect}
+                />
 
-                <button
-                  onClick={() => handleTabSelect('RECONCILIATION')}
-                  className={`p-3 rounded-2xl border text-left flex flex-col justify-between gap-2 transition-all active:scale-95 ${
-                    activeTab === 'RECONCILIATION'
-                      ? 'bg-amber-500 text-slate-950 border-amber-400 font-bold'
-                      : 'bg-slate-800/80 border-slate-700 text-slate-200'
-                  }`}
-                >
-                  <Calculator className="w-5 h-5 text-amber-400" />
-                  <div>
-                    <div className="text-xs font-extrabold">Clôture Stock EOD</div>
-                    <div className="text-[10px] opacity-75">Inventaire de fin de journée</div>
-                  </div>
-                </button>
+                <StoreModuleCardItem
+                  tab="RECONCILIATION"
+                  isActive={activeTab === 'RECONCILIATION'}
+                  title="Clôture Stock EOD"
+                  subtitle="Inventaire de fin de journée"
+                  icon={Calculator}
+                  iconColor="text-amber-400"
+                  activeBgClass="bg-amber-500 text-slate-950 border-amber-400 font-bold"
+                  onSelect={handleTabSelect}
+                />
 
-                <button
-                  onClick={() => handleTabSelect('UNSOLD_LOGS')}
-                  className={`p-3 rounded-2xl border text-left flex flex-col justify-between gap-2 transition-all active:scale-95 ${
-                    activeTab === 'UNSOLD_LOGS'
-                      ? 'bg-amber-500 text-slate-950 border-amber-400 font-bold'
-                      : 'bg-slate-800/80 border-slate-700 text-slate-200'
-                  }`}
-                >
-                  <PackageX className="w-5 h-5 text-rose-400" />
-                  <div>
-                    <div className="text-xs font-extrabold">Invendus & Casse</div>
-                    <div className="text-[10px] opacity-75">Pertes et déclassements</div>
-                  </div>
-                </button>
+                <StoreModuleCardItem
+                  tab="UNSOLD_LOGS"
+                  isActive={activeTab === 'UNSOLD_LOGS'}
+                  title="Invendus & Casse"
+                  subtitle="Pertes et déclassements"
+                  icon={PackageX}
+                  iconColor="text-rose-400"
+                  activeBgClass="bg-amber-500 text-slate-950 border-amber-400 font-bold"
+                  onSelect={handleTabSelect}
+                />
 
-                <button
-                  onClick={() => handleTabSelect('SALES_ANALYTICS')}
-                  className={`p-3 rounded-2xl border text-left flex flex-col justify-between gap-2 transition-all active:scale-95 ${
-                    activeTab === 'SALES_ANALYTICS'
-                      ? 'bg-amber-500 text-slate-950 border-amber-400 font-bold'
-                      : 'bg-slate-800/80 border-slate-700 text-slate-200'
-                  }`}
-                >
-                  <BarChart3 className="w-5 h-5 text-indigo-400" />
-                  <div>
-                    <div className="text-xs font-extrabold">Analytique Ventes</div>
-                    <div className="text-[10px] opacity-75">CA & meilleures ventes</div>
-                  </div>
-                </button>
+                <StoreModuleCardItem
+                  tab="SALES_ANALYTICS"
+                  isActive={activeTab === 'SALES_ANALYTICS'}
+                  title="Analytique Ventes"
+                  subtitle="CA & meilleures ventes"
+                  icon={BarChart3}
+                  iconColor="text-indigo-400"
+                  activeBgClass="bg-amber-500 text-slate-950 border-amber-400 font-bold"
+                  onSelect={handleTabSelect}
+                />
 
-                <button
-                  onClick={() => handleTabSelect('HISTORY')}
-                  className={`p-3 rounded-2xl border text-left flex flex-col justify-between gap-2 transition-all active:scale-95 ${
-                    activeTab === 'HISTORY'
-                      ? 'bg-emerald-600 text-white border-emerald-500 font-bold'
-                      : 'bg-slate-800/80 border-slate-700 text-slate-200'
-                  }`}
-                >
-                  <History className="w-5 h-5 text-emerald-400" />
-                  <div>
-                    <div className="text-xs font-extrabold">Historique Commandes</div>
-                    <div className="text-[10px] opacity-75">Bons de réquisition passés</div>
-                  </div>
-                </button>
+                <StoreModuleCardItem
+                  tab="HISTORY"
+                  isActive={activeTab === 'HISTORY'}
+                  title="Historique Commandes"
+                  subtitle="Bons de réquisition passés"
+                  icon={History}
+                  iconColor="text-emerald-400"
+                  activeBgClass="bg-emerald-600 text-white border-emerald-500 font-bold"
+                  onSelect={handleTabSelect}
+                />
 
+                <StoreModuleCardItem
+                  tab="ACTIVITY_FEED"
+                  isActive={activeTab === 'ACTIVITY_FEED'}
+                  title="Journal d'Audit & Activités"
+                  subtitle="Traçabilité des opérations de la boutique"
+                  icon={Activity}
+                  iconColor="text-amber-400"
+                  activeBgClass="bg-amber-500 text-slate-950 border-amber-400 font-bold"
+                  fullWidth
+                  badge="Live"
+                  onSelect={handleTabSelect}
+                />
+
+                {/* Emergency Dump Filesystem Trigger */}
                 <button
-                  onClick={() => handleTabSelect('ACTIVITY_FEED')}
-                  className={`col-span-2 p-3 rounded-2xl border text-left flex items-center justify-between gap-3 transition-all active:scale-95 ${
-                    activeTab === 'ACTIVITY_FEED'
-                      ? 'bg-amber-500 text-slate-950 border-amber-400 font-bold'
-                      : 'bg-slate-800/80 border-slate-700 text-slate-200'
-                  }`}
+                  type="button"
+                  onClick={() => {
+                    setIsMoreSheetOpen(false);
+                    setIsEmergencyModalOpen(true);
+                  }}
+                  className="col-span-2 p-3 rounded-2xl border border-amber-500/40 bg-gradient-to-r from-amber-500/20 to-amber-600/10 text-slate-100 hover:bg-amber-500/30 text-left flex items-center justify-between gap-3 transition-all cursor-pointer"
                 >
-                  <div className="flex items-center gap-2.5">
-                    <Activity className="w-5 h-5 text-amber-400" />
-                    <div>
-                      <div className="text-xs font-extrabold">Journal d'Audit & Activités</div>
-                      <div className="text-[10px] opacity-75">Traçabilité des opérations de la boutique</div>
+                  <div className="flex items-center gap-2.5 min-w-0">
+                    <HardDrive className="w-5 h-5 text-amber-400 shrink-0" />
+                    <div className="min-w-0">
+                      <div className="text-xs font-extrabold text-white">Dump d'Urgence Filesystem (JSON)</div>
+                      <div className="text-[10px] text-amber-300/90">Sauvegarde locale instantanée IndexedDB</div>
                     </div>
                   </div>
-                  <span className="text-[10px] uppercase font-black bg-amber-400/20 text-amber-300 px-2 py-0.5 rounded-full border border-amber-400/30">
-                    Live
+                  <span className="text-[10px] uppercase font-black bg-amber-400 text-slate-950 px-2 py-0.5 rounded-full shrink-0">
+                    Secours
                   </span>
                 </button>
               </div>
@@ -585,7 +569,14 @@ export const StoreDashboard: React.FC = () => {
         )}
       </AnimatePresence>
 
+      {/* Emergency IndexedDB & Filesystem Export Modal */}
+      <EmergencyDataExportModal
+        isOpen={isEmergencyModalOpen}
+        onClose={() => setIsEmergencyModalOpen(false)}
+      />
+
     </div>
   );
 };
+
 

@@ -293,18 +293,6 @@ export const RawMaterialImporter: React.FC<RawMaterialImporterProps> = ({
     });
   };
 
-  // Load sample text for 1-click test
-  const handleFillSamplePaste = () => {
-    const sample = `Nom\tCatégorie\tUnité\tStock Initial\tPrix Unitaire\tSeuil Alerte
-Farine T55 Superieure\tFlour & Grains\tkg\t500\t120,00 DA\t50
-Beurre 82% MG Extra\tDairy & Eggs\tkg\t150\t850,00 DA\t20
-Sucre Semoule Blanc\tSugars & Sweeteners\tkg\t300\t110,00 DA\t30
-Chocolat Noir 64%\tChocolate & Cocoa\tkg\t80\t1 450,00 DA\t15
-Poudre d'Amande Fine\tFruits & Nuts\tkg\t60\t1 950,00 DA\t10`;
-    setPastedText(sample);
-    handleProcessPastedText(sample);
-  };
-
   // Handle File Upload Change
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const uploadedFile = e.target.files?.[0];
@@ -666,19 +654,9 @@ Poudre d'Amande Fine\tFruits & Nuts\tkg\t60\t1 950,00 DA\t10`;
                 </div>
 
                 <div className="space-y-2">
-                  <div className="flex items-center justify-between">
-                    <label className="text-xs font-bold text-slate-800">
-                      Collez vos lignes de tableau ici :
-                    </label>
-                    <button
-                      type="button"
-                      onClick={handleFillSamplePaste}
-                      className="inline-flex items-center gap-1 text-[11px] font-bold text-amber-700 hover:text-amber-800 bg-amber-100 hover:bg-amber-200 px-2.5 py-1 rounded-lg transition-colors"
-                    >
-                      <Sparkles className="w-3.5 h-3.5" />
-                      <span>Charger un exemple</span>
-                    </button>
-                  </div>
+                  <label className="block text-xs font-bold text-slate-800">
+                    Collez vos lignes de tableau ici :
+                  </label>
                   <textarea
                     rows={7}
                     value={pastedText}

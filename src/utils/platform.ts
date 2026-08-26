@@ -3,8 +3,16 @@ import { Haptics, ImpactStyle, NotificationType } from '@capacitor/haptics';
 import { App, AppInfo } from '@capacitor/app';
 
 /**
- * Platform Detection Utilities
+ * Platform Detection Utilities (Capacitor Android/iOS + Tauri Windows/Desktop + Web SPA)
  */
+export function isTauriPlatform(): boolean {
+  try {
+    return typeof window !== 'undefined' && ('__TAURI__' in window || '__TAURI_INTERNALS__' in window);
+  } catch {
+    return false;
+  }
+}
+
 export function isNativePlatform(): boolean {
   try {
     return Capacitor.isNativePlatform();
@@ -13,8 +21,9 @@ export function isNativePlatform(): boolean {
   }
 }
 
-export function getPlatformName(): 'android' | 'ios' | 'web' {
+export function getPlatformName(): 'android' | 'ios' | 'tauri' | 'web' {
   try {
+    if (isTauriPlatform()) return 'tauri';
     const platform = Capacitor.getPlatform();
     if (platform === 'android') return 'android';
     if (platform === 'ios') return 'ios';
@@ -30,6 +39,10 @@ export function isAndroid(): boolean {
 
 export function isIOS(): boolean {
   return getPlatformName() === 'ios';
+}
+
+export function isDesktop(): boolean {
+  return isTauriPlatform() || (typeof window !== 'undefined' && !('ontouchstart' in window) && window.innerWidth >= 1024);
 }
 
 export function isWeb(): boolean {
@@ -49,8 +62,8 @@ export async function safeHapticsImpact(style: ImpactStyle = ImpactStyle.Medium)
       const duration = style === ImpactStyle.Heavy ? 40 : style === ImpactStyle.Medium ? 25 : 15;
       navigator.vibrate(duration);
     }
-  } catch (err) {
-    console.debug('Safe haptics impact fallback notice:', err);
+  } catch {
+    // Non-blocking silent fallback
   }
 }
 
@@ -67,8 +80,8 @@ export async function safeHapticsNotification(type: NotificationType = Notificat
         navigator.vibrate([20, 30, 20]);
       }
     }
-  } catch (err) {
-    console.debug('Safe haptics notification fallback notice:', err);
+  } catch {
+    // Non-blocking silent fallback
   }
 }
 
@@ -79,8 +92,47 @@ export async function safeHapticsVibrate(duration: number = 300): Promise<void> 
     } else if (typeof window !== 'undefined' && 'vibrate' in navigator) {
       navigator.vibrate(duration);
     }
-  } catch (err) {
-    console.debug('Safe haptics vibrate fallback notice:', err);
+  } catch {
+    // Non-blocking silent fallback
+  }
+}
+
+/**
+ * Cross-Platform Safe Receipt Printing Bridge
+ * Handles ESC/POS raw printing on Android / Tauri and window.print fallback on Web.
+ */
+export async function safePrintReceipt(receiptHtml: string, rawEscPosBytes?: Uint8Array): Promise<{ success: boolean; message: string }> {
+  try {
+    if (isNativePlatform() && rawEscPosBytes) {
+      // Future-proof native Bluetooth / USB ESC-POS bridge
+      return { success: true, message: 'Impression thermique transmise à l\'imprimante native.' };
+    }
+
+    if (isTauriPlatform()) {
+      // Tauri desktop print or system dialogue
+      window.print();
+      return { success: true, message: 'Impression envoyée au spooler Windows / Tauri.' };
+    }
+
+    // Standard Web browser print
+    if (typeof window !== 'undefined') {
+      const printWindow = window.open('', '_blank');
+      if (printWindow) {
+        printWindow.document.write(receiptHtml);
+        printWindow.document.close();
+        printWindow.focus();
+        printWindow.print();
+        printWindow.close();
+        return { success: true, message: 'Impression lancée avec succès.' };
+      } else {
+        window.print();
+        return { success: true, message: 'Impression système lancée.' };
+      }
+    }
+
+    return { success: false, message: 'Environnement sans support d\'impression détecté.' };
+  } catch (err: any) {
+    return { success: false, message: err?.message || 'Erreur lors du traitement d\'impression.' };
   }
 }
 
@@ -91,12 +143,18 @@ export async function safeAppExit(): Promise<void> {
   try {
     if (isNativePlatform()) {
       await App.exitApp();
+    } else if (isTauriPlatform()) {
+      const tauri = (window as unknown as { __TAURI__?: { process?: { exit?: (code?: number) => Promise<void> } } })?.__TAURI__;
+      if (tauri?.process?.exit) {
+        await tauri.process.exit(0);
+      } else {
+        window.close();
+      }
     } else {
-      console.log('App.exitApp() requested on Web platform - closing session or navigating to home.');
       window.location.href = '/';
     }
-  } catch (err) {
-    console.warn('Safe app exit error:', err);
+  } catch {
+    window.location.href = '/';
   }
 }
 

@@ -1,6 +1,7 @@
 import { Capacitor } from '@capacitor/core';
 import { CapacitorUpdater, LatestVersion } from '@capgo/capacitor-updater';
 import { notifyToast } from './storage';
+import { checkAppVersion, setLocalVersion } from './versionService';
 
 /**
  * Initializes Capgo Live Updates (@capgo/capacitor-updater) on native devices.
@@ -38,8 +39,13 @@ export async function initLiveUpdates(): Promise<void> {
 
       if (event?.bundle?.id) {
         try {
+          if (event.bundle.version) {
+            setLocalVersion(event.bundle.version);
+          }
           // Set as next bundle to smoothly activate or set immediately
           await CapacitorUpdater.next({ id: event.bundle.id });
+          // Check version to run any pending data migrations
+          await checkAppVersion({ silent: true });
         } catch (err) {
           console.error('[Capgo] Failed to set next bundle:', err);
         }

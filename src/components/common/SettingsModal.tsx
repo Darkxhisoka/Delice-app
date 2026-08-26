@@ -31,12 +31,19 @@ import {
   ForceRefreshResult
 } from '../../services/realtimeSync';
 import { getQueueStats, isAppOffline, getIsSimulatedOffline } from '../../services/indexedDbQueue';
-import { getRawMaterials, getProductionBatches, getRecipes, resetToDemoData, notifyToast } from '../../services/storage';
+import { getRawMaterials, getProductionBatches, getRecipes, notifyToast } from '../../services/storage';
 import { SoundHapticsSettingsPanel } from './SoundHapticsSettingsPanel';
 import { OfflineSyncCenterModal } from './OfflineSyncCenterModal';
 import { DataBackupModal } from './DataBackupModal';
+import { EmergencyDataExportModal } from '../store/EmergencyDataExportModal';
 import { registerBackButtonHandler } from '../../hooks/useAndroidBackButton';
-import { FileJson } from 'lucide-react';
+import { FileJson, Sparkles } from 'lucide-react';
+import {
+  getLocalVersion,
+  checkAppVersion,
+  getAppliedMigrations,
+  VersionCheckResult
+} from '../../services/versionService';
 
 interface SettingsModalProps {
   isOpen: boolean;
@@ -55,6 +62,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   const [lastRefreshResult, setLastRefreshResult] = useState<ForceRefreshResult | null>(null);
   const [isSyncCenterOpen, setIsSyncCenterOpen] = useState<boolean>(false);
   const [isBackupModalOpen, setIsBackupModalOpen] = useState<boolean>(false);
+  const [isEmergencyExportOpen, setIsEmergencyExportOpen] = useState<boolean>(false);
   const [queueCount, setQueueCount] = useState<number>(0);
   const [lastSyncTime, setLastSyncTime] = useState<string | null>(null);
   const [inventoryStats, setInventoryStats] = useState({
@@ -76,6 +84,10 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
 
   const isOffline = typeof navigator !== 'undefined' ? (!navigator.onLine || getIsSimulatedOffline()) : false;
 
+  const [isCheckingVersion, setIsCheckingVersion] = useState<boolean>(false);
+  const [appVersion, setAppVersion] = useState<string>(() => getLocalVersion());
+  const [appliedMigrationsCount, setAppliedMigrationsCount] = useState<number>(() => getAppliedMigrations().length);
+
   const loadCurrentStats = async () => {
     try {
       const stats = await getQueueStats();
@@ -88,8 +100,24 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
         productionBatches: getProductionBatches().length,
         recipes: getRecipes().length
       });
+      setAppVersion(getLocalVersion());
+      setAppliedMigrationsCount(getAppliedMigrations().length);
     } catch (err) {
       console.warn('Error loading stats in SettingsModal:', err);
+    }
+  };
+
+  const handleManualVersionCheck = async () => {
+    if (isCheckingVersion) return;
+    try {
+      setIsCheckingVersion(true);
+      await checkAppVersion({ forceCheck: true });
+      setAppVersion(getLocalVersion());
+      setAppliedMigrationsCount(getAppliedMigrations().length);
+    } catch (err) {
+      console.error('Error during manual version check:', err);
+    } finally {
+      setIsCheckingVersion(false);
     }
   };
 
@@ -119,18 +147,6 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
     setLastRefreshResult(result);
     setLastSyncTime(new Date().toISOString());
     loadCurrentStats();
-  };
-
-  const handleResetData = () => {
-    if (window.confirm('Voulez-vous réinitialiser toutes les données aux valeurs de démonstration ?')) {
-      resetToDemoData();
-      loadCurrentStats();
-      notifyToast({
-        type: 'info',
-        title: 'Données Réinitialisées',
-        message: 'Toutes les données ont été remises aux valeurs de test initiales.'
-      });
-    }
   };
 
   if (!isOpen) return null;
@@ -403,14 +419,24 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                 <div className="text-[11px] text-slate-400">
                   Exporter les bases Dexie (ventes, articles, panier) en JSON ou restaurer un backup local.
                 </div>
-                <button
-                  type="button"
-                  onClick={() => setIsBackupModalOpen(true)}
-                  className="w-full py-1.5 px-2.5 rounded-lg bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-300 border border-emerald-500/30 text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer"
-                >
-                  <FileJson className="w-3.5 h-3.5" />
-                  <span>Gérer Sauvegardes JSON</span>
-                </button>
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setIsBackupModalOpen(true)}
+                    className="py-1.5 px-2 rounded-lg bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-300 border border-emerald-500/30 text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer"
+                  >
+                    <FileJson className="w-3.5 h-3.5" />
+                    <span>Sauvegardes JSON</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setIsEmergencyExportOpen(true)}
+                    className="py-1.5 px-2 rounded-lg bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/30 text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer"
+                  >
+                    <HardDrive className="w-3.5 h-3.5" />
+                    <span>Dump Filesystem</span>
+                  </button>
+                </div>
               </div>
 
               {/* Thermal Printer Settings Card */}
@@ -423,20 +449,31 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                   Impression directe silencieuse configurée pour tickets 80mm & étiquettes de production.
                 </div>
               </div>
-            </div>
 
-            {/* Reset Demo Data Action */}
-            <div className="pt-2 border-t border-slate-800 flex items-center justify-between">
-              <div className="text-xs text-slate-400">
-                Réinitialiser la base de données locale
+              {/* Version & Deployment Manifest Card */}
+              <div className="p-3 bg-slate-900 border border-slate-800 rounded-xl space-y-2">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-1.5 text-xs font-bold text-slate-200">
+                    <Sparkles className="w-3.5 h-3.5 text-amber-400" />
+                    Version & Mises à Jour (OTA / Web)
+                  </div>
+                  <span className="text-[10px] font-mono font-bold text-indigo-300 bg-indigo-500/10 px-1.5 py-0.5 rounded border border-indigo-500/20">
+                    v{appVersion}
+                  </span>
+                </div>
+                <div className="text-[11px] text-slate-400">
+                  Vérifier les manifestes déployés, synchroniser les bundles Capgo et exécuter les migrations. ({appliedMigrationsCount} migrations actives)
+                </div>
+                <button
+                  type="button"
+                  onClick={handleManualVersionCheck}
+                  disabled={isCheckingVersion}
+                  className="w-full py-1.5 px-2.5 rounded-lg bg-indigo-600/20 hover:bg-indigo-600/30 text-indigo-300 border border-indigo-500/30 text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-50"
+                >
+                  <RefreshCw className={`w-3.5 h-3.5 ${isCheckingVersion ? 'animate-spin text-amber-300' : ''}`} />
+                  <span>{isCheckingVersion ? 'Vérification...' : 'Vérifier Mises à Jour'}</span>
+                </button>
               </div>
-              <button
-                onClick={handleResetData}
-                className="px-3 py-1.5 bg-slate-800 hover:bg-rose-950/40 text-slate-300 hover:text-rose-300 border border-slate-700 hover:border-rose-800 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5"
-              >
-                <RotateCcw className="w-3.5 h-3.5" />
-                <span>Restaurer Démo</span>
-              </button>
             </div>
           </div>
 
@@ -446,7 +483,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
         <div className="sticky bottom-0 z-20 bg-slate-900/95 backdrop-blur border-t border-slate-800 px-6 py-3.5 flex items-center justify-between">
           <div className="text-[11px] text-slate-400 flex items-center gap-1.5">
             <Server className="w-3.5 h-3.5 text-slate-500" />
-            <span>Pâtisserie le Délice • v1.4.0 (Sync Engine Pro)</span>
+            <span>Pâtisserie le Délice • v{appVersion} (VersionService Active)</span>
           </div>
 
           <button
@@ -471,6 +508,14 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
         isOpen={isBackupModalOpen}
         onClose={() => {
           setIsBackupModalOpen(false);
+          loadCurrentStats();
+        }}
+      />
+
+      <EmergencyDataExportModal
+        isOpen={isEmergencyExportOpen}
+        onClose={() => {
+          setIsEmergencyExportOpen(false);
           loadCurrentStats();
         }}
       />

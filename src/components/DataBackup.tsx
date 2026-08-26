@@ -7,7 +7,10 @@ import {
   FileJson,
   RefreshCw,
   ShieldCheck,
-  Calendar
+  Calendar,
+  HardDrive,
+  Copy,
+  AlertTriangle
 } from 'lucide-react';
 import { db, initPersistentStorage, StoragePersistStatus, DexieProduct, DexieSale, DexieCartItem } from '../db/database';
 import {
@@ -20,7 +23,12 @@ import {
   getReceipts,
   notifyToast
 } from '../services/storage';
-import { safeHapticsImpact, safeHapticsNotification } from '../utils/platform';
+import {
+  exportIndexedDbToFilesystem,
+  ExportResult,
+  restoreIndexedDbFromEmergencyPayload
+} from '../services/indexedDbExportService';
+import { safeHapticsImpact, safeHapticsNotification, isNativePlatform } from '../utils/platform';
 import { ImpactStyle, NotificationType } from '@capacitor/haptics';
 
 export interface DeliceBackupPayload {
@@ -71,8 +79,54 @@ export const DataBackup: React.FC = () => {
   } | null>(null);
   const [restoreMode, setRestoreMode] = useState<'REPLACE' | 'MERGE'>('REPLACE');
   const [isDragging, setIsDragging] = useState<boolean>(false);
-
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+
+  const [isExportingEmergency, setIsExportingEmergency] = useState<boolean>(false);
+  const [emergencyExportResult, setEmergencyExportResult] = useState<ExportResult | null>(null);
+
+  const handleExportEmergencyFilesystem = async () => {
+    setIsExportingEmergency(true);
+    safeHapticsImpact(ImpactStyle.Heavy);
+
+    try {
+      const result = await exportIndexedDbToFilesystem();
+      setEmergencyExportResult(result);
+
+      if (result.success) {
+        notifyToast({
+          type: 'success',
+          title: 'Dump d\'urgence Filesystem Réussi',
+          message: `${result.filename} sauvegardé (${result.fileSizeFormatted}).`
+        });
+      } else {
+        notifyToast({
+          type: 'error',
+          title: 'Échec du dump d\'urgence',
+          message: result.message
+        });
+      }
+      await refreshStats();
+    } catch (err: any) {
+      notifyToast({
+        type: 'error',
+        title: 'Erreur inattendue',
+        message: err?.message || 'Erreur lors du dump d\'urgence.'
+      });
+    } finally {
+      setIsExportingEmergency(false);
+    }
+  };
+
+  const handleCopyPath = (text: string) => {
+    if (!text) return;
+    navigator.clipboard.writeText(text);
+    safeHapticsNotification(NotificationType.Success);
+    notifyToast({
+      type: 'info',
+      title: 'Copié',
+      message: 'Chemin du fichier copié dans le presse-papier.'
+    });
+  };
 
   const refreshStats = async () => {
     try {
@@ -379,6 +433,74 @@ export const DataBackup: React.FC = () => {
             {persistStatus?.usageBytes ? `${(persistStatus.usageBytes / 1024 / 1024).toFixed(1)} MB utilisé` : 'Protégé Android'}
           </div>
         </div>
+      </div>
+
+      {/* Emergency Filesystem Dump Card for Store Managers */}
+      <div className="p-5 sm:p-6 bg-gradient-to-r from-amber-950/40 via-slate-900 to-slate-900 border border-amber-500/40 rounded-3xl space-y-4 shadow-xl">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div className="flex items-start sm:items-center gap-3.5">
+            <div className="w-12 h-12 rounded-2xl bg-amber-500/20 border border-amber-500/30 flex items-center justify-center text-amber-400 shrink-0">
+              <HardDrive className="w-6 h-6" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <h3 className="text-base font-black text-white">
+                  Dump d'Urgence Filesystem (Plugin Natif)
+                </h3>
+                <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-amber-400/20 text-amber-300 border border-amber-400/30">
+                  Mesure de Secours Gérant
+                </span>
+              </div>
+              <p className="text-xs text-slate-300 mt-0.5">
+                Capture instantanée atomique de toutes les bases IndexedDB (Dexie, file d'attente offline, caisse, stocks) écrite directement sur le stockage physique (dossier Documents).
+              </p>
+            </div>
+          </div>
+
+          <button
+            type="button"
+            onClick={handleExportEmergencyFilesystem}
+            disabled={isExportingEmergency}
+            className="min-h-[44px] px-5 py-2.5 rounded-xl bg-amber-400 hover:bg-amber-300 text-slate-950 text-xs font-black flex items-center justify-center gap-2 shadow-lg shadow-amber-500/20 transition-all active:scale-[0.98] disabled:opacity-50 cursor-pointer shrink-0"
+          >
+            <HardDrive className={`w-4 h-4 ${isExportingEmergency ? 'animate-spin' : ''}`} />
+            <span>{isExportingEmergency ? 'Écriture Filesystem...' : 'Générer Dump d\'Urgence'}</span>
+          </button>
+        </div>
+
+        {emergencyExportResult && (
+          <div className="p-3.5 rounded-2xl bg-slate-950/80 border border-amber-500/30 space-y-2 text-xs text-slate-300 animate-in fade-in">
+            <div className="flex items-center justify-between">
+              <span className="text-slate-400">Fichier généré :</span>
+              <span className="font-mono font-bold text-amber-300 truncate max-w-[280px]">
+                {emergencyExportResult.filename}
+              </span>
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="text-slate-400">Emplacement :</span>
+              <span className="font-bold text-indigo-300">
+                {emergencyExportResult.storageTarget === 'CAPACITOR_FILESYSTEM'
+                  ? `Stockage Local (${emergencyExportResult.directory || 'Documents'})`
+                  : 'Téléchargement Direct Navigateur'}
+              </span>
+            </div>
+            {emergencyExportResult.filePath && (
+              <div className="pt-2 border-t border-slate-800 flex items-center justify-between gap-2">
+                <span className="font-mono text-[11px] text-slate-400 truncate">
+                  {emergencyExportResult.filePath}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => handleCopyPath(emergencyExportResult.filePath!)}
+                  className="px-2 py-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-200 flex items-center gap-1 cursor-pointer shrink-0"
+                >
+                  <Copy className="w-3 h-3" />
+                  <span>Copier chemin</span>
+                </button>
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Restore Area (Drag & Drop + File Selector) */}

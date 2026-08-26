@@ -9,8 +9,15 @@ import { LabDashboard } from './components/lab/LabDashboard';
 import { ProtectedRoute } from './components/common/ProtectedRoute';
 import { LoginModal } from './components/common/LoginModal';
 import { LoadingScreen } from './components/common/LoadingScreen';
+import { VersionUpdateModal } from './components/common/VersionUpdateModal';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { initBackgroundSync } from './services/backgroundSync';
+import {
+  initVersionService,
+  subscribeToVersionChanges,
+  isUpdateDismissed,
+  VersionCheckResult
+} from './services/versionService';
 import { useDesktopShortcuts } from './hooks/useDesktopShortcuts';
 import { useAndroidBackButton } from './hooks/useAndroidBackButton';
 import { initPersistentStorage } from './db/database';
@@ -26,18 +33,26 @@ import {
 } from './services/storage';
 import { UserRole, UserSession } from './types';
 
+function resolveInitialPath(): string {
+  if (typeof window !== 'undefined' && window.location.hash) {
+    const hashPath = window.location.hash.replace(/^#/, '');
+    if (hashPath) return hashPath;
+  }
+  const path = typeof window !== 'undefined' ? window.location.pathname : '/store';
+  if (path === '/' || path === '' || path.endsWith('index.html')) {
+    return getActiveRole() === 'CENTRAL_LAB' ? '/lab' : '/store';
+  }
+  return path;
+}
+
 export default function App() {
   const [isInitializing, setIsInitializing] = useState<boolean>(true);
   const [session, setSession] = useState<UserSession>(() => getAuthSession());
   const [currentRole, setCurrentRole] = useState<UserRole>(() => getActiveRole());
-  const [currentPath, setCurrentPath] = useState<string>(() => {
-    const path = window.location.pathname;
-    if (path === '/' || path === '') {
-      return getActiveRole() === 'CENTRAL_LAB' ? '/lab' : '/store';
-    }
-    return path;
-  });
+  const [currentPath, setCurrentPath] = useState<string>(() => resolveInitialPath());
   const [isLoginModalOpen, setIsLoginModalOpen] = useState<boolean>(false);
+  const [versionUpdateState, setVersionUpdateState] = useState<VersionCheckResult | null>(null);
+  const [isVersionModalOpen, setIsVersionModalOpen] = useState<boolean>(false);
 
   // Global Android Hardware / Gesture Back Button Handling
   useAndroidBackButton({
@@ -46,13 +61,29 @@ export default function App() {
 
   // Global desktop keyboard shortcuts (Ctrl+N, Ctrl+F, Esc, Ctrl+P)
   useDesktopShortcuts({
-    onCloseModals: () => setIsLoginModalOpen(false)
+    onCloseModals: () => {
+      setIsLoginModalOpen(false);
+      if (!versionUpdateState?.isMandatory) {
+        setIsVersionModalOpen(false);
+      }
+    }
   });
 
   useEffect(() => {
     // 0. Initialize persistent storage (prevents Android WebView cache purge) & background sync
     initPersistentStorage().catch((err) => console.warn('Persistent storage init note:', err));
     initBackgroundSync();
+
+    // Initialize VersionService & register version change listener
+    const cleanupVersionService = initVersionService();
+    const unsubscribeVersion = subscribeToVersionChanges((result) => {
+      if (result.hasUpdate) {
+        setVersionUpdateState(result);
+        if (result.isMandatory || !isUpdateDismissed(result.remoteVersion)) {
+          setIsVersionModalOpen(true);
+        }
+      }
+    });
 
     // Notify Capgo update engine of successful boot
     (async () => {
@@ -147,7 +178,7 @@ export default function App() {
     };
 
     const handlePopState = () => {
-      const path = window.location.pathname;
+      const path = resolveInitialPath();
       setCurrentPath(path);
       if (path.startsWith('/lab')) {
         setCurrentRole('CENTRAL_LAB');
@@ -157,20 +188,31 @@ export default function App() {
     };
 
     window.addEventListener('popstate', handlePopState);
+    window.addEventListener('hashchange', handlePopState);
     const unsubscribe = subscribeToStoreChanges(handleStorageChange);
     const unsubscribeSupabaseRealtime = subscribeToSupabaseRealtime();
 
     return () => {
       subscription.unsubscribe();
       window.removeEventListener('popstate', handlePopState);
+      window.removeEventListener('hashchange', handlePopState);
       unsubscribe();
       unsubscribeSupabaseRealtime();
+      cleanupVersionService();
+      unsubscribeVersion();
     };
   }, []);
 
   const handleRedirect = (targetPath: string) => {
     setCurrentPath(targetPath);
-    window.history.replaceState({}, '', targetPath);
+    try {
+      window.history.replaceState({}, '', targetPath);
+    } catch {
+      // In strict file:// or custom WebView schemes
+    }
+    // Sync hash for webview anchor compatibility
+    window.location.hash = targetPath;
+
     if (targetPath.startsWith('/lab')) {
       setCurrentRole('CENTRAL_LAB');
     } else if (targetPath.startsWith('/store')) {
@@ -206,10 +248,14 @@ export default function App() {
   return (
     <ErrorBoundary fallbackTitle="Pâtisserie le Délice - Mode Récupération">
       <div className="min-h-screen bg-slate-100 text-slate-900 font-sans antialiased flex flex-col selection:bg-indigo-500 selection:text-white overflow-x-hidden">
-        {/* Initial App Initialization & Data Fetching Loading Screen */}
+        {/* Initial App Initialization & Data Fetching Contextual Skeleton Loader */}
         <AnimatePresence>
           {isInitializing && (
-            <LoadingScreen key="app-loading-screen" />
+            <LoadingScreen
+              key="app-loading-screen"
+              role={currentRole}
+              isStore={isStoreView}
+            />
           )}
         </AnimatePresence>
 
@@ -278,6 +324,19 @@ export default function App() {
             setIsLoginModalOpen(false);
           }}
         />
+
+        {/* Mandatory / Recommended Version Update Modal */}
+        {versionUpdateState && (
+          <VersionUpdateModal
+            isOpen={isVersionModalOpen}
+            onClose={() => setIsVersionModalOpen(false)}
+            localVersion={versionUpdateState.localVersion}
+            remoteVersion={versionUpdateState.remoteVersion}
+            manifest={versionUpdateState.manifest}
+            isMandatory={versionUpdateState.isMandatory}
+            migrationsApplied={versionUpdateState.migrationsApplied}
+          />
+        )}
 
         {/* Global Toast Container & AI Assistant Chatbot */}
         <ToastContainer />

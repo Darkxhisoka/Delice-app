@@ -52,37 +52,8 @@ import {
   ChefVoiceNote
 } from '../types';
 import {
-  INITIAL_STORES,
-  INITIAL_RAW_MATERIALS,
-  INITIAL_SUPPLIERS,
-  INITIAL_RECEIPTS,
-  INITIAL_REQUISITIONS,
-  INITIAL_RECIPES,
-  INITIAL_ACTIVITY_LOGS,
-  INITIAL_SEMI_FINISHED_STOCK,
-  INITIAL_RETAIL_PRODUCTS,
-  INITIAL_RETAIL_STORE_STOCK,
-  INITIAL_SALE_TRANSACTIONS,
-  INITIAL_UNSOLD_LOGS,
-  INITIAL_LAB_WASTE_LOGS,
-  INITIAL_DAILY_STORE_INVENTORY,
-  INITIAL_DELIVERY_MANIFESTS,
-  INITIAL_TRANSIT_WASTE_LOGS,
-  INITIAL_PACKAGING_MATERIALS,
-  INITIAL_STORE_PACKAGING_INVENTORY,
-  INITIAL_PACKAGING_DISPATCHES,
-  INITIAL_PACKAGING_REQUISITIONS,
-  INITIAL_INVENTORY_ADJUSTMENTS,
-  INITIAL_CHEF_VOICE_NOTES
+  INITIAL_STORES
 } from '../data/mockData';
-import {
-  INITIAL_PRODUCTION_FORECASTS,
-  INITIAL_COLD_ROOM_BATCHES,
-  INITIAL_CUSTOM_CAKE_ORDERS,
-  INITIAL_LOYALTY_PROFILES,
-  INITIAL_Z_REPORTS,
-  INITIAL_STORE_RETURNS
-} from '../data/advancedMockData';
 
 const KEYS = {
   AUTH_SESSION: 'pastry_app_auth_session',
@@ -143,106 +114,18 @@ export function initStorage() {
     localStorage.setItem(KEYS.ROLE, 'RETAIL_STORE');
   }
   if (!localStorage.getItem(KEYS.ACTIVE_STORE_ID)) {
-    localStorage.setItem(KEYS.ACTIVE_STORE_ID, INITIAL_STORES[0].id);
-  }
-  if (!localStorage.getItem(KEYS.RAW_MATERIALS)) {
-    localStorage.setItem(KEYS.RAW_MATERIALS, JSON.stringify(INITIAL_RAW_MATERIALS));
-  }
-  if (!localStorage.getItem(KEYS.RECEIPTS)) {
-    localStorage.setItem(KEYS.RECEIPTS, JSON.stringify(INITIAL_RECEIPTS));
-  }
-  if (!localStorage.getItem(KEYS.REQUISITIONS)) {
-    localStorage.setItem(KEYS.REQUISITIONS, JSON.stringify(INITIAL_REQUISITIONS));
-  }
-  if (!localStorage.getItem(KEYS.SUPPLIERS)) {
-    localStorage.setItem(KEYS.SUPPLIERS, JSON.stringify(INITIAL_SUPPLIERS));
-  }
-  if (!localStorage.getItem(KEYS.RECIPES)) {
-    localStorage.setItem(KEYS.RECIPES, JSON.stringify(INITIAL_RECIPES));
+    localStorage.setItem(KEYS.ACTIVE_STORE_ID, INITIAL_STORES[0]?.id || 'store-1');
   }
   if (!localStorage.getItem(KEYS.STORES)) {
     localStorage.setItem(KEYS.STORES, JSON.stringify(INITIAL_STORES));
   }
-  if (!localStorage.getItem(KEYS.ACTIVITY_LOGS)) {
-    localStorage.setItem(KEYS.ACTIVITY_LOGS, JSON.stringify(INITIAL_ACTIVITY_LOGS));
-  }
-  if (!localStorage.getItem(KEYS.SEMI_FINISHED_STOCK)) {
-    localStorage.setItem(KEYS.SEMI_FINISHED_STOCK, JSON.stringify(INITIAL_SEMI_FINISHED_STOCK));
-  }
-  if (!localStorage.getItem(KEYS.RETAIL_PRODUCTS)) {
-    localStorage.setItem(KEYS.RETAIL_PRODUCTS, JSON.stringify(INITIAL_RETAIL_PRODUCTS));
-  }
-  if (!localStorage.getItem(KEYS.RETAIL_STORE_STOCK)) {
-    localStorage.setItem(KEYS.RETAIL_STORE_STOCK, JSON.stringify(INITIAL_RETAIL_STORE_STOCK));
-  }
-  if (!localStorage.getItem(KEYS.SALE_TRANSACTIONS)) {
-    localStorage.setItem(KEYS.SALE_TRANSACTIONS, JSON.stringify(INITIAL_SALE_TRANSACTIONS));
-  }
-  if (!localStorage.getItem(KEYS.UNSOLD_LOGS)) {
-    localStorage.setItem(KEYS.UNSOLD_LOGS, JSON.stringify(INITIAL_UNSOLD_LOGS));
-  }
-  if (!localStorage.getItem(KEYS.DAILY_STORE_INVENTORY)) {
-    localStorage.setItem(KEYS.DAILY_STORE_INVENTORY, JSON.stringify(INITIAL_DAILY_STORE_INVENTORY));
-  }
-  if (!localStorage.getItem(KEYS.DELIVERY_MANIFESTS)) {
-    localStorage.setItem(KEYS.DELIVERY_MANIFESTS, JSON.stringify(INITIAL_DELIVERY_MANIFESTS));
-  }
-  if (!localStorage.getItem(KEYS.TRANSIT_WASTE_LOGS)) {
-    localStorage.setItem(KEYS.TRANSIT_WASTE_LOGS, JSON.stringify(INITIAL_TRANSIT_WASTE_LOGS));
-  }
-  if (!localStorage.getItem(KEYS.PACKAGING_MATERIALS)) {
-    localStorage.setItem(KEYS.PACKAGING_MATERIALS, JSON.stringify(INITIAL_PACKAGING_MATERIALS));
-  }
-  if (!localStorage.getItem(KEYS.STORE_PACKAGING_INVENTORY)) {
-    localStorage.setItem(KEYS.STORE_PACKAGING_INVENTORY, JSON.stringify(INITIAL_STORE_PACKAGING_INVENTORY));
-  }
-  if (!localStorage.getItem(KEYS.PACKAGING_DISPATCHES)) {
-    localStorage.setItem(KEYS.PACKAGING_DISPATCHES, JSON.stringify(INITIAL_PACKAGING_DISPATCHES));
-  }
-  if (!localStorage.getItem(KEYS.PACKAGING_REQUISITIONS)) {
-    localStorage.setItem(KEYS.PACKAGING_REQUISITIONS, JSON.stringify(INITIAL_PACKAGING_REQUISITIONS));
-  }
-  if (!localStorage.getItem(KEYS.INVENTORY_ADJUSTMENTS)) {
-    localStorage.setItem(KEYS.INVENTORY_ADJUSTMENTS, JSON.stringify(INITIAL_INVENTORY_ADJUSTMENTS));
-  }
-  if (!localStorage.getItem(KEYS.CHEF_VOICE_NOTES)) {
-    localStorage.setItem(KEYS.CHEF_VOICE_NOTES, JSON.stringify(INITIAL_CHEF_VOICE_NOTES));
-  }
-}
-
-// Reset Storage
-export function resetToDemoData() {
-  localStorage.setItem(KEYS.ROLE, 'RETAIL_STORE');
-  localStorage.setItem(KEYS.ACTIVE_STORE_ID, INITIAL_STORES[0].id);
-  localStorage.setItem(KEYS.RAW_MATERIALS, JSON.stringify(INITIAL_RAW_MATERIALS));
-  localStorage.setItem(KEYS.RECEIPTS, JSON.stringify(INITIAL_RECEIPTS));
-  localStorage.setItem(KEYS.REQUISITIONS, JSON.stringify(INITIAL_REQUISITIONS));
-  localStorage.setItem(KEYS.SUPPLIERS, JSON.stringify(INITIAL_SUPPLIERS));
-  localStorage.setItem(KEYS.RECIPES, JSON.stringify(INITIAL_RECIPES));
-  localStorage.setItem(KEYS.STORES, JSON.stringify(INITIAL_STORES));
-  localStorage.setItem(KEYS.ACTIVITY_LOGS, JSON.stringify(INITIAL_ACTIVITY_LOGS));
-  localStorage.setItem(KEYS.SEMI_FINISHED_STOCK, JSON.stringify(INITIAL_SEMI_FINISHED_STOCK));
-  localStorage.setItem(KEYS.RETAIL_PRODUCTS, JSON.stringify(INITIAL_RETAIL_PRODUCTS));
-  localStorage.setItem(KEYS.RETAIL_STORE_STOCK, JSON.stringify(INITIAL_RETAIL_STORE_STOCK));
-  localStorage.setItem(KEYS.SALE_TRANSACTIONS, JSON.stringify(INITIAL_SALE_TRANSACTIONS));
-  localStorage.setItem(KEYS.UNSOLD_LOGS, JSON.stringify(INITIAL_UNSOLD_LOGS));
-  localStorage.setItem(KEYS.DAILY_STORE_INVENTORY, JSON.stringify(INITIAL_DAILY_STORE_INVENTORY));
-  localStorage.setItem(KEYS.DELIVERY_MANIFESTS, JSON.stringify(INITIAL_DELIVERY_MANIFESTS));
-  localStorage.setItem(KEYS.TRANSIT_WASTE_LOGS, JSON.stringify(INITIAL_TRANSIT_WASTE_LOGS));
-  localStorage.setItem(KEYS.PACKAGING_MATERIALS, JSON.stringify(INITIAL_PACKAGING_MATERIALS));
-  localStorage.setItem(KEYS.STORE_PACKAGING_INVENTORY, JSON.stringify(INITIAL_STORE_PACKAGING_INVENTORY));
-  localStorage.setItem(KEYS.PACKAGING_DISPATCHES, JSON.stringify(INITIAL_PACKAGING_DISPATCHES));
-  localStorage.setItem(KEYS.PACKAGING_REQUISITIONS, JSON.stringify(INITIAL_PACKAGING_REQUISITIONS));
-  localStorage.setItem(KEYS.INVENTORY_ADJUSTMENTS, JSON.stringify(INITIAL_INVENTORY_ADJUSTMENTS));
-  localStorage.setItem(KEYS.CHEF_VOICE_NOTES, JSON.stringify(INITIAL_CHEF_VOICE_NOTES));
-  notifyListeners();
 }
 
 // Activity Log Functions
 export function getActivityLogs(): ActivityLogItem[] {
   initStorage();
   const data = localStorage.getItem(KEYS.ACTIVITY_LOGS);
-  return data ? JSON.parse(data) : INITIAL_ACTIVITY_LOGS;
+  return data ? JSON.parse(data) : [];
 }
 
 export function addActivityLog(log: Omit<ActivityLogItem, 'id' | 'timestamp'>): ActivityLogItem {
@@ -558,7 +441,7 @@ export function deleteStore(id: string): boolean {
 export function getRawMaterials(): RawMaterial[] {
   initStorage();
   const data = localStorage.getItem(KEYS.RAW_MATERIALS);
-  return data ? JSON.parse(data) : INITIAL_RAW_MATERIALS;
+  return data ? JSON.parse(data) : [];
 }
 
 export function saveRawMaterials(materials: RawMaterial[]) {
@@ -577,7 +460,7 @@ export const setRawMaterials = saveRawMaterials;
 export function getSuppliers(): Supplier[] {
   initStorage();
   const data = localStorage.getItem(KEYS.SUPPLIERS);
-  return data ? JSON.parse(data) : INITIAL_SUPPLIERS;
+  return data ? JSON.parse(data) : [];
 }
 
 export function addSupplier(supplier: Omit<Supplier, 'id'>): Supplier {
@@ -609,7 +492,7 @@ export function addSupplier(supplier: Omit<Supplier, 'id'>): Supplier {
 export function getReceipts(): Receipt[] {
   initStorage();
   const data = localStorage.getItem(KEYS.RECEIPTS);
-  return data ? JSON.parse(data) : INITIAL_RECEIPTS;
+  return data ? JSON.parse(data) : [];
 }
 
 /**
@@ -720,7 +603,7 @@ export function addReceipt(
 export function getRequisitions(): Requisition[] {
   initStorage();
   const data = localStorage.getItem(KEYS.REQUISITIONS);
-  return data ? JSON.parse(data) : INITIAL_REQUISITIONS;
+  return data ? JSON.parse(data) : [];
 }
 
 export function getRequisitionsByStore(storeId: string): Requisition[] {
@@ -867,7 +750,7 @@ export function updateRequisitionStatus(
 export function getRecipes(): Recipe[] {
   initStorage();
   const data = localStorage.getItem(KEYS.RECIPES);
-  return data ? JSON.parse(data) : INITIAL_RECIPES;
+  return data ? JSON.parse(data) : [];
 }
 
 export function addRecipe(recipeData: Omit<Recipe, 'id'>): Recipe {
@@ -954,7 +837,7 @@ export function getRecipeUnitCost(
 export function getSemiFinishedStock(): SemiFinishedStockItem[] {
   initStorage();
   const data = localStorage.getItem(KEYS.SEMI_FINISHED_STOCK);
-  const items: SemiFinishedStockItem[] = data ? JSON.parse(data) : INITIAL_SEMI_FINISHED_STOCK;
+  const items: SemiFinishedStockItem[] = data ? JSON.parse(data) : [];
 
   // Auto sync stock items for any newly added semi-finished recipes
   const recipes = getRecipes();
@@ -1445,7 +1328,7 @@ export function notifyToast(notification: Omit<ToastNotification, 'id'>) {
 export function getRetailProducts(): RetailProduct[] {
   initStorage();
   const data = localStorage.getItem(KEYS.RETAIL_PRODUCTS);
-  return data ? JSON.parse(data) : INITIAL_RETAIL_PRODUCTS;
+  return data ? JSON.parse(data) : [];
 }
 
 export function saveRetailProducts(products: RetailProduct[]) {
@@ -1457,7 +1340,7 @@ export function getRetailStoreStock(storeId?: string): RetailStoreStock[] {
   initStorage();
   const targetStoreId = storeId || getActiveStoreId();
   const data = localStorage.getItem(KEYS.RETAIL_STORE_STOCK);
-  let allStock: RetailStoreStock[] = data ? JSON.parse(data) : INITIAL_RETAIL_STORE_STOCK;
+  let allStock: RetailStoreStock[] = data ? JSON.parse(data) : [];
 
   const products = getRetailProducts();
   let updated = false;
@@ -1491,7 +1374,7 @@ export function getRetailStoreStock(storeId?: string): RetailStoreStock[] {
 
 export function saveRetailStoreStock(stockList: RetailStoreStock[]) {
   const data = localStorage.getItem(KEYS.RETAIL_STORE_STOCK);
-  let allStock: RetailStoreStock[] = data ? JSON.parse(data) : INITIAL_RETAIL_STORE_STOCK;
+  let allStock: RetailStoreStock[] = data ? JSON.parse(data) : [];
 
   for (const item of stockList) {
     const idx = allStock.findIndex((s) => s.id === item.id || (s.storeId === item.storeId && s.productId === item.productId));
@@ -1520,7 +1403,7 @@ export function updateRetailStoreStockQuantity(storeId: string, productId: strin
 export function getSaleTransactions(storeId?: string): SaleTransaction[] {
   initStorage();
   const data = localStorage.getItem(KEYS.SALE_TRANSACTIONS);
-  const sales: SaleTransaction[] = data ? JSON.parse(data) : INITIAL_SALE_TRANSACTIONS;
+  const sales: SaleTransaction[] = data ? JSON.parse(data) : [];
   if (storeId) {
     return sales.filter((s) => s.storeId === storeId);
   }
@@ -1600,7 +1483,7 @@ export function recordSaleTransaction(
 export function getUnsoldLogs(storeId?: string): UnsoldProductLog[] {
   initStorage();
   const data = localStorage.getItem(KEYS.UNSOLD_LOGS);
-  const logs: UnsoldProductLog[] = data ? JSON.parse(data) : INITIAL_UNSOLD_LOGS;
+  const logs: UnsoldProductLog[] = data ? JSON.parse(data) : [];
   if (storeId) {
     return logs.filter((l) => l.storeId === storeId);
   }
@@ -1665,13 +1548,12 @@ export function recordUnsoldLog(
 export function getLabWasteLogs(): LabWasteLog[] {
   const data = localStorage.getItem(KEYS.LAB_WASTE_LOGS);
   if (!data) {
-    localStorage.setItem(KEYS.LAB_WASTE_LOGS, JSON.stringify(INITIAL_LAB_WASTE_LOGS));
-    return INITIAL_LAB_WASTE_LOGS;
+    return [];
   }
   try {
     return JSON.parse(data);
   } catch (e) {
-    return INITIAL_LAB_WASTE_LOGS;
+    return [];
   }
 }
 
@@ -2123,7 +2005,7 @@ export function getFinishedProductProfitability(): ProductMarginItem[] {
 export function getDeliveryManifests(): DeliveryManifest[] {
   initStorage();
   const data = localStorage.getItem(KEYS.DELIVERY_MANIFESTS);
-  return data ? JSON.parse(data) : INITIAL_DELIVERY_MANIFESTS;
+  return data ? JSON.parse(data) : [];
 }
 
 export function saveDeliveryManifests(manifests: DeliveryManifest[]) {
@@ -2197,7 +2079,7 @@ export function createDeliveryManifest(
 export function getTransitWasteLogs(): TransitWasteLog[] {
   initStorage();
   const data = localStorage.getItem(KEYS.TRANSIT_WASTE_LOGS);
-  return data ? JSON.parse(data) : INITIAL_TRANSIT_WASTE_LOGS;
+  return data ? JSON.parse(data) : [];
 }
 
 export function saveTransitWasteLogs(logs: TransitWasteLog[]) {
@@ -2526,17 +2408,16 @@ export function getProductionBatches(): ProductionBatch[] {
   initStorage();
   const data = localStorage.getItem(KEYS.PRODUCTION_BATCHES);
   if (!data) {
-    localStorage.setItem(KEYS.PRODUCTION_BATCHES, JSON.stringify(INITIAL_PRODUCTION_BATCHES));
-    return INITIAL_PRODUCTION_BATCHES;
+    return [];
   }
   try {
     const parsed = JSON.parse(data);
     if (Array.isArray(parsed)) {
       return parsed;
     }
-    return INITIAL_PRODUCTION_BATCHES;
+    return [];
   } catch {
-    return INITIAL_PRODUCTION_BATCHES;
+    return [];
   }
 }
 
@@ -2878,10 +2759,13 @@ export function recordQualityInspection(inspection: Omit<QualityInspection, 'id'
 export function getPackagingMaterials(): PackagingMaterial[] {
   const data = localStorage.getItem(KEYS.PACKAGING_MATERIALS);
   if (!data) {
-    localStorage.setItem(KEYS.PACKAGING_MATERIALS, JSON.stringify(INITIAL_PACKAGING_MATERIALS));
-    return INITIAL_PACKAGING_MATERIALS;
+    return [];
   }
-  return JSON.parse(data);
+  try {
+    return JSON.parse(data);
+  } catch {
+    return [];
+  }
 }
 
 export function savePackagingMaterials(materials: PackagingMaterial[]): void {
@@ -2934,7 +2818,7 @@ export function receivePackagingSupplierShipment(
 
 export function getStorePackagingInventory(storeId?: string): StorePackagingInventory[] {
   const data = localStorage.getItem(KEYS.STORE_PACKAGING_INVENTORY);
-  const list: StorePackagingInventory[] = data ? JSON.parse(data) : INITIAL_STORE_PACKAGING_INVENTORY;
+  const list: StorePackagingInventory[] = data ? JSON.parse(data) : [];
   
   if (storeId) {
     return list.filter((item) => item.store_id === storeId);
@@ -2944,7 +2828,7 @@ export function getStorePackagingInventory(storeId?: string): StorePackagingInve
 
 export function getPackagingDispatches(storeId?: string): PackagingDispatch[] {
   const data = localStorage.getItem(KEYS.PACKAGING_DISPATCHES);
-  const list: PackagingDispatch[] = data ? JSON.parse(data) : INITIAL_PACKAGING_DISPATCHES;
+  const list: PackagingDispatch[] = data ? JSON.parse(data) : [];
 
   if (storeId) {
     return list.filter((d) => d.target_store_id === storeId);
@@ -3118,7 +3002,7 @@ export function confirmPackagingDelivery(
 
 export function getPackagingRequisitions(storeId?: string): PackagingRequisition[] {
   const data = localStorage.getItem(KEYS.PACKAGING_REQUISITIONS);
-  const list: PackagingRequisition[] = data ? JSON.parse(data) : INITIAL_PACKAGING_REQUISITIONS;
+  const list: PackagingRequisition[] = data ? JSON.parse(data) : [];
 
   if (storeId) {
     return list.filter((r) => r.store_id === storeId);
@@ -3291,13 +3175,12 @@ export function recordInventoryAdjustment(data: {
 export function getProductionForecasts(): DailyPastryProductionForecast[] {
   const stored = localStorage.getItem(KEYS.PRODUCTION_FORECASTS);
   if (!stored) {
-    localStorage.setItem(KEYS.PRODUCTION_FORECASTS, JSON.stringify(INITIAL_PRODUCTION_FORECASTS));
-    return INITIAL_PRODUCTION_FORECASTS;
+    return [];
   }
   try {
     return JSON.parse(stored);
   } catch {
-    return INITIAL_PRODUCTION_FORECASTS;
+    return [];
   }
 }
 
@@ -3310,13 +3193,12 @@ export function updateProductionForecasts(forecasts: DailyPastryProductionForeca
 export function getColdRoomBatches(): ColdRoomBatchExpiryItem[] {
   const stored = localStorage.getItem(KEYS.COLD_ROOM_BATCHES);
   if (!stored) {
-    localStorage.setItem(KEYS.COLD_ROOM_BATCHES, JSON.stringify(INITIAL_COLD_ROOM_BATCHES));
-    return INITIAL_COLD_ROOM_BATCHES;
+    return [];
   }
   try {
     return JSON.parse(stored);
   } catch {
-    return INITIAL_COLD_ROOM_BATCHES;
+    return [];
   }
 }
 
@@ -3354,13 +3236,12 @@ export function deleteColdRoomBatch(batchId: string) {
 export function getCustomCakeOrders(): CustomCakeOrder[] {
   const stored = localStorage.getItem(KEYS.CUSTOM_CAKE_ORDERS);
   if (!stored) {
-    localStorage.setItem(KEYS.CUSTOM_CAKE_ORDERS, JSON.stringify(INITIAL_CUSTOM_CAKE_ORDERS));
-    return INITIAL_CUSTOM_CAKE_ORDERS;
+    return [];
   }
   try {
     return JSON.parse(stored);
   } catch {
-    return INITIAL_CUSTOM_CAKE_ORDERS;
+    return [];
   }
 }
 
@@ -3404,13 +3285,12 @@ export function updateCustomCakeOrderStatus(orderId: string, newStatus: CustomCa
 export function getLoyaltyProfiles(): CustomerLoyaltyProfile[] {
   const stored = localStorage.getItem(KEYS.LOYALTY_PROFILES);
   if (!stored) {
-    localStorage.setItem(KEYS.LOYALTY_PROFILES, JSON.stringify(INITIAL_LOYALTY_PROFILES));
-    return INITIAL_LOYALTY_PROFILES;
+    return [];
   }
   try {
     return JSON.parse(stored);
   } catch {
-    return INITIAL_LOYALTY_PROFILES;
+    return [];
   }
 }
 
@@ -3455,13 +3335,12 @@ export function addLoyaltyPoints(phone: string, pointsToAdd: number, amountSpent
 export function getCashDrawerZReports(): CashDrawerZReport[] {
   const stored = localStorage.getItem(KEYS.Z_REPORTS);
   if (!stored) {
-    localStorage.setItem(KEYS.Z_REPORTS, JSON.stringify(INITIAL_Z_REPORTS));
-    return INITIAL_Z_REPORTS;
+    return [];
   }
   try {
     return JSON.parse(stored);
   } catch {
-    return INITIAL_Z_REPORTS;
+    return [];
   }
 }
 
@@ -3501,13 +3380,12 @@ export function submitCashDrawerZReport(reportData: Omit<CashDrawerZReport, 'id'
 export function getStoreReturnVouchers(): StoreReturnVoucher[] {
   const stored = localStorage.getItem(KEYS.STORE_RETURNS);
   if (!stored) {
-    localStorage.setItem(KEYS.STORE_RETURNS, JSON.stringify(INITIAL_STORE_RETURNS));
-    return INITIAL_STORE_RETURNS;
+    return [];
   }
   try {
     return JSON.parse(stored);
   } catch {
-    return INITIAL_STORE_RETURNS;
+    return [];
   }
 }
 
@@ -3551,13 +3429,12 @@ export function getChefVoiceNotes(): ChefVoiceNote[] {
   initStorage();
   const stored = localStorage.getItem(KEYS.CHEF_VOICE_NOTES);
   if (!stored) {
-    localStorage.setItem(KEYS.CHEF_VOICE_NOTES, JSON.stringify(INITIAL_CHEF_VOICE_NOTES));
-    return INITIAL_CHEF_VOICE_NOTES;
+    return [];
   }
   try {
     return JSON.parse(stored);
   } catch {
-    return INITIAL_CHEF_VOICE_NOTES;
+    return [];
   }
 }
 

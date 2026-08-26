@@ -182,41 +182,6 @@ export const OfflineQueueDrawer: React.FC<OfflineQueueDrawerProps> = ({
     });
   };
 
-  const handleCreateTestOfflineLog = async () => {
-    const rawMaterials = getRawMaterials();
-    const sampleMat = rawMaterials[0] || { id: 'rm-1', name: 'Farine T55 Label Rouge', unit: 'kg', currentAvgCost: 85 };
-    const sampleQty = Math.floor(Math.random() * 5) + 1;
-    const testId = `adj-offline-${Date.now()}`;
-
-    await enqueueOfflineAction({
-      entityType: 'INVENTORY_ADJUSTMENT',
-      actionType: 'CREATE',
-      entityId: testId,
-      label: `Déstockage Hors-Ligne : ${sampleMat.name}`,
-      description: `Retrait manuel de ${sampleQty} ${sampleMat.unit} enregistré dans IndexedDB (Mode Hors-Ligne).`,
-      payload: {
-        id: testId,
-        raw_material_id: sampleMat.id,
-        raw_material_name: sampleMat.name,
-        unit: sampleMat.unit,
-        quantity_removed: sampleQty,
-        unit_cost_at_time: sampleMat.currentAvgCost || 85,
-        total_loss_value: (sampleQty * (sampleMat.currentAvgCost || 85)),
-        reason_category: 'QUALITY_DAMAGE',
-        notes: 'Enregistré hors-ligne via terminal laboratoire (Queue IndexedDB)',
-        created_by: 'Lab Central (Hors-Ligne)',
-        created_at: new Date().toISOString()
-      }
-    });
-
-    await loadQueue();
-    notifyToast({
-      type: 'success',
-      title: 'Action Enregistrée dans IndexedDB !',
-      message: `Déstockage de ${sampleQty} ${sampleMat.unit} ajouté à la file locale IndexedDB.`
-    });
-  };
-
   // Filter items
   const filteredItems = items.filter((item) => {
     if (activeFilter === 'ALL') return true;
@@ -364,16 +329,6 @@ export const OfflineQueueDrawer: React.FC<OfflineQueueDrawerProps> = ({
           </div>
 
           <div className="flex items-center gap-2">
-            <button
-              type="button"
-              onClick={handleCreateTestOfflineLog}
-              className="px-3 py-2 rounded-xl text-xs font-semibold bg-indigo-500/20 text-indigo-300 hover:bg-indigo-500/30 border border-indigo-500/40 transition-colors flex items-center gap-1.5"
-              title="Ajouter un log inventaire test pour valider la file"
-            >
-              <PlusCircle className="w-3.5 h-3.5" />
-              <span>+ Log Test</span>
-            </button>
-
             {stats.syncedCount > 0 && (
               <button
                 type="button"
@@ -436,14 +391,6 @@ export const OfflineQueueDrawer: React.FC<OfflineQueueDrawerProps> = ({
               <p className="text-xs text-slate-500 max-w-sm mx-auto mt-1">
                 Toutes les opérations créées en mode hors-ligne s'afficheront ici automatiquement avec leur statut IndexedDB.
               </p>
-              <button
-                type="button"
-                onClick={handleCreateTestOfflineLog}
-                className="mt-4 px-4 py-2 rounded-xl text-xs font-bold bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 hover:bg-indigo-500/30 inline-flex items-center gap-2"
-              >
-                <PlusCircle className="w-4 h-4" />
-                <span>Tester la file avec un log d'inventaire</span>
-              </button>
             </div>
           ) : (
             filteredItems.map((item) => {

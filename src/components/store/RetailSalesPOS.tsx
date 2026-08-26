@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import {
   RetailProduct,
   RetailStoreStock,
@@ -13,7 +13,8 @@ import {
   getRetailStoreStock,
   recordSaleTransaction,
   getActiveStore,
-  subscribeToStoreChanges
+  subscribeToStoreChanges,
+  notifyToast
 } from '../../services/storage';
 import { SaleReceiptModal } from './SaleReceiptModal';
 import { useHapticsAndSound } from '../../hooks/useHapticsAndSound';
@@ -104,19 +105,28 @@ export const RetailSalesPOS: React.FC<RetailSalesPOSProps> = ({ currentStore }) 
     return unsubscribe;
   }, [currentStore.id]);
 
-  // Filtered products
-  const filteredStock = stockItems.filter((item) => {
-    const matchesCategory = selectedCategory === 'ALL' || item.category === selectedCategory;
-    const matchesSearch =
-      item.productName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      item.category.toLowerCase().includes(searchQuery.toLowerCase());
-    return matchesCategory && matchesSearch;
-  });
+  // Filtered products with useMemo
+  const filteredStock = useMemo(() => {
+    const query = searchQuery.toLowerCase().trim();
+    return stockItems.filter((item) => {
+      const matchesCategory = selectedCategory === 'ALL' || item.category === selectedCategory;
+      const matchesSearch =
+        !query ||
+        item.productName.toLowerCase().includes(query) ||
+        item.category.toLowerCase().includes(query);
+      return matchesCategory && matchesSearch;
+    });
+  }, [stockItems, selectedCategory, searchQuery]);
 
   // Cart operations
-  const addToCart = (product: RetailStoreStock) => {
+  const addToCart = useCallback((product: RetailStoreStock) => {
     if (product.currentStock <= 0) {
       triggerError();
+      notifyToast({
+        type: 'warning',
+        title: 'Stock Épuisé',
+        message: `Le produit "${product.productName}" est en rupture de stock.`
+      });
       return;
     }
 
@@ -127,7 +137,14 @@ export const RetailSalesPOS: React.FC<RetailSalesPOSProps> = ({ currentStore }) 
       if (existingIdx !== -1) {
         const updated = [...prev];
         const currentQty = updated[existingIdx].quantity;
-        if (currentQty >= product.currentStock) return prev; // cap at available stock
+        if (currentQty >= product.currentStock) {
+          notifyToast({
+            type: 'warning',
+            title: 'Stock Maximum Atteint',
+            message: `Vous ne pouvez pas ajouter plus de ${product.currentStock} unités.`
+          });
+          return prev;
+        }
 
         const newQty = currentQty + 1;
         updated[existingIdx] = {
@@ -151,9 +168,9 @@ export const RetailSalesPOS: React.FC<RetailSalesPOSProps> = ({ currentStore }) 
         ];
       }
     });
-  };
+  }, [triggerAddCart, triggerError]);
 
-  const updateQuantity = (productId: string, delta: number) => {
+  const updateQuantity = useCallback((productId: string, delta: number) => {
     triggerQuantityChange();
     setCartItems((prev) => {
       const stock = stockItems.find((s) => s.productId === productId);
@@ -175,30 +192,41 @@ export const RetailSalesPOS: React.FC<RetailSalesPOSProps> = ({ currentStore }) 
         })
         .filter(Boolean) as SaleItem[];
     });
-  };
+  }, [stockItems, triggerQuantityChange]);
 
-  const removeFromCart = (productId: string) => {
+  const removeFromCart = useCallback((productId: string) => {
     triggerItemDelete();
     setCartItems((prev) => prev.filter((i) => i.productId !== productId));
-  };
+  }, [triggerItemDelete]);
 
-  const clearCart = () => {
+  const clearCart = useCallback(() => {
     triggerItemDelete();
     setCartItems([]);
     setDiscountPercent(0);
     setCashTendered('');
     setOrderNotes('');
-  };
+  }, [triggerItemDelete]);
 
-  // Financial calculations
-  const rawSubtotal = cartItems.reduce((sum, item) => sum + item.totalPrice, 0);
-  const discountAmount = (rawSubtotal * discountPercent) / 100;
-  const taxableSubtotal = rawSubtotal - discountAmount;
-  const taxAmount = taxableSubtotal * 0.08; // 8% sales tax
-  const totalAmount = taxableSubtotal + taxAmount;
+  // Financial calculations with useMemo
+  const { rawSubtotal, discountAmount, taxableSubtotal, taxAmount, totalAmount, changeGiven } = useMemo(() => {
+    const sub = cartItems.reduce((sum, item) => sum + item.totalPrice, 0);
+    const disc = (sub * discountPercent) / 100;
+    const taxable = sub - disc;
+    const tax = taxable * 0.08; // 8% sales tax
+    const total = taxable + tax;
+    const numericCash = parseFloat(cashTendered) || 0;
+    const change = paymentMethod === 'CASH' ? Math.max(0, numericCash - total) : 0;
+    return {
+      rawSubtotal: sub,
+      discountAmount: disc,
+      taxableSubtotal: taxable,
+      taxAmount: tax,
+      totalAmount: total,
+      changeGiven: change
+    };
+  }, [cartItems, discountPercent, cashTendered, paymentMethod]);
 
-  const numericCashTendered = parseFloat(cashTendered) || 0;
-  const changeGiven = paymentMethod === 'CASH' ? Math.max(0, numericCashTendered - totalAmount) : 0;
+  const numericCashTendered = useMemo(() => parseFloat(cashTendered) || 0, [cashTendered]);
 
   const handleCheckout = (e: React.FormEvent) => {
     e.preventDefault();
@@ -206,7 +234,11 @@ export const RetailSalesPOS: React.FC<RetailSalesPOSProps> = ({ currentStore }) 
 
     if (paymentMethod === 'CASH' && numericCashTendered < totalAmount) {
       triggerError();
-      alert(`Montant reçu (${numericCashTendered.toFixed(2)} DZD) inférieur au total (${totalAmount.toFixed(2)} DZD)`);
+      notifyToast({
+        type: 'error',
+        title: 'Montant Insuffisant',
+        message: `Montant reçu (${numericCashTendered.toFixed(2)} DZD) inférieur au total (${totalAmount.toFixed(2)} DZD)`
+      });
       return;
     }
 
