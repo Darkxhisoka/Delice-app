@@ -1,0 +1,131 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // Default deny catch-all
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    match /raw_materials/{materialId} {
+      allow read, write: if true;
+    }
+
+    match /receipts/{receiptId} {
+      allow read, write: if true;
+    }
+
+    match /requisitions/{requisitionId} {
+      allow read, write: if true;
+    }
+
+    match /suppliers/{supplierId} {
+      allow read, write: if true;
+    }
+
+    match /recipes/{recipeId} {
+      allow read, write: if true;
+    }
+
+    match /stores/{storeId} {
+      allow read, write: if true;
+    }
+
+    match /activity_logs/{logId} {
+      allow read, write: if true;
+    }
+
+    match /semi_finished_stock/{stockId} {
+      allow read, write: if true;
+    }
+
+    match /retail_products/{productId} {
+      allow read, write: if true;
+    }
+
+    match /retail_store_stock/{stockId} {
+      allow read, write: if true;
+    }
+
+    match /sale_transactions/{saleId} {
+      allow read, write: if true;
+    }
+
+    match /unsold_logs/{logId} {
+      allow read, write: if true;
+    }
+
+    match /lab_waste_logs/{logId} {
+      allow read, write: if true;
+    }
+
+    match /daily_store_inventory/{inventoryId} {
+      allow read, write: if true;
+    }
+
+    match /delivery_manifests/{manifestId} {
+      allow read, write: if true;
+    }
+
+    match /transit_waste_logs/{logId} {
+      allow read, write: if true;
+    }
+
+    match /purchase_orders/{poId} {
+      allow read, write: if true;
+    }
+
+    match /production_batches/{batchId} {
+      allow read, write: if true;
+    }
+
+    match /temperature_logs/{logId} {
+      allow read, write: if true;
+    }
+
+    match /quality_inspections/{inspectionId} {
+      allow read, write: if true;
+    }
+
+    match /packaging_materials/{materialId} {
+      allow read, write: if true;
+    }
+
+    match /store_packaging_inventory/{inventoryId} {
+      allow read, write: if true;
+    }
+
+    match /packaging_dispatches/{dispatchId} {
+      allow read, write: if true;
+    }
+
+    match /packaging_requisitions/{requisitionId} {
+      allow read, write: if true;
+    }
+
+    match /inventory_adjustments/{adjustmentId} {
+      allow read, write: if true;
+    }
+
+    match /store_requisitions/{requisitionId} {
+      allow read, write: if true;
+    }
+
+    match /offline_synced_logs/{logId} {
+      allow read, write: if true;
+    }
+
+    match /test/{docId} {
+      allow read, write: if true;
+    }
+  }
+}

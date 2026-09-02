@@ -1,0 +1,34 @@
+node_modules/
+**/node_modules/
+build/
+dist/
+electron/app/
+electron/build/
+electron/dist-electron/
+coverage/
+.DS_Store
+*.log
+.env*
+!.env.example
+
+# IDE / editor caches
+.vs/
+.idea/
+**/.idea/
+
+# Android build outputs
+android/.gradle/
+android/build/
+android/app/build/
+android/.kotlin/
+android/capacitor-cordova-android-plugins/build/
+android/local.properties
+
+# Tauri build outputs
+src-tauri/target/
+android/src-tauri/target/
+
+# Signing keys / secrets - never commit
+*.jks
+*.keystore
+
