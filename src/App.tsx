@@ -12,6 +12,8 @@ import { LoadingScreen } from './components/common/LoadingScreen';
 import { VersionUpdateModal } from './components/common/VersionUpdateModal';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { initBackgroundSync } from './services/backgroundSync';
+import { applyDirection, getStoredLanguage } from './i18n';
+import { useTranslation } from 'react-i18next';
 import {
   initVersionService,
   subscribeToVersionChanges,
@@ -46,6 +48,7 @@ function resolveInitialPath(): string {
 }
 
 export default function App() {
+  const { t } = useTranslation();
   const [isInitializing, setIsInitializing] = useState<boolean>(true);
   const [session, setSession] = useState<UserSession>(() => getAuthSession());
   const [currentRole, setCurrentRole] = useState<UserRole>(() => getActiveRole());
@@ -70,9 +73,18 @@ export default function App() {
   });
 
   useEffect(() => {
-    // 0. Initialize persistent storage (prevents Android WebView cache purge) & background sync
+    // 0. Initialize persistent storage, language direction & background sync
+    applyDirection(getStoredLanguage());
     initPersistentStorage().catch((err) => console.warn('Persistent storage init note:', err));
     initBackgroundSync();
+
+    const handleLanguageChange = (e: Event) => {
+      const customEvent = e as CustomEvent<{ language: 'fr' | 'ar' }>;
+      if (customEvent.detail?.language) {
+        applyDirection(customEvent.detail.language);
+      }
+    };
+    window.addEventListener('delice:languageChanged', handleLanguageChange);
 
     // Initialize VersionService & register version change listener
     const cleanupVersionService = initVersionService();
@@ -196,6 +208,7 @@ export default function App() {
       subscription.unsubscribe();
       window.removeEventListener('popstate', handlePopState);
       window.removeEventListener('hashchange', handlePopState);
+      window.removeEventListener('delice:languageChanged', handleLanguageChange);
       unsubscribe();
       unsubscribeSupabaseRealtime();
       cleanupVersionService();
@@ -230,8 +243,8 @@ export default function App() {
       if (session.user?.role === 'RETAIL_STORE') {
         notifyToast({
           type: 'error',
-          title: 'Accès Bloqué',
-          message: 'Les fonctionnalités du Laboratoire Central ne sont pas accessibles avec un compte Point de Vente.'
+          title: t('app.accessBlockedTitle', 'Accès Bloqué'),
+          message: t('app.accessBlockedMsg', 'Les fonctionnalités du Laboratoire Central ne sont pas accessibles avec un compte Point de Vente.')
         });
         return;
       }
@@ -246,7 +259,7 @@ export default function App() {
   const isStoreView = currentRole === 'RETAIL_STORE' || currentPath.startsWith('/store');
 
   return (
-    <ErrorBoundary fallbackTitle="Pâtisserie le Délice - Mode Récupération">
+    <ErrorBoundary fallbackTitle={t('app.errorBoundaryFallback', 'Pâtisserie le Délice - Mode Récupération')}>
       <div className="min-h-screen bg-slate-100 text-slate-900 font-sans antialiased flex flex-col selection:bg-indigo-500 selection:text-white overflow-x-hidden">
         {/* Initial App Initialization & Data Fetching Contextual Skeleton Loader */}
         <AnimatePresence>
@@ -299,14 +312,14 @@ export default function App() {
         <footer className="bg-slate-900 text-slate-400 py-6 border-t border-slate-800 text-xs">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-3">
             <div className="flex items-center gap-2">
-              <span className="font-bold text-slate-200">Pâtisserie le Délice</span>
+              <span className="font-bold text-slate-200">{t('nav.brand', 'Pâtisserie le Délice')}</span>
               <span>•</span>
-              <span>6 Points de Vente & Unité de Production Centralisée</span>
+              <span>{t('common.brandSubtitle', '6 Points de Vente & Unité de Production Centralisée')}</span>
             </div>
             <div className="flex items-center gap-2">
-              <span>Session Active : </span>
+              <span>{t('common.activeSession', 'Session Active')} : </span>
               <strong className="text-amber-400 font-mono">
-                {session?.user?.name || 'Inconnue'} ({session?.user?.role === 'RETAIL_STORE' ? 'MAGASIN /store' : 'LABO /lab'})
+                {session?.user?.name || t('common.unknown', 'Inconnue')} ({session?.user?.role === 'RETAIL_STORE' ? t('app.storeSessionLabel', 'MAGASIN /store') : t('app.labSessionLabel', 'LABO /lab')})
               </strong>
             </div>
           </div>

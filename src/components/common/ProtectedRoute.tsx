@@ -1,4 +1,5 @@
 import React, { useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import { UserRole, UserSession } from '../../types';
 import { notifyToast } from '../../services/storage';
 
@@ -21,6 +22,7 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
   children,
   onRedirect
 }) => {
+  const { t } = useTranslation();
   const isAuthenticated = session?.isAuthenticated ?? false;
   
   // Base user permission check (decoupled from active view context)
@@ -34,8 +36,8 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
       if (currentPath !== '/login') {
         notifyToast({
           type: 'warning',
-          title: 'Authentification Requise',
-          message: 'Veuillez vous connecter pour accéder au système Pâtisserie le Délice.'
+          title: t('login.authRequired', 'Authentification Requise'),
+          message: t('login.authRequiredMsg', 'Veuillez vous connecter pour accéder au système Pâtisserie le Délice.')
         });
         onRedirect('/login');
       }
@@ -46,8 +48,8 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
     if (!isCentralLabUser && (currentPath.startsWith('/lab') || allowedRole === 'CENTRAL_LAB')) {
       notifyToast({
         type: 'warning',
-        title: 'Accès Non Autorisé (Magasin)',
-        message: 'Accès restreint : Votre compte Point de Vente ne possède pas les privilèges pour accéder aux modules du Laboratoire Central (/lab).'
+        title: t('login.accessRestrictedTitle', 'Accès Non Autorisé (Magasin)'),
+        message: t('login.accessRestrictedMsg', 'Accès restreint : Votre compte Point de Vente ne possède pas les privilèges pour accéder aux modules du Laboratoire Central (/lab).')
       });
       onRedirect('/store');
       return;
@@ -58,7 +60,7 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
       const defaultPath = isCentralLabUser ? '/lab' : '/store';
       onRedirect(defaultPath);
     }
-  }, [isAuthenticated, isCentralLabUser, currentPath, allowedRole, onRedirect]);
+  }, [isAuthenticated, isCentralLabUser, currentPath, allowedRole, onRedirect, t]);
 
   // If unauthenticated and on protected route, do not render children
   if (!isAuthenticated && currentPath !== '/login') {
@@ -72,3 +74,4 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
 
   return <>{children}</>;
 };
+

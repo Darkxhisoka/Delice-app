@@ -37,7 +37,9 @@ import { OfflineSyncCenterModal } from './OfflineSyncCenterModal';
 import { DataBackupModal } from './DataBackupModal';
 import { EmergencyDataExportModal } from '../store/EmergencyDataExportModal';
 import { registerBackButtonHandler } from '../../hooks/useAndroidBackButton';
-import { FileJson, Sparkles } from 'lucide-react';
+import { FileJson, Sparkles, Languages, Globe } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
+import { LanguageSwitcher } from './LanguageSwitcher';
 import {
   getLocalVersion,
   checkAppVersion,
@@ -56,6 +58,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   onClose,
   onOpenSyncDrawer
 }) => {
+  const { t, i18n } = useTranslation();
   const [autoSync, setAutoSync] = useState<boolean>(() => getAutoSyncEnabled());
   const [isRefreshing, setIsRefreshing] = useState<boolean>(false);
   const [refreshProgress, setRefreshProgress] = useState<ForceRefreshProgress | null>(null);
@@ -168,17 +171,18 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
             </div>
             <div>
               <h2 className="text-base font-black text-white tracking-tight flex items-center gap-2">
-                Paramètres & Synchronisation
+                {t('settings.title', 'Paramètres & Configuration')}
               </h2>
               <p className="text-xs text-slate-400">
-                Gestion des flux de données, rafraîchissement d'inventaire et connectivité
+                {t('settings.subtitle', 'Gérer les préférences système, la langue et la synchronisation')}
               </p>
             </div>
           </div>
           <button
             onClick={onClose}
             disabled={isRefreshing}
-            className="p-2 text-slate-400 hover:text-white hover:bg-slate-800 rounded-xl transition-colors disabled:opacity-50"
+            className="p-2 text-slate-400 hover:text-white hover:bg-slate-800 rounded-xl transition-colors disabled:opacity-50 cursor-pointer"
+            aria-label={t('common.close', 'Fermer')}
           >
             <X className="w-5 h-5" />
           </button>
@@ -186,6 +190,30 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
 
         {/* Scrollable Content Body */}
         <div className="p-6 space-y-6 overflow-y-auto flex-1 custom-scrollbar">
+
+          {/* 0. LANGUAGE SELECTION (I18N & RTL/LTR) */}
+          <div className="bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 border border-amber-500/30 rounded-2xl p-5 shadow-lg space-y-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2.5">
+                <div className="p-2 bg-amber-500/20 text-amber-400 border border-amber-500/30 rounded-xl">
+                  <Languages className="w-4 h-4" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-black text-white flex items-center gap-2">
+                    {t('settings.appLanguage', 'Langue de l\'Application')}
+                    <span className="text-[10px] font-mono font-bold text-amber-400 bg-amber-500/10 px-1.5 py-0.5 rounded border border-amber-500/20 uppercase">
+                      {i18n.language?.toUpperCase() || 'FR'}
+                    </span>
+                  </h3>
+                  <p className="text-xs text-slate-400">
+                    {t('settings.selectLanguageDesc', 'Basculez entre le Français et l\'Arabe (avec inversion RTL automatique)')}
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <LanguageSwitcher variant="segmented" />
+          </div>
 
           {/* 1. DEDICATED MANUAL SYNC & INVENTORY REFRESH SECTION */}
           <div className="bg-gradient-to-br from-slate-950 to-slate-900 border border-slate-800 rounded-2xl p-5 shadow-inner space-y-4">
@@ -196,10 +224,10 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                 </div>
                 <div>
                   <h3 className="text-sm font-black text-white">
-                    Actualisation Manuelle des Stocks
+                    {t('settings.manualRefresh', 'Actualisation Manuelle des Stocks')}
                   </h3>
                   <p className="text-xs text-slate-400">
-                    Forcer un rafraîchissement complet des données d'inventaire depuis le Cloud
+                    {t('settings.manualRefreshDesc', 'Forcer un rafraîchissement complet des données d\'inventaire depuis le Cloud')}
                   </p>
                 </div>
               </div>
@@ -212,7 +240,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                     : 'bg-emerald-950/60 text-emerald-300 border-emerald-800/80'
                 }`}>
                   <span className={`w-2 h-2 rounded-full ${isOffline ? 'bg-amber-400' : 'bg-emerald-400 animate-pulse'}`} />
-                  {isOffline ? 'Mode Hors-Ligne' : 'Cloud Connecté'}
+                  {isOffline ? t('settings.offlineModeBadge', 'Mode Hors-Ligne') : t('settings.cloudConnected', 'Cloud Connecté')}
                 </span>
               </div>
             </div>
@@ -223,10 +251,15 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                 <div className="space-y-1">
                   <div className="text-xs font-bold text-slate-200 flex items-center gap-1.5">
                     <Cloud className="w-3.5 h-3.5 text-indigo-400" />
-                    Synchronisation Immédiate des Données
+                    {t('settings.immediateDataSync', 'Synchronisation Immédiate des Données')}
                   </div>
                   <div className="text-[11px] text-slate-400">
-                    Matières premières ({inventoryStats.rawMaterials}), Fiches de production ({inventoryStats.productionBatches}), Recettes ({inventoryStats.recipes})
+                    {t('settings.inventoryStatsSummary', {
+                      raw: inventoryStats.rawMaterials,
+                      batches: inventoryStats.productionBatches,
+                      recipes: inventoryStats.recipes,
+                      defaultValue: `Matières premières (${inventoryStats.rawMaterials}), Fiches de production (${inventoryStats.productionBatches}), Recettes (${inventoryStats.recipes})`
+                    })}
                   </div>
                 </div>
 
@@ -234,14 +267,14 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                 <button
                   onClick={handleForceRefresh}
                   disabled={isRefreshing}
-                  className={`min-h-[44px] px-4 py-2 rounded-xl text-xs font-black flex items-center justify-center gap-2 shadow-lg transition-all select-none w-full sm:w-auto shrink-0 ${
+                  className={`min-h-[44px] px-4 py-2 rounded-xl text-xs font-black flex items-center justify-center gap-2 shadow-lg transition-all select-none w-full sm:w-auto shrink-0 cursor-pointer ${
                     isRefreshing
                       ? 'bg-indigo-600 text-white cursor-wait opacity-90'
                       : 'bg-gradient-to-r from-indigo-600 via-indigo-500 to-indigo-600 hover:from-indigo-500 hover:to-indigo-500 text-white hover:shadow-indigo-500/25 active:scale-95'
                   }`}
                 >
                   <RefreshCw className={`w-4 h-4 ${isRefreshing ? 'animate-spin text-amber-300' : 'text-white'}`} />
-                  <span>{isRefreshing ? 'Synchronisation...' : 'Actualiser l\'Inventaire'}</span>
+                  <span>{isRefreshing ? t('settings.refreshing', 'Synchronisation...') : t('settings.refreshInventoryBtn', 'Actualiser l\'Inventaire')}</span>
                 </button>
               </div>
 
@@ -300,12 +333,12 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                     <div className="flex-1 space-y-1">
                       <div className="font-bold text-white">
                         {lastRefreshResult.success
-                          ? 'Synchronisation terminée avec succès !'
-                          : 'Échec partiel de la synchronisation'}
+                          ? t('settings.syncSuccessBanner', 'Synchronisation terminée avec succès !')
+                          : t('settings.syncFailedBanner', 'Échec partiel de la synchronisation')}
                       </div>
                       <div className="text-[11px] text-slate-300">
-                        {lastRefreshResult.totalItems} articles d'inventaire synchronisés avec le Cloud.
-                        {lastRefreshResult.syncedOfflineCount > 0 && ` (${lastRefreshResult.syncedOfflineCount} actions hors-ligne transmises)`}
+                        {t('settings.syncSuccessSummary', { count: lastRefreshResult.totalItems, defaultValue: `${lastRefreshResult.totalItems} articles d'inventaire synchronisés avec le Cloud.` })}
+                        {lastRefreshResult.syncedOfflineCount > 0 && t('settings.syncedOfflineExtra', { count: lastRefreshResult.syncedOfflineCount, defaultValue: ` (${lastRefreshResult.syncedOfflineCount} actions hors-ligne transmises)` })}
                       </div>
                     </div>
                   </motion.div>
@@ -315,13 +348,13 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
 
             {/* Automatic Background Sync Toggle Switch */}
             <div className="flex items-center justify-between p-3.5 bg-slate-900/60 border border-slate-800/80 rounded-xl">
-              <div className="space-y-0.5 pr-4">
+              <div className="space-y-0.5 pe-4">
                 <div className="text-xs font-bold text-slate-200 flex items-center gap-1.5">
                   <Zap className="w-3.5 h-3.5 text-amber-400" />
-                  Synchronisation Continue en Arrière-Plan
+                  {t('settings.continuousBgSync', 'Synchronisation Continue en Arrière-Plan')}
                 </div>
                 <div className="text-[11px] text-slate-400">
-                  Transmet automatiquement les changements de stock toutes les 45s et à chaque reconnexion
+                  {t('settings.continuousBgSyncDesc', 'Transmet automatiquement les changements de stock toutes les 45s et à chaque reconnexion')}
                 </div>
               </div>
 
@@ -337,7 +370,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                 <span
                   aria-hidden="true"
                   className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
-                    autoSync ? 'translate-x-5' : 'translate-x-0'
+                    autoSync ? 'translate-x-5 rtl:-translate-x-5' : 'translate-x-0'
                   }`}
                 />
               </button>
@@ -347,7 +380,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
             <div className="flex items-center justify-between text-xs px-2 pt-1 text-slate-400">
               <span className="flex items-center gap-1.5">
                 <Layers className="w-3.5 h-3.5 text-slate-500" />
-                Transactions hors-ligne en attente :
+                {t('settings.pendingOfflineTrans', 'Transactions hors-ligne en attente :')}
                 <strong className={`font-mono ${queueCount > 0 ? 'text-amber-400' : 'text-slate-200'}`}>
                   {queueCount}
                 </strong>
@@ -356,7 +389,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
               {lastSyncTime && (
                 <span className="flex items-center gap-1 text-[11px] text-slate-400">
                   <Clock className="w-3 h-3 text-slate-500" />
-                  Dernier sync : {new Date(lastSyncTime).toLocaleTimeString('fr-FR')}
+                  {t('settings.lastSyncAt', { time: new Date(lastSyncTime).toLocaleTimeString(i18n.language === 'ar' ? 'ar-SA' : 'fr-FR'), defaultValue: `Dernier sync : ${new Date(lastSyncTime).toLocaleTimeString('fr-FR')}` })}
                 </span>
               )}
             </div>
@@ -373,10 +406,10 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
               </div>
               <div>
                 <h3 className="text-sm font-black text-white">
-                  Préférences Système & Impression
+                  {t('settings.systemHardwarePref', 'Préférences Système & Impression')}
                 </h3>
                 <p className="text-xs text-slate-400">
-                  Configuration matérielle et gestion du stockage local
+                  {t('settings.systemHardwarePrefDesc', 'Configuration matérielle et gestion du stockage local')}
                 </p>
               </div>
             </div>
@@ -387,21 +420,21 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-1.5 text-xs font-bold text-slate-200">
                     <Database className="w-3.5 h-3.5 text-indigo-400" />
-                    Base SQLite & Offline Sync
+                    {t('settings.sqliteSyncCard', 'Base SQLite & Offline Sync')}
                   </div>
                   <span className="text-[10px] font-mono font-bold text-amber-300 bg-amber-500/10 px-1.5 py-0.5 rounded border border-amber-500/20">
-                    {queueCount} en attente
+                    {queueCount} {t('inventory.pendingCount', 'en attente')}
                   </span>
                 </div>
                 <div className="text-[11px] text-slate-400">
-                  Consulter les tables locales SQLite / IndexedDB, auditer les checksums et piloter la file de réplication.
+                  {t('settings.sqliteSyncCardDesc', 'Consulter les tables locales SQLite / IndexedDB, auditer les checksums et piloter la file de réplication.')}
                 </div>
                 <button
                   onClick={() => setIsSyncCenterOpen(true)}
                   className="w-full py-1.5 px-2.5 rounded-lg bg-indigo-600/20 hover:bg-indigo-600/30 text-indigo-300 border border-indigo-500/30 text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer"
                 >
                   <Database className="w-3.5 h-3.5" />
-                  <span>Ouvrir le Centre de Persistance SQLite</span>
+                  <span>{t('settings.openSqliteCenter', 'Ouvrir le Centre de Persistance SQLite')}</span>
                 </button>
               </div>
 
@@ -410,14 +443,14 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-1.5 text-xs font-bold text-slate-200">
                     <FileJson className="w-3.5 h-3.5 text-emerald-400" />
-                    Sauvegarde & Restauration Dexie
+                    {t('settings.backupRestoreCard', 'Sauvegarde & Restauration Dexie')}
                   </div>
                   <span className="text-[10px] font-mono font-bold text-emerald-400 bg-emerald-500/10 px-1.5 py-0.5 rounded border border-emerald-500/20">
                     JSON Export
                   </span>
                 </div>
                 <div className="text-[11px] text-slate-400">
-                  Exporter les bases Dexie (ventes, articles, panier) en JSON ou restaurer un backup local.
+                  {t('settings.backupRestoreCardDesc', 'Exporter les bases Dexie (ventes, articles, panier) en JSON ou restaurer un backup local.')}
                 </div>
                 <div className="grid grid-cols-2 gap-2">
                   <button
@@ -426,7 +459,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                     className="py-1.5 px-2 rounded-lg bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-300 border border-emerald-500/30 text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer"
                   >
                     <FileJson className="w-3.5 h-3.5" />
-                    <span>Sauvegardes JSON</span>
+                    <span>{t('settings.jsonBackupsBtn', 'Sauvegardes JSON')}</span>
                   </button>
                   <button
                     type="button"
@@ -434,7 +467,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                     className="py-1.5 px-2 rounded-lg bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/30 text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer"
                   >
                     <HardDrive className="w-3.5 h-3.5" />
-                    <span>Dump Filesystem</span>
+                    <span>{t('settings.filesystemDumpBtn', 'Dump Filesystem')}</span>
                   </button>
                 </div>
               </div>
@@ -443,10 +476,10 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
               <div className="p-3 bg-slate-900 border border-slate-800 rounded-xl space-y-1.5">
                 <div className="flex items-center gap-1.5 text-xs font-bold text-slate-200">
                   <Printer className="w-3.5 h-3.5 text-indigo-400" />
-                  Imprimante Thermique POS
+                  {t('settings.thermalPrinterCard', 'Imprimante Thermique POS')}
                 </div>
                 <div className="text-[11px] text-slate-400">
-                  Impression directe silencieuse configurée pour tickets 80mm & étiquettes de production.
+                  {t('settings.thermalPrinterDesc', 'Impression directe silencieuse configurée pour tickets 80mm & étiquettes de production.')}
                 </div>
               </div>
 
@@ -455,14 +488,14 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-1.5 text-xs font-bold text-slate-200">
                     <Sparkles className="w-3.5 h-3.5 text-amber-400" />
-                    Version & Mises à Jour (OTA / Web)
+                    {t('settings.versionOTA', 'Version & Mises à Jour (OTA / Web)')}
                   </div>
                   <span className="text-[10px] font-mono font-bold text-indigo-300 bg-indigo-500/10 px-1.5 py-0.5 rounded border border-indigo-500/20">
                     v{appVersion}
                   </span>
                 </div>
                 <div className="text-[11px] text-slate-400">
-                  Vérifier les manifestes déployés, synchroniser les bundles Capgo et exécuter les migrations. ({appliedMigrationsCount} migrations actives)
+                  {t('settings.versionCardDesc', { count: appliedMigrationsCount, defaultValue: `Vérifier les manifestes déployés, synchroniser les bundles Capgo et exécuter les migrations. (${appliedMigrationsCount} migrations actives)` })}
                 </div>
                 <button
                   type="button"
@@ -471,7 +504,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                   className="w-full py-1.5 px-2.5 rounded-lg bg-indigo-600/20 hover:bg-indigo-600/30 text-indigo-300 border border-indigo-500/30 text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-50"
                 >
                   <RefreshCw className={`w-3.5 h-3.5 ${isCheckingVersion ? 'animate-spin text-amber-300' : ''}`} />
-                  <span>{isCheckingVersion ? 'Vérification...' : 'Vérifier Mises à Jour'}</span>
+                  <span>{isCheckingVersion ? t('settings.checkingUpdates', 'Vérification...') : t('settings.checkUpdates', 'Vérifier Mises à Jour')}</span>
                 </button>
               </div>
             </div>
@@ -483,14 +516,14 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
         <div className="sticky bottom-0 z-20 bg-slate-900/95 backdrop-blur border-t border-slate-800 px-6 py-3.5 flex items-center justify-between">
           <div className="text-[11px] text-slate-400 flex items-center gap-1.5">
             <Server className="w-3.5 h-3.5 text-slate-500" />
-            <span>Pâtisserie le Délice • v{appVersion} (VersionService Active)</span>
+            <span>{t('settings.footerBrand', { version: appVersion, defaultValue: `Pâtisserie le Délice • v${appVersion} (VersionService Active)` })}</span>
           </div>
 
           <button
             onClick={onClose}
-            className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-white rounded-xl text-xs font-bold transition-colors min-h-[38px]"
+            className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-white rounded-xl text-xs font-bold transition-colors min-h-[38px] cursor-pointer"
           >
-            Fermer
+            {t('common.close', 'Fermer')}
           </button>
         </div>
 

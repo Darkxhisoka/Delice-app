@@ -1,4 +1,5 @@
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 import { motion } from 'motion/react';
 import { StoreDashboardSkeleton } from '../store/StoreDashboardSkeleton';
 import { LabDashboardSkeleton } from '../lab/LabDashboardSkeleton';
@@ -22,13 +23,15 @@ interface LoadingScreenProps {
 export const LoadingScreen: React.FC<LoadingScreenProps> = ({
   role,
   isStore,
-  message = 'Synchronisation & Hydratation des données...',
-  submessage = 'Chargement du catalogue & des stocks en temps réel',
+  message,
+  submessage,
   isExiting = false,
 }) => {
+  const { t } = useTranslation();
   // Determine active view context
   const activeRole: UserRole = role || (isStore !== undefined ? (isStore ? 'RETAIL_STORE' : 'CENTRAL_LAB') : getActiveRole());
   const isStoreView = isStore !== undefined ? isStore : activeRole === 'RETAIL_STORE';
+  const displayMessage = message || t('common.syncDataLoading', 'Synchronisation & Hydratation des données...');
 
   return (
     <motion.div
@@ -48,9 +51,9 @@ export const LoadingScreen: React.FC<LoadingScreenProps> = ({
           </div>
           <div className="flex items-center gap-1.5 text-xs font-semibold text-slate-200">
             <Radio className="w-3.5 h-3.5 text-amber-400 animate-pulse" />
-            <span>{isStoreView ? 'Espace Boutique' : 'Laboratoire Central'}</span>
+            <span>{isStoreView ? t('nav.storeTitle', 'Espace Boutique') : t('nav.labTitle', 'Laboratoire Central')}</span>
             <span className="text-slate-500">•</span>
-            <span className="text-slate-300 font-normal text-[11px]">{message}</span>
+            <span className="text-slate-300 font-normal text-[11px]">{displayMessage}</span>
           </div>
         </div>
       </div>
@@ -69,3 +72,4 @@ export const LoadingScreen: React.FC<LoadingScreenProps> = ({
 
 export { StoreDashboardSkeleton } from '../store/StoreDashboardSkeleton';
 export { LabDashboardSkeleton } from '../lab/LabDashboardSkeleton';
+

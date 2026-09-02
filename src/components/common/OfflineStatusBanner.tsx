@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   WifiOff,
   Wifi,
@@ -26,6 +27,7 @@ import { notifyToast } from '../../services/storage';
 import { OfflineSyncCenterModal } from './OfflineSyncCenterModal';
 
 export const OfflineStatusBanner: React.FC = () => {
+  const { t } = useTranslation();
   const [isOnline, setIsOnline] = useState<boolean>(!isAppOffline());
   const [showReconnectedMsg, setShowReconnectedMsg] = useState<boolean>(false);
   const [isDismissed, setIsDismissed] = useState<boolean>(false);
@@ -81,8 +83,8 @@ export const OfflineStatusBanner: React.FC = () => {
       if (!navigator.onLine) {
         notifyToast({
           type: 'warning',
-          title: 'Hors-Ligne Détecté',
-          message: 'Aucune connexion Internet détectée par le navigateur. Veuillez vérifier votre réseau Wi-Fi ou 4G.'
+          title: t('banner.offlineDetectedTitle', 'Hors-Ligne Détecté'),
+          message: t('banner.offlineDetectedMsg', 'Aucune connexion Internet détectée par le navigateur. Veuillez vérifier votre réseau Wi-Fi ou 4G.')
         });
         return;
       }
@@ -91,27 +93,27 @@ export const OfflineStatusBanner: React.FC = () => {
       if (result && result.synced > 0) {
         notifyToast({
           type: 'success',
-          title: 'Synchronisation Réussie',
-          message: `${result.synced} transaction(s) IndexedDB synchronisée(s) avec succès avec Firestore.`
+          title: t('banner.syncSuccessTitle', 'Synchronisation Réussie'),
+          message: t('banner.syncSuccessMsg', { count: result.synced, defaultValue: `${result.synced} transaction(s) IndexedDB synchronisée(s) avec succès avec Firestore.` })
         });
         setShowReconnectedMsg(false);
       } else if (result && result.failed > 0) {
         notifyToast({
           type: 'error',
-          title: 'Erreur Synchronisation',
-          message: `${result.failed} élément(s) n'ont pas pu être synchronisés. Réessai programmé.`
+          title: t('banner.syncErrorTitle', 'Erreur Synchronisation'),
+          message: t('banner.syncErrorMsg', { count: result.failed, defaultValue: `${result.failed} élément(s) n'ont pas pu être synchronisés. Réessai programmé.` })
         });
       } else {
         notifyToast({
           type: 'info',
-          title: 'File Synchronisée',
-          message: 'Toutes les transactions IndexedDB sont déjà synchronisées.'
+          title: t('banner.queueSyncedTitle', 'File Synchronisée'),
+          message: t('banner.queueSyncedMsg', 'Toutes les transactions IndexedDB sont déjà synchronisées.')
         });
       }
     } catch (err: any) {
       notifyToast({
         type: 'error',
-        title: 'Erreur',
+        title: t('common.error', 'Erreur'),
         message: err?.message || 'Erreur lors de la synchronisation manuelle.'
       });
     } finally {
@@ -142,19 +144,19 @@ export const OfflineStatusBanner: React.FC = () => {
             </div>
             <div>
               <span className="font-extrabold flex items-center gap-2">
-                <span>{isSyncInProgress ? 'Synchronisation en cours...' : 'Connexion Réseau Détectée'}</span>
+                <span>{isSyncInProgress ? t('banner.syncInProgress', 'Synchronisation en cours...') : t('banner.networkDetected', 'Connexion Réseau Détectée')}</span>
                 {pendingCount > 0 && (
                   <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-emerald-950 text-emerald-300">
-                    {pendingCount} en attente
+                    {t('banner.pendingCount', { count: pendingCount, defaultValue: `${pendingCount} en attente` })}
                   </span>
                 )}
               </span>
               <p className="text-[11px] font-normal text-emerald-100 mt-0.5">
                 {isSyncInProgress
-                  ? "Transmission sécurisée des transactions IndexedDB vers Firebase Firestore & Supabase..."
+                  ? t('banner.syncingDesc', 'Transmission sécurisée des transactions IndexedDB vers Firebase Firestore & Supabase...')
                   : pendingCount > 0
-                  ? "La connexion internet est active. Vous pouvez lancer la synchronisation manuelle immédiatement."
-                  : "Connexion rétablie ! La file locale IndexedDB est synchronisée."}
+                  ? t('banner.onlinePendingDesc', 'La connexion internet est active. Vous pouvez lancer la synchronisation manuelle immédiatement.')
+                  : t('banner.reconnectedDesc', 'Connexion rétablie ! La file locale IndexedDB est synchronisée.')}
               </p>
             </div>
           </div>
@@ -167,10 +169,10 @@ export const OfflineStatusBanner: React.FC = () => {
               onClick={handleManualSyncNow}
               disabled={isSyncInProgress}
               className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white text-emerald-900 hover:bg-emerald-50 active:scale-95 text-xs font-black shadow-sm transition-all disabled:opacity-60 disabled:cursor-not-allowed cursor-pointer"
-              title="Forcer la synchronisation manuelle de la file IndexedDB vers le serveur"
+              title={t('banner.syncNow', 'Sync Now')}
             >
               <RefreshCw className={`w-3.5 h-3.5 text-emerald-700 ${isSyncInProgress ? 'animate-spin' : ''}`} />
-              <span>{isSyncInProgress ? 'Synchronisation...' : 'Sync Now'}</span>
+              <span>{isSyncInProgress ? t('common.loading', 'Synchronisation...') : t('banner.syncNow', 'Sync Now')}</span>
             </button>
 
             {/* Sync Center Modal Trigger Button */}
@@ -179,10 +181,10 @@ export const OfflineStatusBanner: React.FC = () => {
               type="button"
               onClick={() => setIsSyncCenterOpen(true)}
               className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-900/40 hover:bg-slate-900/60 text-white text-xs font-black border border-white/20 transition-all cursor-pointer"
-              title="Ouvrir le Centre de Persistance & Synchronisation SQLite"
+              title={t('banner.sqliteCenter', 'Centre SQLite')}
             >
               <Database className="w-3.5 h-3.5" />
-              <span className="hidden sm:inline">Centre SQLite</span>
+              <span className="hidden sm:inline">{t('banner.sqliteCenter', 'Centre SQLite')}</span>
             </button>
 
             <button
@@ -193,7 +195,7 @@ export const OfflineStatusBanner: React.FC = () => {
                 setIsDismissed(true);
               }}
               className="text-emerald-200 hover:text-white p-1 rounded-lg transition-colors cursor-pointer"
-              aria-label="Fermer la bannière"
+              aria-label={t('banner.closeBanner', 'Fermer la bannière')}
             >
               <X className="w-4 h-4" />
             </button>
@@ -213,7 +215,7 @@ export const OfflineStatusBanner: React.FC = () => {
   if (!isOnline) {
     return (
       <div 
-        id="offline-banner-offline"
+        id="offline-banner-offline" 
         className="bg-amber-500 text-slate-950 px-4 py-2.5 text-xs font-bold shadow-md animate-in slide-in-from-top duration-300 border-b border-amber-600"
       >
         <div className="max-w-7xl mx-auto flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
@@ -223,13 +225,15 @@ export const OfflineStatusBanner: React.FC = () => {
             </div>
             <div>
               <span className="font-extrabold flex items-center gap-1.5">
-                Mode Hors-Ligne Actif (SQLite & IndexedDB)
+                {t('banner.offlineModeActive', 'Mode Hors-Ligne Actif (SQLite & IndexedDB)')}
                 <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-slate-950 text-amber-400">
-                  {pendingCount > 0 ? `${pendingCount} action(s) en file` : 'File Locale Prête'}
+                  {pendingCount > 0 
+                    ? t('banner.offlineQueueCount', { count: pendingCount, defaultValue: `${pendingCount} action(s) en file` }) 
+                    : t('banner.offlineQueueReady', 'File Locale Prête')}
                 </span>
               </span>
               <p className="text-[11px] font-medium text-slate-900 mt-0.5">
-                Les transactions de vente, réceptions et déstockages sont enregistrés localement dans SQLite/IndexedDB et se synchroniseront automatiquement dès détection d'internet.
+                {t('banner.offlineDesc', "Les transactions de vente, réceptions et déstockages sont enregistrés localement dans SQLite/IndexedDB et se synchroniseront automatiquement dès détection d'internet.")}
               </p>
             </div>
           </div>
@@ -241,10 +245,10 @@ export const OfflineStatusBanner: React.FC = () => {
               type="button"
               onClick={() => setIsSyncCenterOpen(true)}
               className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-950 text-amber-400 hover:bg-slate-900 active:scale-95 text-xs font-black shadow-sm transition-all cursor-pointer"
-              title="Ouvrir le Centre de Persistance & Synchronisation SQLite"
+              title={t('banner.sqliteCenter', 'Centre SQLite')}
             >
               <Database className="w-3.5 h-3.5" />
-              <span>Centre SQLite</span>
+              <span>{t('banner.sqliteCenter', 'Centre SQLite')}</span>
             </button>
 
             {/* Sync Now button to attempt background sync check */}
@@ -254,10 +258,10 @@ export const OfflineStatusBanner: React.FC = () => {
               onClick={handleManualSyncNow}
               disabled={isSyncInProgress}
               className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-900/60 text-slate-950 hover:bg-slate-900/80 text-xs font-black shadow-sm transition-all disabled:opacity-60 disabled:cursor-not-allowed cursor-pointer"
-              title="Tester la connexion et forcer une tentative de synchronisation"
+              title={t('banner.syncNow', 'Sync Now')}
             >
               <RefreshCw className={`w-3.5 h-3.5 ${isSyncInProgress ? 'animate-spin' : ''}`} />
-              <span className="hidden sm:inline">{isSyncInProgress ? 'Vérification...' : 'Sync Now'}</span>
+              <span className="hidden sm:inline">{isSyncInProgress ? t('common.loading', 'Vérification...') : t('banner.syncNow', 'Sync Now')}</span>
             </button>
 
             <button
@@ -265,7 +269,7 @@ export const OfflineStatusBanner: React.FC = () => {
               type="button"
               onClick={() => setIsDismissed(true)}
               className="text-slate-950/70 hover:text-slate-950 p-1 rounded-lg transition-colors cursor-pointer"
-              aria-label="Masquer la bannière"
+              aria-label={t('banner.closeBanner', 'Masquer la bannière')}
             >
               <X className="w-4 h-4" />
             </button>

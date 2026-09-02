@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   Search,
   X,
@@ -53,6 +54,7 @@ interface GlobalSearchBarProps {
 }
 
 export const GlobalSearchBar: React.FC<GlobalSearchBarProps> = ({ onNavigateToModule, className = '' }) => {
+  const { t } = useTranslation();
   const [isOpen, setIsOpen] = useState(false);
   const [query, setQuery] = useState('');
   const [activeCategory, setActiveCategory] = useState<SearchCategory>('ALL');
@@ -95,10 +97,10 @@ export const GlobalSearchBar: React.FC<GlobalSearchBarProps> = ({ onNavigateToMo
           searchResults.push({
             id: `prod-${p.id}`,
             type: 'PRODUCT',
-            typeLabel: 'Produit Fini',
+            typeLabel: t('search.productFini', 'Produit Fini'),
             title: p.name,
             code: p.sku,
-            subtitle: `Prix: ${p.price.toFixed(2)} DZD • Coût: ${p.costPrice.toFixed(2)} DZD`,
+            subtitle: `${t('search.price', 'Prix')}: ${p.price.toFixed(2)} DZD • ${t('search.cost', 'Coût')}: ${p.costPrice.toFixed(2)} DZD`,
             badgeText: p.category,
             badgeColor: 'bg-emerald-100 text-emerald-800 border-emerald-200',
             category: 'PRODUCTS',
@@ -116,10 +118,10 @@ export const GlobalSearchBar: React.FC<GlobalSearchBarProps> = ({ onNavigateToMo
           searchResults.push({
             id: `mat-${m.id}`,
             type: 'MATERIAL',
-            typeLabel: 'Matière Première',
+            typeLabel: t('search.matierePremiere', 'Matière Première'),
             title: m.name,
             code: m.sku,
-            subtitle: `Stock: ${m.currentStock} ${m.unit} • Coût Moyen: ${m.currentAvgCost.toFixed(2)} DZD/${m.unit}`,
+            subtitle: `${t('search.stock', 'Stock')}: ${m.currentStock} ${m.unit} • ${t('search.avgCost', 'Coût Moyen')}: ${m.currentAvgCost.toFixed(2)} DZD/${m.unit}`,
             badgeText: m.category,
             badgeColor: 'bg-amber-100 text-amber-800 border-amber-200',
             category: 'MATERIALS',
@@ -137,11 +139,11 @@ export const GlobalSearchBar: React.FC<GlobalSearchBarProps> = ({ onNavigateToMo
           searchResults.push({
             id: `recipe-${r.id}`,
             type: 'RECIPE',
-            typeLabel: 'Fiche Technique',
+            typeLabel: t('search.ficheTechnique', 'Fiche Technique'),
             title: r.name,
             code: `REC-${r.id.slice(-4).toUpperCase()}`,
-            subtitle: `Rendement: ${r.yieldUnits} ${r.unitName} • Temps Prep: ${r.prepTimeMinutes} min`,
-            badgeText: r.recipeType === 'SEMI_FINISHED' ? 'Semi-Fini' : 'Produit Fini',
+            subtitle: `${t('search.yield', 'Rendement')}: ${r.yieldUnits} ${r.unitName} • ${t('search.prepTime', 'Temps Prep')}: ${r.prepTimeMinutes} min`,
+            badgeText: r.recipeType === 'SEMI_FINISHED' ? t('search.semiFini', 'Semi-Fini') : t('search.productFini', 'Produit Fini'),
             badgeColor: r.recipeType === 'SEMI_FINISHED' ? 'bg-purple-100 text-purple-800 border-purple-200' : 'bg-blue-100 text-blue-800 border-blue-200',
             category: 'RECIPES',
             rawObject: r
@@ -163,10 +165,10 @@ export const GlobalSearchBar: React.FC<GlobalSearchBarProps> = ({ onNavigateToMo
           searchResults.push({
             id: `req-${req.id}`,
             type: 'REQUISITION',
-            typeLabel: 'Réquisition',
-            title: `Demande #${req.requisitionNumber} - ${req.storeName}`,
+            typeLabel: t('search.requisition', 'Réquisition'),
+            title: `${t('requisition.title', 'Demande')} #${req.requisitionNumber} - ${req.storeName}`,
             code: req.requisitionNumber,
-            subtitle: `Statut: ${req.status} • ${req.items.length} article(s) • Est. ${req.totalEstimatedCost.toFixed(2)} DZD`,
+            subtitle: `${t('common.status', 'Statut')}: ${req.status} • ${req.items.length} ${t('cart.item', 'article(s)')} • Est. ${req.totalEstimatedCost.toFixed(2)} DZD`,
             badgeText: req.status,
             badgeColor: req.status === 'APPROVED' ? 'bg-emerald-100 text-emerald-800' : req.status === 'PENDING' ? 'bg-amber-100 text-amber-800' : 'bg-slate-100 text-slate-800',
             category: 'HISTORY',
@@ -186,11 +188,11 @@ export const GlobalSearchBar: React.FC<GlobalSearchBarProps> = ({ onNavigateToMo
           searchResults.push({
             id: `rec-${rec.id}`,
             type: 'RECEIPT',
-            typeLabel: 'Réception Fournisseur',
-            title: `Achat #${rec.receiptNumber} - ${rec.supplierName}`,
+            typeLabel: t('search.reception', 'Réception Fournisseur'),
+            title: `${t('receipt.purchase', 'Achat')} #${rec.receiptNumber} - ${rec.supplierName}`,
             code: rec.receiptNumber,
-            subtitle: `Facture #${rec.invoiceNumber} • Total: ${rec.totalAmount.toFixed(2)} DZD`,
-            badgeText: 'Réception',
+            subtitle: `${t('receipt.invoice', 'Facture')} #${rec.invoiceNumber} • ${t('common.total', 'Total')}: ${rec.totalAmount.toFixed(2)} DZD`,
+            badgeText: t('search.reception', 'Réception'),
             badgeColor: 'bg-indigo-100 text-indigo-800 border-indigo-200',
             category: 'HISTORY',
             rawObject: rec
@@ -204,11 +206,11 @@ export const GlobalSearchBar: React.FC<GlobalSearchBarProps> = ({ onNavigateToMo
           searchResults.push({
             id: `log-${log.id}`,
             type: 'ACTIVITY',
-            typeLabel: 'Activité',
+            typeLabel: t('search.activity', 'Activité'),
             title: log.title,
             code: log.badgeText || 'LOG',
-            subtitle: `${log.description.slice(0, 70)}... • Par: ${log.actor}`,
-            badgeText: log.badgeText || 'Journal',
+            subtitle: `${log.description.slice(0, 70)}... • ${log.actor}`,
+            badgeText: log.badgeText || t('search.activity', 'Journal'),
             badgeColor: 'bg-slate-100 text-slate-800 border-slate-200',
             category: 'HISTORY',
             rawObject: log
@@ -219,7 +221,7 @@ export const GlobalSearchBar: React.FC<GlobalSearchBarProps> = ({ onNavigateToMo
 
     setResults(searchResults.slice(0, 15)); // Limit to top 15 results
     setSelectedIndex(-1);
-  }, [query, activeCategory]);
+  }, [query, activeCategory, t]);
 
   // Handle clicking outside to close
   useEffect(() => {
@@ -238,8 +240,8 @@ export const GlobalSearchBar: React.FC<GlobalSearchBarProps> = ({ onNavigateToMo
 
     notifyToast({
       type: 'info',
-      title: `Élément trouvé : ${item.title}`,
-      message: `Code: ${item.code} | Catégorie: ${item.typeLabel}`
+      title: t('search.itemFoundTitle', { title: item.title, defaultValue: `Élément trouvé : ${item.title}` }),
+      message: t('search.itemFoundMsg', { code: item.code, category: item.typeLabel, defaultValue: `Code: ${item.code} | Catégorie: ${item.typeLabel}` })
     });
 
     if (onNavigateToModule) {
@@ -275,22 +277,30 @@ export const GlobalSearchBar: React.FC<GlobalSearchBarProps> = ({ onNavigateToMo
     }
   };
 
+  const categories = [
+    { id: 'ALL', label: t('search.all', 'Tous') },
+    { id: 'PRODUCTS', label: t('search.products', 'Produits') },
+    { id: 'MATERIALS', label: t('search.materials', 'Matières') },
+    { id: 'RECIPES', label: t('search.recipes', 'Recettes') },
+    { id: 'HISTORY', label: t('search.history', 'Historique') },
+  ];
+
   return (
     <div ref={containerRef} className={`relative ${className}`}>
       {/* Search Bar Input Trigger */}
       <div className="relative flex items-center w-full">
-        <Search className="w-4 h-4 absolute left-3 text-slate-400 pointer-events-none" />
+        <Search className="w-4 h-4 absolute left-3 rtl:left-auto rtl:right-3 text-slate-400 pointer-events-none" />
         <input
           ref={inputRef}
           type="text"
-          placeholder="Recherche globale (produits, codes, matières, recettes)..."
+          placeholder={t('search.placeholder', 'Recherche globale (produits, codes, matières, recettes)...')}
           value={query}
           onFocus={() => setIsOpen(true)}
           onChange={(e) => {
             setQuery(e.target.value);
             if (!isOpen) setIsOpen(true);
           }}
-          className="w-full pl-9 pr-12 py-1.5 bg-slate-800/90 border border-slate-700/80 rounded-xl text-xs font-medium text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-amber-500/50 focus:border-amber-500 transition-all shadow-inner"
+          className="w-full pl-9 rtl:pl-12 rtl:pr-9 pr-12 py-1.5 bg-slate-800/90 border border-slate-700/80 rounded-xl text-xs font-medium text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-amber-500/50 focus:border-amber-500 transition-all shadow-inner text-start"
         />
         {query ? (
           <button
@@ -298,12 +308,12 @@ export const GlobalSearchBar: React.FC<GlobalSearchBarProps> = ({ onNavigateToMo
               setQuery('');
               inputRef.current?.focus();
             }}
-            className="absolute right-3 text-slate-400 hover:text-white"
+            className="absolute right-3 rtl:right-auto rtl:left-3 text-slate-400 hover:text-white cursor-pointer"
           >
             <X className="w-3.5 h-3.5" />
           </button>
         ) : (
-          <kbd className="hidden sm:inline-flex items-center gap-0.5 absolute right-2.5 px-1.5 py-0.5 text-[10px] font-mono text-slate-400 bg-slate-900 border border-slate-700 rounded-md shadow-xs pointer-events-none">
+          <kbd className="hidden sm:inline-flex items-center gap-0.5 absolute right-2.5 rtl:right-auto rtl:left-2.5 px-1.5 py-0.5 text-[10px] font-mono text-slate-400 bg-slate-900 border border-slate-700 rounded-md shadow-xs pointer-events-none">
             <Command className="w-2.5 h-2.5" /> K
           </kbd>
         )}
@@ -311,21 +321,15 @@ export const GlobalSearchBar: React.FC<GlobalSearchBarProps> = ({ onNavigateToMo
 
       {/* Instant Floating Results Dropdown Modal */}
       {isOpen && (
-        <div className="absolute left-0 right-0 top-full mt-2 bg-slate-900 border border-slate-700/90 rounded-2xl shadow-2xl z-50 overflow-hidden min-w-[320px] max-w-2xl sm:w-[540px] md:w-[600px] animate-in fade-in slide-in-from-top-2 duration-150">
+        <div className="absolute left-0 rtl:left-auto rtl:right-0 right-0 top-full mt-2 bg-slate-900 border border-slate-700/90 rounded-2xl shadow-2xl z-50 overflow-hidden min-w-[320px] max-w-2xl sm:w-[540px] md:w-[600px] animate-in fade-in slide-in-from-top-2 duration-150">
           
           {/* Category Filter Chips Header */}
           <div className="p-2.5 bg-slate-950/80 border-b border-slate-800 flex items-center gap-1.5 overflow-x-auto text-[11px] font-medium no-scrollbar">
-            {[
-              { id: 'ALL', label: 'Tous' },
-              { id: 'PRODUCTS', label: 'Produits' },
-              { id: 'MATERIALS', label: 'Matières' },
-              { id: 'RECIPES', label: 'Recettes' },
-              { id: 'HISTORY', label: 'Historique' },
-            ].map((cat) => (
+            {categories.map((cat) => (
               <button
                 key={cat.id}
                 onClick={() => setActiveCategory(cat.id as SearchCategory)}
-                className={`px-2.5 py-1 rounded-lg transition-all shrink-0 font-semibold ${
+                className={`px-2.5 py-1 rounded-lg transition-all shrink-0 font-semibold cursor-pointer ${
                   activeCategory === cat.id
                     ? 'bg-amber-500 text-slate-950 font-bold shadow-xs'
                     : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800'
@@ -342,7 +346,7 @@ export const GlobalSearchBar: React.FC<GlobalSearchBarProps> = ({ onNavigateToMo
               <div className="py-8 px-4 text-center space-y-2">
                 <Search className="w-8 h-8 text-slate-600 mx-auto" />
                 <p className="text-xs text-slate-400 font-medium">
-                  Saisissez un nom, un code SKU (ex: <span className="font-mono text-amber-400">FAR-001</span>, <span className="font-mono text-amber-400">CRO-001</span>) ou un numéro de commande.
+                  {t('search.emptyHint', 'Saisissez un nom, un code SKU (ex: FAR-001, CRO-001) ou un numéro de commande.')}
                 </p>
                 <div className="flex flex-wrap justify-center gap-1.5 text-[10px] text-slate-500 pt-1">
                   <span className="px-2 py-0.5 rounded-full bg-slate-800 text-slate-300">Croissant</span>
@@ -355,8 +359,12 @@ export const GlobalSearchBar: React.FC<GlobalSearchBarProps> = ({ onNavigateToMo
 
             {query.trim() && results.length === 0 && (
               <div className="py-8 px-4 text-center text-slate-400 space-y-1">
-                <p className="text-xs font-bold text-slate-300">Aucun résultat trouvé pour "{query}"</p>
-                <p className="text-[11px] text-slate-500">Essayez de vérifier l'orthographe ou d'utiliser d'autres mots-clés.</p>
+                <p className="text-xs font-bold text-slate-300">
+                  {t('search.noResultsTitle', { query, defaultValue: `Aucun résultat trouvé pour "${query}"` })}
+                </p>
+                <p className="text-[11px] text-slate-500">
+                  {t('search.noResultsDesc', "Essayez de vérifier l'orthographe ou d'utiliser d'autres mots-clés.")}
+                </p>
               </div>
             )}
 
@@ -372,7 +380,7 @@ export const GlobalSearchBar: React.FC<GlobalSearchBarProps> = ({ onNavigateToMo
                   <div className="w-8 h-8 rounded-lg bg-slate-800/90 border border-slate-700/80 flex items-center justify-center shrink-0 mt-0.5 group-hover:border-amber-500/40 transition-colors">
                     {getResultIcon(res.type)}
                   </div>
-                  <div className="min-w-0">
+                  <div className="min-w-0 text-start">
                     <div className="flex items-center gap-2 flex-wrap">
                       <span className="font-bold text-xs text-white truncate group-hover:text-amber-400 transition-colors">
                         {res.title}
@@ -393,7 +401,7 @@ export const GlobalSearchBar: React.FC<GlobalSearchBarProps> = ({ onNavigateToMo
                 </div>
 
                 <div className="shrink-0 flex items-center text-slate-500 group-hover:text-amber-400 transition-colors">
-                  <ArrowRight className="w-4 h-4 opacity-0 group-hover:opacity-100 transition-opacity" />
+                  <ArrowRight className="w-4 h-4 opacity-0 group-hover:opacity-100 transition-opacity rtl:rotate-180" />
                 </div>
               </div>
             ))}
@@ -401,9 +409,9 @@ export const GlobalSearchBar: React.FC<GlobalSearchBarProps> = ({ onNavigateToMo
 
           {/* Modal Footer hint */}
           <div className="px-3 py-2 bg-slate-950/90 border-t border-slate-800 flex items-center justify-between text-[10px] text-slate-500">
-            <span>{results.length} résultat(s) correspondant(s)</span>
+            <span>{t('search.resultsCount', { count: results.length, defaultValue: `${results.length} résultat(s) correspondant(s)` })}</span>
             <span className="flex items-center gap-2">
-              <kbd className="px-1 py-0.5 bg-slate-800 rounded text-slate-400">Esc</kbd> Fermer
+              <kbd className="px-1 py-0.5 bg-slate-800 rounded text-slate-400">Esc</kbd> {t('search.escClose', 'Fermer')}
             </span>
           </div>
 

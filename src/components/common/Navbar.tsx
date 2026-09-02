@@ -14,11 +14,13 @@ import {
   setActiveViewContext
 } from '../../services/storage';
 import { UserRole, StoreLocation, UserSession } from '../../types';
-import { Store, FlaskConical, Building2, UserCheck, LogOut, ShieldAlert, Menu, X, Search, ChevronDown, Check, Shield, Settings } from 'lucide-react';
+import { Store, FlaskConical, Building2, UserCheck, LogOut, ShieldAlert, Menu, X, Search, ChevronDown, Check, Shield, Settings, Globe } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { CompanyLogo } from './CompanyLogo';
 import { GlobalSearchBar } from './GlobalSearchBar';
 import { LoginModal } from './LoginModal';
 import { SettingsModal } from './SettingsModal';
+import { LanguageSwitcher } from './LanguageSwitcher';
 
 interface NavbarProps {
   currentRole: UserRole;
@@ -27,6 +29,7 @@ interface NavbarProps {
 }
 
 export const Navbar: React.FC<NavbarProps> = ({ currentRole, onRoleChange, onNavigateToModule }) => {
+  const { t } = useTranslation();
   const [stores, setStores] = useState<StoreLocation[]>([]);
   const [activeStoreId, setActiveStoreIdState] = useState<string>('');
   const [activeContext, setActiveContextState] = useState<string>(() => getActiveViewContext());
@@ -60,8 +63,8 @@ export const Navbar: React.FC<NavbarProps> = ({ currentRole, onRoleChange, onNav
       window.dispatchEvent(new Event('popstate'));
       notifyToast({
         type: 'info',
-        title: 'Contexte : Laboratoire Central',
-        message: 'Accès administrateur au Hub de Production Centralisé (MP, COGS, Recettes).'
+        title: t('nav.toastLabTitle', 'Contexte : Laboratoire Central'),
+        message: t('nav.toastLabMsg', 'Accès administrateur au Hub de Production Centralisé (MP, COGS, Recettes).')
       });
     } else {
       setActiveViewContext(contextKey);
@@ -71,8 +74,8 @@ export const Navbar: React.FC<NavbarProps> = ({ currentRole, onRoleChange, onNav
       window.dispatchEvent(new Event('popstate'));
       notifyToast({
         type: 'info',
-        title: `Contexte Activé : ${selectedStore?.name || 'Magasin'}`,
-        message: `Session magasin active pour ${selectedStore?.name}. Votre compte Admin conserve ses accès.`
+        title: t('nav.toastStoreTitle', { name: selectedStore?.name || 'Magasin', defaultValue: `Contexte Activé : ${selectedStore?.name || 'Magasin'}` }),
+        message: t('nav.toastStoreMsg', { name: selectedStore?.name, defaultValue: `Session magasin active pour ${selectedStore?.name}. Votre compte Admin conserve ses accès.` })
       });
     }
   };
@@ -103,7 +106,7 @@ export const Navbar: React.FC<NavbarProps> = ({ currentRole, onRoleChange, onNav
             <div 
               onClick={() => setIsLoginModalOpen(true)}
               className="flex items-center gap-2.5 sm:gap-3 shrink-0 cursor-pointer group select-none min-h-[44px] py-1"
-              title="Cliquer pour ouvrir l'espace de connexion Délice"
+              title={t('nav.loginTitle', "Cliquer pour ouvrir l'espace de connexion Délice")}
             >
               <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-gradient-to-b from-slate-800 to-slate-950 border border-amber-500/40 p-1.5 flex items-center justify-center shadow-md shadow-amber-500/10 group-hover:border-amber-400 group-hover:scale-105 group-hover:shadow-amber-500/25 transition-all shrink-0">
                 <CompanyLogo imgClassName="w-6 h-6 sm:w-7 sm:h-7" alt="Délice Logo" />
@@ -119,8 +122,8 @@ export const Navbar: React.FC<NavbarProps> = ({ currentRole, onRoleChange, onNav
                 </div>
                 <p className="hidden sm:block text-[11px] text-slate-400 font-medium leading-none mt-0.5 max-w-[210px] truncate">
                   {isCentralAdmin 
-                    ? 'Lab Central & Multi-Boutiques' 
-                    : `Boutique : ${currentActiveStore?.name || 'Point de Vente'}`}
+                    ? t('nav.labMultiStores', 'Lab Central & Multi-Boutiques')
+                    : `${t('nav.assignedStore', 'Boutique')} : ${currentActiveStore?.name || t('nav.retailStore', 'Point de Vente')}`}
                 </p>
               </div>
             </div>
@@ -137,7 +140,7 @@ export const Navbar: React.FC<NavbarProps> = ({ currentRole, onRoleChange, onNav
                   ? 'bg-gradient-to-r from-indigo-950/90 to-slate-900 border-indigo-500/60 text-indigo-100 shadow-indigo-950/50'
                   : 'bg-gradient-to-r from-emerald-950/90 to-slate-900 border-emerald-500/60 text-emerald-100 shadow-emerald-950/50'
               }`}
-              title={`Établissement actif : ${currentRole === 'CENTRAL_LAB' ? 'Laboratoire Central (Production)' : currentActiveStore?.name || 'Boutique'}`}
+              title={`${t('nav.activeFacility', 'Établissement actif')} : ${currentRole === 'CENTRAL_LAB' ? t('nav.labTitle', 'Laboratoire Central (Production)') : currentActiveStore?.name || t('nav.retailStore', 'Boutique')}`}
             >
               {/* Subtle Pulsing Beacon Indicator */}
               <div className="relative flex h-3 w-3 shrink-0 items-center justify-center">
@@ -155,20 +158,20 @@ export const Navbar: React.FC<NavbarProps> = ({ currentRole, onRoleChange, onNav
                 />
               </div>
 
-              <div className="flex flex-col text-left">
+              <div className="flex flex-col text-start">
                 <span className="text-[9px] uppercase font-black tracking-widest text-slate-400 leading-tight flex items-center gap-1">
-                  {currentRole === 'CENTRAL_LAB' ? 'Hub Central' : 'Boutique Active'}
+                  {currentRole === 'CENTRAL_LAB' ? t('nav.centralHub', 'Hub Central') : t('nav.activeStore', 'Boutique Active')}
                 </span>
                 <span className="text-xs font-black tracking-tight text-white flex items-center gap-1 max-w-[180px] truncate">
                   {currentRole === 'CENTRAL_LAB' ? (
                     <>
                       <FlaskConical className="w-3.5 h-3.5 text-indigo-400 shrink-0" />
-                      <span className="truncate">Laboratoire Central</span>
+                      <span className="truncate">{t('nav.labTitle', 'Laboratoire Central')}</span>
                     </>
                   ) : (
                     <>
                       <Store className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
-                      <span className="truncate">{currentActiveStore?.name || 'Boutique'}</span>
+                      <span className="truncate">{currentActiveStore?.name || t('nav.retailStore', 'Boutique')}</span>
                     </>
                   )}
                 </span>
@@ -183,15 +186,15 @@ export const Navbar: React.FC<NavbarProps> = ({ currentRole, onRoleChange, onNav
                 <div className="relative">
                   <button
                     onClick={() => setIsContextDropdownOpen(!isContextDropdownOpen)}
-                    className="flex items-center gap-2.5 bg-gradient-to-r from-slate-950 via-slate-900 to-slate-950 border border-amber-500/40 hover:border-amber-400 rounded-xl px-3 py-1.5 shadow-md transition-all text-left group min-h-[44px]"
-                    title="Ouvrir le menu de bascule de contexte (Laboratoire Central ou Magasin)"
+                    className="flex items-center gap-2.5 bg-gradient-to-r from-slate-950 via-slate-900 to-slate-950 border border-amber-500/40 hover:border-amber-400 rounded-xl px-3 py-1.5 shadow-md transition-all text-start group min-h-[44px] cursor-pointer"
+                    title={t('nav.switchContext', 'Changer d\'espace')}
                   >
                     <div className="relative">
                       <div className={`p-1.5 rounded-lg border ${currentRole === 'CENTRAL_LAB' ? 'bg-indigo-600/30 text-indigo-300 border-indigo-500/40' : 'bg-emerald-600/30 text-emerald-300 border-emerald-500/40'}`}>
                         {currentRole === 'CENTRAL_LAB' ? <FlaskConical className="w-4 h-4" /> : <Store className="w-4 h-4" />}
                       </div>
                       {/* Pulse beacon on the button icon */}
-                      <span className="absolute -top-1 -right-1 flex h-2.5 w-2.5">
+                      <span className="absolute -top-1 -end-1 flex h-2.5 w-2.5">
                         <span className={`animate-ping absolute inline-flex h-full w-full rounded-full opacity-75 ${currentRole === 'CENTRAL_LAB' ? 'bg-indigo-400' : 'bg-emerald-400'}`} />
                         <span className={`relative inline-flex rounded-full h-2.5 w-2.5 ${currentRole === 'CENTRAL_LAB' ? 'bg-indigo-500' : 'bg-emerald-500'}`} />
                       </span>
@@ -199,10 +202,10 @@ export const Navbar: React.FC<NavbarProps> = ({ currentRole, onRoleChange, onNav
                     <div className="flex flex-col">
                       <span className="text-[10px] uppercase tracking-wider font-extrabold text-amber-400 leading-none flex items-center gap-1">
                         <Shield className="w-3 h-3 text-amber-400 shrink-0" />
-                        Contexte Admin
+                        {t('nav.adminContext', 'Contexte Admin')}
                       </span>
                       <span className="text-xs font-bold text-slate-100 group-hover:text-amber-300 transition-colors flex items-center gap-1 max-w-[200px] truncate">
-                        {currentRole === 'CENTRAL_LAB' ? 'Central Lab (Production Hub)' : (currentActiveStore?.name || 'Point de Vente')}
+                        {currentRole === 'CENTRAL_LAB' ? t('nav.labTitle', 'Central Lab (Production Hub)') : (currentActiveStore?.name || t('nav.retailStore', 'Point de Vente'))}
                       </span>
                     </div>
                     <ChevronDown className={`w-4 h-4 text-slate-400 transition-transform ${isContextDropdownOpen ? 'rotate-180 text-amber-400' : ''}`} />
@@ -212,16 +215,16 @@ export const Navbar: React.FC<NavbarProps> = ({ currentRole, onRoleChange, onNav
                   {isContextDropdownOpen && (
                     <>
                       <div className="fixed inset-0 z-40" onClick={() => setIsContextDropdownOpen(false)} />
-                      <div className="absolute right-0 mt-2 w-80 bg-slate-950 border border-slate-800 rounded-2xl shadow-2xl z-50 p-2 space-y-2 animate-in fade-in zoom-in-95 duration-150">
+                      <div className="absolute end-0 mt-2 w-80 bg-slate-950 border border-slate-800 rounded-2xl shadow-2xl z-50 p-2 space-y-2 animate-in fade-in zoom-in-95 duration-150">
                         <div className="px-3 py-2 border-b border-slate-800 flex items-center justify-between">
-                          <span className="text-[10px] font-black uppercase tracking-wider text-slate-400">SÉLECTIONNER UN CONTEXTE</span>
-                          <span className="text-[10px] bg-amber-500/20 text-amber-300 font-bold px-2 py-0.5 rounded-full border border-amber-500/30">Chef / Admin</span>
+                          <span className="text-[10px] font-black uppercase tracking-wider text-slate-400">{t('nav.selectContext', 'SÉLECTIONNER UN CONTEXTE')}</span>
+                          <span className="text-[10px] bg-amber-500/20 text-amber-300 font-bold px-2 py-0.5 rounded-full border border-amber-500/30">{t('nav.roleAdmin', 'Chef / Admin')}</span>
                         </div>
 
                         {/* Central Lab Option */}
                         <button
                           onClick={() => handleContextSelect('LAB-CENTRAL')}
-                          className={`w-full flex items-center justify-between p-2.5 rounded-xl text-xs font-bold transition-all border ${
+                          className={`w-full flex items-center justify-between p-2.5 rounded-xl text-xs font-bold transition-all border cursor-pointer ${
                             currentRole === 'CENTRAL_LAB'
                               ? 'bg-indigo-950/80 border-indigo-500 text-indigo-200 shadow-sm'
                               : 'bg-slate-900/60 border-slate-800 text-slate-300 hover:bg-slate-900 hover:border-slate-700'
@@ -231,13 +234,13 @@ export const Navbar: React.FC<NavbarProps> = ({ currentRole, onRoleChange, onNav
                             <div className="p-1.5 bg-indigo-600/30 text-indigo-400 rounded-lg border border-indigo-500/30 shrink-0">
                               <FlaskConical className="w-4 h-4" />
                             </div>
-                            <div className="text-left min-w-0">
-                              <div className="font-black text-slate-100 truncate">Central Lab (Production Hub)</div>
-                              <div className="text-[10px] text-slate-400 font-normal truncate">Gestion globale MP, recettes & COGS</div>
+                            <div className="text-start min-w-0">
+                              <div className="font-black text-slate-100 truncate">{t('nav.labTitle', 'Central Lab (Production Hub)')}</div>
+                              <div className="text-[10px] text-slate-400 font-normal truncate">{t('nav.labHubDesc', 'Gestion globale MP, recettes & COGS')}</div>
                             </div>
                           </div>
                           {currentRole === 'CENTRAL_LAB' && (
-                            <Check className="w-4 h-4 text-indigo-400 shrink-0 ml-1" />
+                            <Check className="w-4 h-4 text-indigo-400 shrink-0 ms-1" />
                           )}
                         </button>
 
@@ -245,16 +248,16 @@ export const Navbar: React.FC<NavbarProps> = ({ currentRole, onRoleChange, onNav
                         <div className="pt-1">
                           <div className="px-3 py-1 text-[10px] font-extrabold uppercase tracking-wider text-slate-500 flex items-center gap-1">
                             <Store className="w-3 h-3 text-emerald-400" />
-                            Magasins Points de Vente ({stores.length})
+                            {t('nav.retailStoresCount', { count: stores.length, defaultValue: `Magasins Points de Vente (${stores.length})` })}
                           </div>
-                          <div className="space-y-1 max-h-60 overflow-y-auto pr-1">
+                          <div className="space-y-1 max-h-60 overflow-y-auto pe-1">
                             {stores.map((s) => {
                               const isSelected = currentRole === 'RETAIL_STORE' && activeStoreId === s.id;
                               return (
                                 <button
                                   key={s.id}
                                   onClick={() => handleContextSelect(s.id)}
-                                  className={`w-full flex items-center justify-between p-2 rounded-xl text-xs font-semibold transition-all border ${
+                                  className={`w-full flex items-center justify-between p-2 rounded-xl text-xs font-semibold transition-all border cursor-pointer ${
                                     isSelected
                                       ? 'bg-emerald-950/80 border-emerald-500 text-emerald-200 shadow-sm'
                                       : 'bg-slate-900/40 border-slate-800/80 text-slate-300 hover:bg-slate-900 hover:border-slate-700'
@@ -264,13 +267,13 @@ export const Navbar: React.FC<NavbarProps> = ({ currentRole, onRoleChange, onNav
                                     <div className={`p-1.5 rounded-lg border shrink-0 ${isSelected ? 'bg-emerald-600/30 text-emerald-400 border-emerald-500/40' : 'bg-slate-800 text-slate-400 border-slate-700'}`}>
                                       <Building2 className="w-3.5 h-3.5" />
                                     </div>
-                                    <div className="text-left min-w-0 truncate">
+                                    <div className="text-start min-w-0 truncate">
                                       <div className="font-bold truncate text-slate-200">{s.name}</div>
                                       <div className="text-[10px] text-slate-400 font-normal truncate">{s.address}</div>
                                     </div>
                                   </div>
                                   {isSelected && (
-                                    <Check className="w-4 h-4 text-emerald-400 shrink-0 ml-1" />
+                                    <Check className="w-4 h-4 text-emerald-400 shrink-0 ms-1" />
                                   )}
                                 </button>
                               );
@@ -290,13 +293,13 @@ export const Navbar: React.FC<NavbarProps> = ({ currentRole, onRoleChange, onNav
                   </div>
                   <Building2 className="w-4 h-4 text-emerald-400 shrink-0" />
                   <div className="flex flex-col">
-                    <span className="text-[9px] text-slate-400 font-bold uppercase tracking-wider leading-tight">Magasin Assigné</span>
+                    <span className="text-[9px] text-slate-400 font-bold uppercase tracking-wider leading-tight">{t('nav.assignedStore', 'Magasin Assigné')}</span>
                     <span className="text-xs font-black text-emerald-300">
-                      {currentActiveStore?.name || 'Point de Vente'}
+                      {currentActiveStore?.name || t('nav.retailStore', 'Point de Vente')}
                     </span>
                   </div>
-                  <span className="ml-1 text-[9px] uppercase tracking-wider px-1.5 py-0.5 rounded bg-emerald-950/80 text-emerald-300 border border-emerald-600/50 font-extrabold">
-                    Actif
+                  <span className="ms-1 text-[9px] uppercase tracking-wider px-1.5 py-0.5 rounded bg-emerald-950/80 text-emerald-300 border border-emerald-600/50 font-extrabold">
+                    {t('nav.active', 'Actif')}
                   </span>
                 </div>
               )}
@@ -304,8 +307,8 @@ export const Navbar: React.FC<NavbarProps> = ({ currentRole, onRoleChange, onNav
               {/* Active User Session & Open Login Modal */}
               <button
                 onClick={() => setIsLoginModalOpen(true)}
-                className="flex items-center gap-1.5 min-h-[44px] px-3 py-1.5 bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/30 rounded-xl text-xs font-bold transition-all shadow-sm"
-                title="Afficher la session active"
+                className="flex items-center gap-1.5 min-h-[44px] px-3 py-1.5 bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/30 rounded-xl text-xs font-bold transition-all shadow-sm cursor-pointer"
+                title={t('nav.login', 'Afficher la session active')}
               >
                 <UserCheck className="w-4 h-4 text-amber-400" />
                 <span className="hidden sm:inline max-w-[100px] truncate">
@@ -313,11 +316,17 @@ export const Navbar: React.FC<NavbarProps> = ({ currentRole, onRoleChange, onNav
                 </span>
               </button>
 
+              {/* Language Switcher (Compact Pill for Tablet & Desktop Header) */}
+              <div className="flex items-center">
+                <LanguageSwitcher variant="compact" />
+              </div>
+
               {/* Settings & Manual Sync Trigger Button */}
               <button
                 onClick={() => setIsSettingsModalOpen(true)}
-                className="p-2.5 min-h-[44px] min-w-[44px] flex items-center justify-center text-slate-300 hover:text-white bg-slate-800/90 hover:bg-slate-750 border border-slate-700 hover:border-slate-600 rounded-xl transition-all shadow-sm group"
-                title="Paramètres de synchronisation et gestion des stocks"
+                className="p-2.5 min-h-[44px] min-w-[44px] flex items-center justify-center text-slate-300 hover:text-white bg-slate-800/90 hover:bg-slate-750 border border-slate-700 hover:border-slate-600 rounded-xl transition-all shadow-sm group cursor-pointer"
+                title={t('nav.settings', 'Paramètres & Synchronisation')}
+                aria-label={t('nav.settings', 'Paramètres')}
               >
                 <Settings className="w-4 h-4 text-slate-400 group-hover:text-amber-400 transition-transform group-hover:rotate-45 duration-200" />
               </button>
@@ -325,16 +334,18 @@ export const Navbar: React.FC<NavbarProps> = ({ currentRole, onRoleChange, onNav
               {/* Logout Button */}
               <button
                 onClick={handleLogout}
-                className="flex items-center gap-1.5 min-h-[44px] px-3 py-1.5 bg-rose-950/60 hover:bg-rose-900/80 text-rose-300 border border-rose-800/80 rounded-xl text-xs font-bold transition-all shadow-sm"
-                title="Déconnexion et clôture de la session"
+                className="flex items-center gap-1.5 min-h-[44px] px-3 py-1.5 bg-rose-950/60 hover:bg-rose-900/80 text-rose-300 border border-rose-800/80 rounded-xl text-xs font-bold transition-all shadow-sm cursor-pointer"
+                title={t('nav.logout', 'Déconnexion et clôture de la session')}
               >
                 <LogOut className="w-4 h-4 text-rose-400" />
-                <span>Déconnexion</span>
+                <span>{t('nav.logout', 'Déconnexion')}</span>
               </button>
             </div>
 
-            {/* Mobile Hamburger Menu Toggle (< 768px) */}
-            <div className="flex md:hidden items-center gap-2">
+            {/* Mobile Header Controls (< 768px) */}
+            <div className="flex md:hidden items-center gap-1.5 sm:gap-2">
+              <LanguageSwitcher variant="toggle" />
+
               <button
                 onClick={() => setIsLoginModalOpen(true)}
                 className="px-2.5 py-1.5 min-h-[44px] bg-amber-500/20 text-amber-300 border border-amber-500/30 rounded-xl text-xs font-bold flex items-center gap-1"
@@ -375,18 +386,18 @@ export const Navbar: React.FC<NavbarProps> = ({ currentRole, onRoleChange, onNav
                 </div>
                 <div>
                   <span className="text-[9px] uppercase font-black tracking-widest text-slate-400 block leading-tight">
-                    Établissement Actif
+                    {t('nav.activeFacility', 'Établissement Actif')}
                   </span>
                   <span className="text-xs font-black text-white flex items-center gap-1">
                     {currentRole === 'CENTRAL_LAB' ? (
                       <>
                         <FlaskConical className="w-3.5 h-3.5 text-indigo-400 shrink-0" />
-                        <span>Laboratoire Central</span>
+                        <span>{t('nav.labTitle', 'Laboratoire Central')}</span>
                       </>
                     ) : (
                       <>
                         <Store className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
-                        <span>{currentActiveStore?.name || 'Point de Vente'}</span>
+                        <span>{currentActiveStore?.name || t('nav.retailStore', 'Point de Vente')}</span>
                       </>
                     )}
                   </span>
@@ -397,7 +408,7 @@ export const Navbar: React.FC<NavbarProps> = ({ currentRole, onRoleChange, onNav
                   ? 'bg-indigo-900/60 text-indigo-300 border-indigo-700/60'
                   : 'bg-emerald-900/60 text-emerald-300 border-emerald-700/60'
               }`}>
-                En Ligne
+                {t('nav.syncOnline', 'En Ligne')}
               </span>
             </div>
 
@@ -414,13 +425,13 @@ export const Navbar: React.FC<NavbarProps> = ({ currentRole, onRoleChange, onNav
               <div className="bg-slate-900 border border-slate-800 rounded-xl p-3 flex flex-col gap-2">
                 <span className="text-[11px] font-extrabold text-amber-400 uppercase flex items-center gap-1.5">
                   <Shield className="w-3.5 h-3.5 text-amber-400" />
-                  Contexte d'Accès Admin
+                  {t('nav.adminContext', 'Contexte d\'Accès Admin')}
                 </span>
                 
                 {/* Central Lab Option */}
                 <button
                   onClick={() => handleContextSelect('LAB-CENTRAL')}
-                  className={`w-full p-2.5 rounded-lg text-xs font-bold flex items-center justify-between border ${
+                  className={`w-full p-2.5 rounded-lg text-xs font-bold flex items-center justify-between border cursor-pointer ${
                     currentRole === 'CENTRAL_LAB' 
                       ? 'bg-indigo-950 border-indigo-500 text-indigo-200' 
                       : 'bg-slate-950 border-slate-800 text-slate-300'
@@ -428,21 +439,21 @@ export const Navbar: React.FC<NavbarProps> = ({ currentRole, onRoleChange, onNav
                 >
                   <div className="flex items-center gap-2">
                     <FlaskConical className="w-4 h-4 text-indigo-400" />
-                    <span>Central Lab (Production Hub)</span>
+                    <span>{t('nav.labTitle', 'Central Lab (Production Hub)')}</span>
                   </div>
                   {currentRole === 'CENTRAL_LAB' && <Check className="w-4 h-4 text-indigo-400" />}
                 </button>
 
                 {/* Store list */}
                 <div className="pt-2 border-t border-slate-800/80 space-y-1">
-                  <span className="text-[10px] text-slate-500 uppercase font-bold px-1">Choisir un Magasin Retail</span>
+                  <span className="text-[10px] text-slate-500 uppercase font-bold px-1">{t('nav.selectContext', 'Choisir un Magasin Retail')}</span>
                   {stores.map((s) => {
                     const isSelected = currentRole === 'RETAIL_STORE' && activeStoreId === s.id;
                     return (
                       <button
                         key={s.id}
                         onClick={() => handleContextSelect(s.id)}
-                        className={`w-full p-2 rounded-lg text-xs font-semibold flex items-center justify-between border ${
+                        className={`w-full p-2 rounded-lg text-xs font-semibold flex items-center justify-between border cursor-pointer ${
                           isSelected 
                             ? 'bg-emerald-950 border-emerald-500 text-emerald-200' 
                             : 'bg-slate-950 border-slate-800 text-slate-300'
@@ -463,15 +474,24 @@ export const Navbar: React.FC<NavbarProps> = ({ currentRole, onRoleChange, onNav
                 <div className="flex items-center gap-2">
                   <Building2 className="w-4 h-4 text-emerald-400 shrink-0" />
                   <div>
-                    <span className="text-[10px] text-slate-400 font-medium uppercase block">Magasin Assigné</span>
-                    <span className="text-sm font-bold text-emerald-300">{currentActiveStore?.name || 'Point de Vente'}</span>
+                    <span className="text-[10px] text-slate-400 font-medium uppercase block">{t('nav.assignedStore', 'Magasin Assigné')}</span>
+                    <span className="text-sm font-bold text-emerald-300">{currentActiveStore?.name || t('nav.retailStore', 'Point de Vente')}</span>
                   </div>
                 </div>
                 <span className="text-[10px] bg-slate-800 text-slate-400 px-2 py-0.5 rounded font-bold border border-slate-700">
-                  Verrouillé
+                  {t('nav.locked', 'Verrouillé')}
                 </span>
               </div>
             )}
+
+            {/* Mobile Language Switcher */}
+            <div className="p-3 bg-slate-900 border border-slate-800 rounded-xl space-y-2">
+              <div className="text-[11px] font-bold text-slate-300 flex items-center gap-1.5">
+                <Globe className="w-3.5 h-3.5 text-amber-400" />
+                <span>{t('common.language', 'Langue')}</span>
+              </div>
+              <LanguageSwitcher variant="segmented" />
+            </div>
 
             {/* Mobile Actions: Settings, Logout & Reset */}
             <div className="pt-2 border-t border-slate-800 flex items-center justify-between gap-2">
@@ -480,18 +500,18 @@ export const Navbar: React.FC<NavbarProps> = ({ currentRole, onRoleChange, onNav
                   setIsMobileMenuOpen(false);
                   setIsSettingsModalOpen(true);
                 }}
-                className="flex-1 min-h-[44px] px-3 py-2 bg-slate-900 hover:bg-slate-800 text-slate-200 border border-slate-700 rounded-xl text-xs font-bold flex items-center justify-center gap-2"
+                className="flex-1 min-h-[44px] px-3 py-2 bg-slate-900 hover:bg-slate-800 text-slate-200 border border-slate-700 rounded-xl text-xs font-bold flex items-center justify-center gap-2 cursor-pointer"
               >
                 <Settings className="w-4 h-4 text-amber-400" />
-                <span>Paramètres & Sync</span>
+                <span>{t('nav.settings', 'Paramètres & Sync')}</span>
               </button>
 
               <button
                 onClick={handleLogout}
-                className="min-h-[44px] px-3 py-2 bg-rose-950/80 hover:bg-rose-900 text-rose-300 border border-rose-800 rounded-xl text-xs font-bold flex items-center justify-center gap-2"
+                className="min-h-[44px] px-3 py-2 bg-rose-950/80 hover:bg-rose-900 text-rose-300 border border-rose-800 rounded-xl text-xs font-bold flex items-center justify-center gap-2 cursor-pointer"
               >
                 <LogOut className="w-4 h-4 text-rose-400" />
-                <span>Sortir</span>
+                <span>{t('nav.logout', 'Déconnexion')}</span>
               </button>
             </div>
           </div>

@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
+import { useTranslation } from 'react-i18next';
 import { subscribeToSupabaseRealtime } from '../../services/supabaseService';
 import { notifyToast } from '../../services/storage';
 import { RequisitionManager } from './RequisitionManager';
@@ -35,6 +36,8 @@ import { PriceInflationSimulator } from './PriceInflationSimulator';
 import { StoreReturnsManager } from '../store/StoreReturnsManager';
 import { ExportReportingCenter } from '../reports/ExportReportingCenter';
 import { ChefVoiceNotesManager } from './ChefVoiceNotesManager';
+import { UnitConversionWidget } from '../common/UnitConversionWidget';
+import { LabProduction } from './LabProduction';
 import {
   FlaskConical,
   Receipt,
@@ -67,12 +70,15 @@ import {
   RotateCcw,
   FileSpreadsheet,
   Mic,
+  Scale,
   X
 } from 'lucide-react';
 
 export type LabModule = 
   | 'EXECUTIVE_DASHBOARD'
+  | 'LAB_PRODUCTION_DISPATCHER'
   | 'VOICE_NOTES'
+  | 'UNIT_CONVERTER'
   | 'MARGIN_ANALYTICS' 
   | 'DELIVERY_LOGISTICS' 
   | 'PACKAGING'
@@ -103,99 +109,110 @@ export type LabModule =
   | 'OFFLINE_QUEUE'
   | 'ACTIVITY_LOG';
 
-interface ModuleCategory {
-  title: string;
-  icon: React.ComponentType<{ className?: string }>;
-  items: { id: LabModule; label: string; desc: string; icon: React.ComponentType<{ className?: string }>; color: string }[];
+interface ModuleCategoryConfig {
+  categoryKey: string;
+  categoryTitleKey: string;
+  categoryIcon: React.ComponentType<{ className?: string }>;
+  items: {
+    id: LabModule;
+    labelKey: string;
+    descKey: string;
+    icon: React.ComponentType<{ className?: string }>;
+    color: string;
+  }[];
 }
 
-const LAB_CATEGORIES: ModuleCategory[] = [
+const RAW_LAB_CATEGORIES: ModuleCategoryConfig[] = [
   {
-    title: '👑 Direction & Pilotage',
-    icon: Crown,
+    categoryKey: 'direction',
+    categoryTitleKey: 'labCategories.direction',
+    categoryIcon: Crown,
     items: [
-      { id: 'EXECUTIVE_DASHBOARD', label: 'Executive Dashboard (Lab Central)', desc: 'KPIs globaux, stocks & alertes', icon: Crown, color: 'text-amber-400 bg-amber-400/20' },
-      { id: 'MARGIN_ANALYTICS', label: 'Marges & Profitabilité', desc: 'Marges réelles et rentabilité', icon: TrendingUp, color: 'text-emerald-400 bg-emerald-400/20' },
-      { id: 'PRICE_INFLATION', label: 'Simulateur Inflation Matières', desc: 'Modélisation des coûts & marges', icon: Calculator, color: 'text-amber-400 bg-amber-400/20' },
-      { id: 'EXPORT_REPORTS', label: 'Exportations & Rapports Exécutifs', desc: 'Fichiers CSV / Bilan comptable', icon: FileSpreadsheet, color: 'text-emerald-400 bg-emerald-400/20' },
-      { id: 'MULTI_STORE_ANALYTICS', label: 'Multi-Boutiques & Gaspillage', desc: 'Performances des 6 points de vente', icon: BarChart3, color: 'text-indigo-400 bg-indigo-400/20' },
-      { id: 'ANALYTICS', label: 'Analytiques & Tendances', desc: 'Statistiques avancées', icon: PieChart, color: 'text-amber-400 bg-amber-400/20' }
+      { id: 'EXECUTIVE_DASHBOARD', labelKey: 'labModules.executiveDashboard', descKey: 'labModules.executiveDashboardDesc', icon: Crown, color: 'text-amber-400 bg-amber-400/20' },
+      { id: 'MARGIN_ANALYTICS', labelKey: 'labModules.marginAnalytics', descKey: 'labModules.marginAnalyticsDesc', icon: TrendingUp, color: 'text-emerald-400 bg-emerald-400/20' },
+      { id: 'PRICE_INFLATION', labelKey: 'labModules.priceInflation', descKey: 'labModules.priceInflationDesc', icon: Calculator, color: 'text-amber-400 bg-amber-400/20' },
+      { id: 'EXPORT_REPORTS', labelKey: 'labModules.exportReports', descKey: 'labModules.exportReportsDesc', icon: FileSpreadsheet, color: 'text-emerald-400 bg-emerald-400/20' },
+      { id: 'MULTI_STORE_ANALYTICS', labelKey: 'labModules.multiStoreAnalytics', descKey: 'labModules.multiStoreAnalyticsDesc', icon: BarChart3, color: 'text-indigo-400 bg-indigo-400/20' },
+      { id: 'ANALYTICS', labelKey: 'labModules.analytics', descKey: 'labModules.analyticsDesc', icon: PieChart, color: 'text-amber-400 bg-amber-400/20' }
     ]
   },
   {
-    title: '👨‍🍳 Production & Pâtisserie',
-    icon: Utensils,
+    categoryKey: 'production',
+    categoryTitleKey: 'labCategories.production',
+    categoryIcon: Utensils,
     items: [
-      { id: 'VOICE_NOTES', label: 'Dictée Vocale & Notes Chefs', desc: 'Enregistrement mains-libres & modifications recettes', icon: Mic, color: 'text-amber-400 bg-amber-400/20' },
-      { id: 'PRODUCTION_BATCH_PLANNER', label: 'Planification IA & Fournées', desc: 'Ordonnancement et calcul des batchs', icon: SparklesIcon, color: 'text-amber-400 bg-amber-400/20' },
-      { id: 'DAILY_PRODUCTION_PLAN', label: 'Task List Pâtissiers', desc: 'Planning du jour et fiches postes', icon: Utensils, color: 'text-amber-400 bg-amber-400/20' },
-      { id: 'PRODUCTION_RUNNER', label: 'Lancer Production (Cascade NOM)', desc: 'Déstockage automatique et sous-lots', icon: Zap, color: 'text-amber-400 bg-amber-400/20' },
-      { id: 'RECIPES', label: 'Fiches Techniques & COGS', desc: 'Formules et calcul des coûts', icon: ChefHat, color: 'text-indigo-400 bg-indigo-400/20' },
-      { id: 'PRODUCTION_OVERVIEW', label: 'Aperçu Production', desc: 'Lots en cours et historiques', icon: Factory, color: 'text-indigo-400 bg-indigo-400/20' },
-      { id: 'WASTE_LOSS', label: 'Registre Pertes & Casse', desc: 'Déclaration des pertes labo', icon: AlertTriangle, color: 'text-rose-400 bg-rose-400/20' }
+      { id: 'LAB_PRODUCTION_DISPATCHER', labelKey: 'labModules.labProductionDispatcher', descKey: 'labModules.labProductionDispatcherDesc', icon: ChefHat, color: 'text-amber-400 bg-amber-400/20' },
+      { id: 'VOICE_NOTES', labelKey: 'labModules.voiceNotes', descKey: 'labModules.voiceNotesDesc', icon: Mic, color: 'text-amber-400 bg-amber-400/20' },
+      { id: 'PRODUCTION_BATCH_PLANNER', labelKey: 'labModules.productionBatchPlanner', descKey: 'labModules.productionBatchPlannerDesc', icon: Zap, color: 'text-amber-400 bg-amber-400/20' },
+      { id: 'DAILY_PRODUCTION_PLAN', labelKey: 'labModules.dailyProductionPlan', descKey: 'labModules.dailyProductionPlanDesc', icon: Utensils, color: 'text-amber-400 bg-amber-400/20' },
+      { id: 'PRODUCTION_RUNNER', labelKey: 'labModules.productionRunner', descKey: 'labModules.productionRunnerDesc', icon: Zap, color: 'text-amber-400 bg-amber-400/20' },
+      { id: 'RECIPES', labelKey: 'labModules.recipes', descKey: 'labModules.recipesDesc', icon: ChefHat, color: 'text-indigo-400 bg-indigo-400/20' },
+      { id: 'PRODUCTION_OVERVIEW', labelKey: 'labModules.productionOverview', descKey: 'labModules.productionOverviewDesc', icon: Factory, color: 'text-indigo-400 bg-indigo-400/20' },
+      { id: 'WASTE_LOSS', labelKey: 'labModules.wasteLoss', descKey: 'labModules.wasteLossDesc', icon: AlertTriangle, color: 'text-rose-400 bg-rose-400/20' }
     ]
   },
   {
-    title: '📦 Stocks, Achats & Fournisseurs',
-    icon: Boxes,
+    categoryKey: 'inventory',
+    categoryTitleKey: 'labCategories.inventory',
+    categoryIcon: Boxes,
     items: [
-      { id: 'COLD_ROOM_TRACKER', label: 'Surveillance DLC & Chambres Froides', desc: 'Chaîne du froid et déstockage FIFO', icon: Snowflake, color: 'text-cyan-400 bg-cyan-400/20' },
-      { id: 'SUPPLIER_PO', label: 'Commandes Fournisseurs (PO)', desc: 'Bons de commande automatisés', icon: ShoppingCart, color: 'text-indigo-400 bg-indigo-400/20' },
-      { id: 'NEW_RECEIPT', label: 'Réception Matières Premières', desc: 'Scanner et contrôle des arrivages', icon: Receipt, color: 'text-amber-400 bg-amber-400/20' },
-      { id: 'INVENTORY', label: 'Stock Matières Premières', desc: 'Niveaux et valorisation en direct', icon: Boxes, color: 'text-indigo-400 bg-indigo-400/20' },
-      { id: 'PACKAGING', label: 'Packaging & Emballage', desc: 'Cartons, rubans et boîtes', icon: Package, color: 'text-amber-400 bg-amber-400/20' },
-      { id: 'DESTOCKING', label: 'Déstockage MP & Ajustements', desc: 'Ajustements manuels d’inventaire', icon: Trash2, color: 'text-rose-400 bg-rose-400/20' },
-      { id: 'RECEIPT_HISTORY', label: 'Historique des Achats', desc: 'Journal des réceptions et factures', icon: FileText, color: 'text-indigo-400 bg-indigo-400/20' },
-      { id: 'SUPPLIERS', label: 'Répertoire Fournisseurs', desc: 'Contacts et conditions tarifaires', icon: Building, color: 'text-indigo-400 bg-indigo-400/20' }
+      { id: 'UNIT_CONVERTER', labelKey: 'labModules.unitConverter', descKey: 'labModules.unitConverterDesc', icon: Scale, color: 'text-amber-400 bg-amber-400/20' },
+      { id: 'COLD_ROOM_TRACKER', labelKey: 'labModules.coldRoomTracker', descKey: 'labModules.coldRoomTrackerDesc', icon: Snowflake, color: 'text-cyan-400 bg-cyan-400/20' },
+      { id: 'SUPPLIER_PO', labelKey: 'labModules.supplierPo', descKey: 'labModules.supplierPoDesc', icon: ShoppingCart, color: 'text-indigo-400 bg-indigo-400/20' },
+      { id: 'NEW_RECEIPT', labelKey: 'labModules.newReceipt', descKey: 'labModules.newReceiptDesc', icon: Receipt, color: 'text-amber-400 bg-amber-400/20' },
+      { id: 'INVENTORY', labelKey: 'labModules.inventory', descKey: 'labModules.inventoryDesc', icon: Boxes, color: 'text-indigo-400 bg-indigo-400/20' },
+      { id: 'PACKAGING', labelKey: 'labModules.packaging', descKey: 'labModules.packagingDesc', icon: Package, color: 'text-amber-400 bg-amber-400/20' },
+      { id: 'DESTOCKING', labelKey: 'labModules.destocking', descKey: 'labModules.destockingDesc', icon: Trash2, color: 'text-rose-400 bg-rose-400/20' },
+      { id: 'RECEIPT_HISTORY', labelKey: 'labModules.receiptHistory', descKey: 'labModules.receiptHistoryDesc', icon: FileText, color: 'text-indigo-400 bg-indigo-400/20' },
+      { id: 'SUPPLIERS', labelKey: 'labModules.suppliers', descKey: 'labModules.suppliersDesc', icon: Building, color: 'text-indigo-400 bg-indigo-400/20' }
     ]
   },
   {
-    title: '🚚 Logistique & Commandes Boutiques',
-    icon: Truck,
+    categoryKey: 'logistics',
+    categoryTitleKey: 'labCategories.logistics',
+    categoryIcon: Truck,
     items: [
-      { id: 'REQUISITIONS', label: 'Commandes des Boutiques', desc: 'Validation et expédition des demandes', icon: FlaskConical, color: 'text-indigo-400 bg-indigo-400/20' },
-      { id: 'STORE_RETURNS', label: 'Bons de Retour & Valorisation', desc: 'Rapatriement des invendus et recyclage', icon: RotateCcw, color: 'text-amber-400 bg-amber-400/20' },
-      { id: 'DELIVERY_LOGISTICS', label: 'Expéditions & Bordereaux', desc: 'Manifestes de livraison camions', icon: Truck, color: 'text-indigo-400 bg-indigo-400/20' },
-      { id: 'STORES', label: 'Points de Vente', desc: 'Configuration des 6 boutiques', icon: Store, color: 'text-indigo-400 bg-indigo-400/20' },
-      { id: 'STORE_SALES', label: 'Aperçu Ventes & Invendus', desc: 'Remontées POS et invendus', icon: ShoppingCart, color: 'text-amber-400 bg-amber-400/20' },
-      { id: 'RECONCILIATION_WASTE', label: 'Analyse Invendus Boutiques', desc: 'Rapprochement et pertes magasins', icon: PieChart, color: 'text-amber-400 bg-amber-400/20' }
+      { id: 'REQUISITIONS', labelKey: 'labModules.requisitions', descKey: 'labModules.requisitionsDesc', icon: FlaskConical, color: 'text-indigo-400 bg-indigo-400/20' },
+      { id: 'STORE_RETURNS', labelKey: 'labModules.storeReturns', descKey: 'labModules.storeReturnsDesc', icon: RotateCcw, color: 'text-amber-400 bg-amber-400/20' },
+      { id: 'DELIVERY_LOGISTICS', labelKey: 'labModules.deliveryLogistics', descKey: 'labModules.deliveryLogisticsDesc', icon: Truck, color: 'text-indigo-400 bg-indigo-400/20' },
+      { id: 'STORES', labelKey: 'labModules.stores', descKey: 'labModules.storesDesc', icon: Store, color: 'text-indigo-400 bg-indigo-400/20' },
+      { id: 'STORE_SALES', labelKey: 'labModules.storeSales', descKey: 'labModules.storeSalesDesc', icon: ShoppingCart, color: 'text-amber-400 bg-amber-400/20' },
+      { id: 'RECONCILIATION_WASTE', labelKey: 'labModules.reconciliationWaste', descKey: 'labModules.reconciliationWasteDesc', icon: PieChart, color: 'text-amber-400 bg-amber-400/20' }
     ]
   },
   {
-    title: '🛡️ Qualité & Traçabilité',
-    icon: ShieldCheck,
+    categoryKey: 'quality',
+    categoryTitleKey: 'labCategories.quality',
+    categoryIcon: ShieldCheck,
     items: [
-      { id: 'QUALITY_CONTROL', label: 'Contrôle Qualité & HACCP', desc: 'Traçabilité et relevés température', icon: ShieldCheck, color: 'text-indigo-400 bg-indigo-400/20' },
-      { id: 'SYNC_STATUS', label: 'État de Synchronisation & Firebase', desc: 'Changements locaux, file IndexedDB & intégrité', icon: Activity, color: 'text-amber-400 bg-amber-400/20' },
-      { id: 'OFFLINE_QUEUE', label: 'File Hors-Ligne (IndexedDB)', desc: 'Synchronisation et résilience réseau', icon: HardDrive, color: 'text-indigo-400 bg-indigo-400/20' },
-      { id: 'ACTIVITY_LOG', label: 'Fil d’Activité (Audit Global)', desc: 'Journal d’événements en temps réel', icon: History, color: 'text-amber-400 bg-amber-400/20' }
+      { id: 'QUALITY_CONTROL', labelKey: 'labModules.qualityControl', descKey: 'labModules.qualityControlDesc', icon: ShieldCheck, color: 'text-indigo-400 bg-indigo-400/20' },
+      { id: 'SYNC_STATUS', labelKey: 'labModules.syncStatus', descKey: 'labModules.syncStatusDesc', icon: Activity, color: 'text-amber-400 bg-amber-400/20' },
+      { id: 'OFFLINE_QUEUE', labelKey: 'labModules.offlineQueue', descKey: 'labModules.offlineQueueDesc', icon: HardDrive, color: 'text-indigo-400 bg-indigo-400/20' },
+      { id: 'ACTIVITY_LOG', labelKey: 'labModules.activityLog', descKey: 'labModules.activityLogDesc', icon: History, color: 'text-amber-400 bg-amber-400/20' }
     ]
   }
 ];
 
-function SparklesIcon(props: { className?: string }) {
-  return <Zap {...props} />;
-}
-
 interface LabDesktopTabConfig {
   module: LabModule;
-  label: string;
+  labelKey: string;
   icon: React.ComponentType<{ className?: string }>;
   variant?: 'amber-solid' | 'amber-outline' | 'indigo-solid' | 'indigo-outline' | 'emerald' | 'slate';
 }
 
 const LAB_DESKTOP_TABS: LabDesktopTabConfig[] = [
-  { module: 'EXECUTIVE_DASHBOARD', label: '👑 Executive Dashboard', icon: Crown, variant: 'amber-solid' },
-  { module: 'VOICE_NOTES', label: '🎙️ Dictée Vocale & Notes', icon: Mic, variant: 'amber-outline' },
-  { module: 'DAILY_PRODUCTION_PLAN', label: '👩‍🍳 Task List Pâtissiers', icon: Utensils, variant: 'amber-outline' },
-  { module: 'SUPPLIER_PO', label: '🛒 Commandes Fournisseurs (PO)', icon: ShoppingCart, variant: 'indigo-outline' },
-  { module: 'DELIVERY_LOGISTICS', label: '🚚 Expéditions & Bordereaux', icon: Truck, variant: 'indigo-outline' },
-  { module: 'REQUISITIONS', label: 'Commandes Boutiques', icon: FlaskConical, variant: 'slate' },
-  { module: 'PRODUCTION_RUNNER', label: '⚡ Lancer Production', icon: Zap, variant: 'amber-outline' },
-  { module: 'QUALITY_CONTROL', label: '🛡️ Qualité & HACCP', icon: ShieldCheck, variant: 'indigo-outline' },
-  { module: 'MARGIN_ANALYTICS', label: '📊 Marges & COGS', icon: TrendingUp, variant: 'emerald' },
-  { module: 'INVENTORY', label: 'Stock Matières', icon: Boxes, variant: 'slate' },
-  { module: 'RECIPES', label: 'Fiches Techniques', icon: ChefHat, variant: 'slate' },
+  { module: 'EXECUTIVE_DASHBOARD', labelKey: 'labModules.executiveDashboard', icon: Crown, variant: 'amber-solid' },
+  { module: 'LAB_PRODUCTION_DISPATCHER', labelKey: 'labModules.labProductionDispatcher', icon: ChefHat, variant: 'amber-solid' },
+  { module: 'VOICE_NOTES', labelKey: 'labModules.voiceNotes', icon: Mic, variant: 'amber-outline' },
+  { module: 'DAILY_PRODUCTION_PLAN', labelKey: 'labModules.dailyProductionPlan', icon: Utensils, variant: 'amber-outline' },
+  { module: 'SUPPLIER_PO', labelKey: 'labModules.supplierPo', icon: ShoppingCart, variant: 'indigo-outline' },
+  { module: 'DELIVERY_LOGISTICS', labelKey: 'labModules.deliveryLogistics', icon: Truck, variant: 'indigo-outline' },
+  { module: 'REQUISITIONS', labelKey: 'labModules.requisitions', icon: FlaskConical, variant: 'slate' },
+  { module: 'PRODUCTION_RUNNER', labelKey: 'labModules.productionRunner', icon: Zap, variant: 'amber-outline' },
+  { module: 'QUALITY_CONTROL', labelKey: 'labModules.qualityControl', icon: ShieldCheck, variant: 'indigo-outline' },
+  { module: 'MARGIN_ANALYTICS', labelKey: 'labModules.marginAnalytics', icon: TrendingUp, variant: 'emerald' },
+  { module: 'INVENTORY', labelKey: 'labModules.inventory', icon: Boxes, variant: 'slate' },
+  { module: 'RECIPES', labelKey: 'labModules.recipes', icon: ChefHat, variant: 'slate' },
 ];
 
 /**
@@ -296,7 +313,7 @@ const LabModuleCardItem = React.memo<{
     <button
       type="button"
       onClick={handleClick}
-      className={`p-3 rounded-2xl border text-left flex items-start gap-3 transition-all active:scale-95 cursor-pointer ${
+      className={`p-3 rounded-2xl border text-start flex items-start gap-3 transition-all active:scale-95 cursor-pointer ${
         isActive
           ? 'bg-amber-500 text-slate-950 border-amber-400 font-bold shadow-md'
           : 'bg-slate-800/80 border-slate-700/80 hover:bg-slate-800 text-slate-200'
@@ -317,33 +334,34 @@ const LabModuleCardItem = React.memo<{
 LabModuleCardItem.displayName = 'LabModuleCardItem';
 
 export const LabDashboard: React.FC = () => {
+  const { t } = useTranslation();
   const [activeModule, setActiveModule] = useState<LabModule>('EXECUTIVE_DASHBOARD');
   const [isModuleSheetOpen, setIsModuleSheetOpen] = useState<boolean>(false);
   const [isOfflineQueueDrawerOpen, setIsOfflineQueueDrawerOpen] = useState<boolean>(false);
   const [moduleSearch, setModuleSearch] = useState<string>('');
-  const [lastSyncTime, setLastSyncTime] = useState<string>(new Date().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit', second: '2-digit' }));
+  const [lastSyncTime, setLastSyncTime] = useState<string>(new Date().toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit', second: '2-digit' }));
 
   useEffect(() => {
     const unsubscribe = subscribeToSupabaseRealtime((table, payload) => {
-      setLastSyncTime(new Date().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit', second: '2-digit' }));
+      setLastSyncTime(new Date().toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit', second: '2-digit' }));
       
-      let tableLabel = 'Mise à jour database';
-      if (table === 'store_requisitions') tableLabel = 'Statuts des Réquisitions';
-      if (table === 'raw_materials') tableLabel = 'Niveaux de Stocks Mat. Premières';
-      if (table === 'packaging_materials') tableLabel = 'Niveaux de Stocks Emballages';
-      if (table === 'inventory_adjustments') tableLabel = 'Déstockage / Perte';
+      let tableLabel = t('common.syncDataLoading');
+      if (table === 'store_requisitions') tableLabel = t('labModules.requisitions');
+      if (table === 'raw_materials') tableLabel = t('inventory.rawMaterials');
+      if (table === 'packaging_materials') tableLabel = t('inventory.packaging');
+      if (table === 'inventory_adjustments') tableLabel = t('labModules.destocking');
 
       notifyToast({
         type: 'info',
-        title: `🔴 Live Supabase : ${tableLabel}`,
-        message: `Mise à jour en direct synchronisée (${payload.eventType || 'UPDATE'}).`
+        title: `🔴 Realtime : ${tableLabel}`,
+        message: `${tableLabel} (${payload.eventType || 'UPDATE'}).`
       });
     });
 
     return () => {
       unsubscribe();
     };
-  }, []);
+  }, [t]);
 
   const handleSelectModule = useCallback((mod: LabModule) => {
     setActiveModule(mod);
@@ -375,14 +393,28 @@ export const LabDashboard: React.FC = () => {
   }, [activeModule]);
 
   const totalModulesCount = useMemo(() => {
-    return LAB_CATEGORIES.reduce((acc, cat) => acc + cat.items.length, 0);
+    return RAW_LAB_CATEGORIES.reduce((acc, cat) => acc + cat.items.length, 0);
   }, []);
+
+  const localizedCategories = useMemo(() => {
+    return RAW_LAB_CATEGORIES.map((cat) => ({
+      title: t(cat.categoryTitleKey),
+      icon: cat.categoryIcon,
+      items: cat.items.map((item) => ({
+        id: item.id,
+        label: t(item.labelKey),
+        desc: t(item.descKey),
+        icon: item.icon,
+        color: item.color
+      }))
+    }));
+  }, [t]);
 
   const filteredCategories = useMemo(() => {
     const query = moduleSearch.toLowerCase().trim();
-    if (!query) return LAB_CATEGORIES;
+    if (!query) return localizedCategories;
 
-    return LAB_CATEGORIES.map((cat) => {
+    return localizedCategories.map((cat) => {
       const items = cat.items.filter(
         (item) =>
           item.label.toLowerCase().includes(query) ||
@@ -391,7 +423,7 @@ export const LabDashboard: React.FC = () => {
       );
       return { ...cat, items };
     }).filter((cat) => cat.items.length > 0);
-  }, [moduleSearch]);
+  }, [moduleSearch, localizedCategories]);
 
   return (
     <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 py-3 sm:py-8 space-y-4 sm:space-y-6 pb-28 md:pb-8">
@@ -405,9 +437,9 @@ export const LabDashboard: React.FC = () => {
             </div>
             <div>
               <div className="flex items-center gap-2 flex-wrap">
-                <h1 className="text-lg sm:text-xl font-black tracking-tight">Laboratoire Central & Production</h1>
+                <h1 className="text-lg sm:text-xl font-black tracking-tight">{t('nav.labTitle')}</h1>
                 <span className="px-2 py-0.5 rounded-full text-[10px] sm:text-[11px] font-bold bg-indigo-500/20 text-indigo-300 border border-indigo-500/30">
-                  Vue Administrateur
+                  {t('nav.roleAdmin')}
                 </span>
                 <span className="px-2 py-0.5 rounded-full text-[10px] sm:text-[11px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 flex items-center gap-1.5 shadow-xs">
                   <span className="relative flex h-2 w-2">
@@ -420,13 +452,29 @@ export const LabDashboard: React.FC = () => {
                 <OfflineQueueStatusPill onOpenDrawer={handleOpenOfflineQueue} />
               </div>
               <p className="text-xs text-slate-300 mt-0.5 sm:mt-1">
-                Approvisionnement, ordonnancement cascade, stocks matières & marges de fabrication.
+                {t('nav.labHubDesc')}
               </p>
             </div>
           </div>
 
-          {/* Quick Access Hands-Free Voice Note Trigger Button */}
+          {/* Quick Access Tools: Unit Converter & Voice Note */}
           <div className="flex items-center gap-2">
+            <button
+              id="lab-header-unit-converter-btn"
+              type="button"
+              onClick={() => handleSelectModule('UNIT_CONVERTER')}
+              className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-black transition-all shadow-md active:scale-95 cursor-pointer ${
+                activeModule === 'UNIT_CONVERTER'
+                  ? 'bg-amber-400 text-slate-950 ring-2 ring-amber-300'
+                  : 'bg-slate-800/90 hover:bg-slate-800 text-amber-300 border border-amber-400/30'
+              }`}
+              title={t('unitConverter.title', 'Convertisseur Universel d\'Unités & Coûts')}
+            >
+              <Scale className="w-4 h-4 text-amber-400" />
+              <span className="hidden sm:inline">{t('unitConverter.openTool', 'Convertisseur d\'Unités')}</span>
+              <span className="sm:hidden">{t('unitConverter.title', 'Unités')}</span>
+            </button>
+
             <button
               id="lab-header-voice-notes-btn"
               type="button"
@@ -438,7 +486,7 @@ export const LabDashboard: React.FC = () => {
               }`}
             >
               <Mic className="w-4 h-4 text-amber-400" />
-              <span>🎙️ Dictée Vocale Chef</span>
+              <span>{t('labModules.voiceNotes')}</span>
             </button>
           </div>
         </div>
@@ -450,7 +498,7 @@ export const LabDashboard: React.FC = () => {
               key={tab.module}
               module={tab.module}
               isActive={activeModule === tab.module}
-              label={tab.label}
+              label={t(tab.labelKey)}
               icon={tab.icon}
               variant={tab.variant}
               onSelect={handleSelectModule}
@@ -463,7 +511,7 @@ export const LabDashboard: React.FC = () => {
             className="flex items-center gap-1.5 min-h-[44px] px-3 py-2 rounded-xl text-xs font-bold bg-slate-800 text-amber-300 border border-slate-700 hover:bg-slate-700 whitespace-nowrap cursor-pointer"
           >
             <LayoutGrid className="w-4 h-4" />
-            <span>Tous les Modules ({totalModulesCount})</span>
+            <span>{t('nav.allModules')} ({totalModulesCount})</span>
           </button>
         </div>
       </div>
@@ -478,7 +526,9 @@ export const LabDashboard: React.FC = () => {
           transition={{ duration: 0.2, ease: 'easeInOut' }}
         >
           {activeModule === 'EXECUTIVE_DASHBOARD' && <ExecutiveInventoryDashboard />}
+          {activeModule === 'LAB_PRODUCTION_DISPATCHER' && <LabProduction />}
           {activeModule === 'VOICE_NOTES' && <ChefVoiceNotesManager />}
+          {activeModule === 'UNIT_CONVERTER' && <UnitConversionWidget />}
           {activeModule === 'DAILY_PRODUCTION_PLAN' && <DailyProductionPlan />}
           {activeModule === 'PRODUCTION_BATCH_PLANNER' && <ProductionBatchPlanner />}
           {activeModule === 'COLD_ROOM_TRACKER' && <ColdRoomExpiryTracker />}
@@ -516,7 +566,7 @@ export const LabDashboard: React.FC = () => {
         {/* 1. Executive Dashboard */}
         <LabMobileBottomNavButton
           isActive={activeModule === 'EXECUTIVE_DASHBOARD'}
-          label="Direction"
+          label={t('labCategories.direction')}
           icon={Crown}
           activeColorClass="text-amber-400 bg-amber-500/15"
           onClick={() => handleSelectModule('EXECUTIVE_DASHBOARD')}
@@ -525,7 +575,7 @@ export const LabDashboard: React.FC = () => {
         {/* 2. Task List Production */}
         <LabMobileBottomNavButton
           isActive={activeModule === 'DAILY_PRODUCTION_PLAN'}
-          label="Production"
+          label={t('labCategories.production')}
           icon={Utensils}
           activeColorClass="text-amber-400 bg-amber-500/15"
           onClick={() => handleSelectModule('DAILY_PRODUCTION_PLAN')}
@@ -534,7 +584,7 @@ export const LabDashboard: React.FC = () => {
         {/* 3. Achats Supplier PO */}
         <LabMobileBottomNavButton
           isActive={activeModule === 'SUPPLIER_PO'}
-          label="Achats PO"
+          label={t('labModules.supplierPo')}
           icon={ShoppingCart}
           activeColorClass="text-indigo-400 bg-indigo-500/15"
           onClick={() => handleSelectModule('SUPPLIER_PO')}
@@ -543,16 +593,16 @@ export const LabDashboard: React.FC = () => {
         {/* 4. Expéditions Logistics */}
         <LabMobileBottomNavButton
           isActive={activeModule === 'DELIVERY_LOGISTICS'}
-          label="Expéditions"
+          label={t('labModules.deliveryLogistics')}
           icon={Truck}
           activeColorClass="text-indigo-400 bg-indigo-500/15"
           onClick={() => handleSelectModule('DELIVERY_LOGISTICS')}
         />
 
-        {/* 5. All 22 Modules Sheet */}
+        {/* 5. All Modules Sheet */}
         <LabMobileBottomNavButton
           isActive={isOtherActive}
-          label={isOtherActive ? 'Module...' : 'Hub Labo'}
+          label={isOtherActive ? t('nav.allModules') : t('nav.centralLab')}
           icon={LayoutGrid}
           activeColorClass="text-amber-300 bg-amber-500/20 border border-amber-500/30"
           hasBadge={isOtherActive}
@@ -560,7 +610,7 @@ export const LabDashboard: React.FC = () => {
         />
       </div>
 
-      {/* ANDROID MATERIAL 3 SEARCHABLE BOTTOM SHEET FOR ALL 22 LAB MODULES */}
+      {/* ANDROID MATERIAL 3 SEARCHABLE BOTTOM SHEET FOR ALL LAB MODULES */}
       <AnimatePresence>
         {isModuleSheetOpen && (
           <div className="fixed inset-0 z-50 flex flex-col justify-end">
@@ -591,8 +641,8 @@ export const LabDashboard: React.FC = () => {
                     <FlaskConical className="w-4 h-4" />
                   </div>
                   <div>
-                    <h3 className="font-extrabold text-sm text-white">Hub des 22 Modules Laboratoire</h3>
-                    <p className="text-[11px] text-slate-400">Production, Stocks, Marges & Boutiques</p>
+                    <h3 className="font-extrabold text-sm text-white">{t('nav.allModules')}</h3>
+                    <p className="text-[11px] text-slate-400">{t('nav.brandSubtitle')}</p>
                   </div>
                 </div>
                 <button
@@ -606,19 +656,19 @@ export const LabDashboard: React.FC = () => {
 
               {/* Search filter input */}
               <div className="relative shrink-0">
-                <Search className="w-4 h-4 absolute left-3.5 top-3 text-slate-400" />
+                <Search className="w-4 h-4 absolute start-3.5 top-3 text-slate-400" />
                 <input
                   type="text"
-                  placeholder="Rechercher un module (ex: cascade, COGS, HACCP, stock...)"
+                  placeholder={t('common.search')}
                   value={moduleSearch}
                   onChange={(e) => setModuleSearch(e.target.value)}
-                  className="w-full pl-10 pr-4 py-2.5 bg-slate-800/90 border border-slate-700 rounded-xl text-xs text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-amber-400"
+                  className="w-full ps-10 pe-9 py-2.5 bg-slate-800/90 border border-slate-700 rounded-xl text-xs text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-amber-400"
                 />
                 {moduleSearch && (
                   <button
                     type="button"
                     onClick={handleClearModuleSearch}
-                    className="absolute right-3 top-2.5 text-xs text-slate-400 hover:text-white cursor-pointer"
+                    className="absolute end-3 top-2.5 text-xs text-slate-400 hover:text-white cursor-pointer"
                   >
                     ✕
                   </button>
@@ -626,7 +676,7 @@ export const LabDashboard: React.FC = () => {
               </div>
 
               {/* Scrollable Categories & Module List */}
-              <div className="flex-1 overflow-y-auto space-y-4 pr-1 scrollbar-none">
+              <div className="flex-1 overflow-y-auto space-y-4 pe-1 scrollbar-none">
                 {filteredCategories.map((cat, idx) => (
                   <div key={idx} className="space-y-2">
                     <h4 className="text-[11px] font-extrabold uppercase text-amber-400 tracking-wider px-1">
@@ -663,4 +713,3 @@ export const LabDashboard: React.FC = () => {
     </div>
   );
 };
-

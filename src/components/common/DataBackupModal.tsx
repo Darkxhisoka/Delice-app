@@ -1,4 +1,5 @@
 import React, { useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import { X, ShieldCheck } from 'lucide-react';
 import { DataBackup } from '../DataBackup';
 import { registerBackButtonHandler } from '../../hooks/useAndroidBackButton';
@@ -9,6 +10,8 @@ interface DataBackupModalProps {
 }
 
 export const DataBackupModal: React.FC<DataBackupModalProps> = ({ isOpen, onClose }) => {
+  const { t } = useTranslation();
+
   useEffect(() => {
     if (!isOpen) return;
 
@@ -38,12 +41,12 @@ export const DataBackupModal: React.FC<DataBackupModalProps> = ({ isOpen, onClos
             <div className="w-10 h-10 rounded-2xl bg-indigo-600/20 border border-indigo-500/30 flex items-center justify-center text-indigo-400">
               <ShieldCheck className="w-5 h-5" />
             </div>
-            <div>
+            <div className="text-start">
               <h2 className="text-base sm:text-lg font-black text-white">
-                Centre de Sauvegarde & Restauration Dexie
+                {t('dataBackup.modalTitle', 'Centre de Sauvegarde & Restauration Dexie')}
               </h2>
               <p className="text-xs text-slate-400">
-                Gestion des exports JSON et de la persistance locale IndexedDB
+                {t('dataBackup.modalSubtitle', 'Gestion des exports JSON et de la persistance locale IndexedDB')}
               </p>
             </div>
           </div>
@@ -70,7 +73,7 @@ export const DataBackupModal: React.FC<DataBackupModalProps> = ({ isOpen, onClos
             onClick={onClose}
             className="min-h-[40px] px-5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 active:scale-95 text-white text-xs font-bold transition-all cursor-pointer"
           >
-            Fermer
+            {t('dataBackup.close', 'Fermer')}
           </button>
         </div>
       </div>

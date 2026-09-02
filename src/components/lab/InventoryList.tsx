@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   getRawMaterials,
   saveRawMaterials,
@@ -19,6 +20,8 @@ import { RawMaterial, SemiFinishedStockItem, Recipe } from '../../types';
 import { BarcodeScannerModal } from '../common/BarcodeScannerModal';
 import { RawMaterialImporter } from './RawMaterialImporter';
 import { AddRawMaterialModal } from './AddRawMaterialModal';
+import { UnitConverterModal } from '../common/UnitConverterModal';
+import { UnitConversionBadge } from '../common/UnitConversionBadge';
 import { exportRawMaterialsToPDF, exportRawMaterialsToExcel } from '../../utils/reportingExport';
 import {
   Boxes,
@@ -42,10 +45,12 @@ import {
   Trash2,
   Loader2,
   Download,
-  FileText
+  FileText,
+  Scale
 } from 'lucide-react';
 
 export const InventoryList: React.FC = () => {
+  const { t } = useTranslation();
   const [stockType, setStockType] = useState<'RAW_MATERIALS' | 'SEMI_FINISHED'>('RAW_MATERIALS');
   const [materials, setMaterials] = useState<RawMaterial[]>([]);
   const [sfStockItems, setSfStockItems] = useState<SemiFinishedStockItem[]>([]);
@@ -76,6 +81,10 @@ export const InventoryList: React.FC = () => {
 
   // Camera Barcode Scanner State
   const [isScannerOpen, setIsScannerOpen] = useState<boolean>(false);
+
+  // Unit Converter Modal State
+  const [isUnitConverterOpen, setIsUnitConverterOpen] = useState<boolean>(false);
+  const [converterMaterial, setConverterMaterial] = useState<RawMaterial | null>(null);
 
   const loadData = async () => {
     setLoading(true);
@@ -303,13 +312,13 @@ export const InventoryList: React.FC = () => {
             }`}
           >
             <Boxes className="w-4 h-4" />
-            <span>Stock Matières Premières</span>
+            <span>{t('inventory.rawMaterialsTab', 'Stock Matières Premières')}</span>
             <span
               className={`px-2 py-0.5 rounded-full text-[10px] font-extrabold ${
                 stockType === 'RAW_MATERIALS' ? 'bg-slate-700 text-white' : 'bg-slate-200 text-slate-700'
               }`}
             >
-              {materials.length} Références
+              {t('inventory.refCount', { count: materials.length, defaultValue: `${materials.length} Références` })}
             </span>
           </button>
 
@@ -326,13 +335,13 @@ export const InventoryList: React.FC = () => {
             }`}
           >
             <Layers className="w-4 h-4" />
-            <span>Stock Produits Semi-Finis</span>
+            <span>{t('inventory.semiFinishedTab', 'Stock Produits Semi-Finis')}</span>
             <span
               className={`px-2 py-0.5 rounded-full text-[10px] font-extrabold ${
                 stockType === 'SEMI_FINISHED' ? 'bg-indigo-700 text-white' : 'bg-slate-200 text-slate-700'
               }`}
             >
-              {sfStockItems.length} Bases
+              {t('inventory.baseCount', { count: sfStockItems.length, defaultValue: `${sfStockItems.length} Bases` })}
             </span>
           </button>
         </div>
@@ -340,27 +349,38 @@ export const InventoryList: React.FC = () => {
         {stockType === 'RAW_MATERIALS' && (
           <div className="pr-2 flex flex-wrap items-center gap-2">
             <button
+              onClick={() => {
+                setConverterMaterial(null);
+                setIsUnitConverterOpen(true);
+              }}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-amber-950 bg-amber-200/80 hover:bg-amber-300 active:bg-amber-400 rounded-lg shadow-xs transition-colors cursor-pointer"
+              title={t('unitConverter.title', 'Convertisseur Universel d\'Unités')}
+            >
+              <Scale className="w-4 h-4 text-amber-800" />
+              <span>{t('unitConverter.openTool', 'Convertisseur d\'Unités')}</span>
+            </button>
+            <button
               onClick={() => exportRawMaterialsToPDF(materials)}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-slate-700 bg-slate-100 hover:bg-slate-200 active:bg-slate-300 rounded-lg shadow-xs transition-colors"
-              title="Exporter le rapport d'inventaire du stock en PDF"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-slate-700 bg-slate-100 hover:bg-slate-200 active:bg-slate-300 rounded-lg shadow-xs transition-colors cursor-pointer"
+              title={t('inventory.exportPDFTitle', 'Exporter le rapport d\'inventaire du stock en PDF')}
             >
               <FileText className="w-4 h-4 text-rose-600" />
-              <span>Exporter PDF</span>
+              <span>{t('inventory.exportPDF', 'Exporter PDF')}</span>
             </button>
             <button
               onClick={() => exportRawMaterialsToExcel(materials)}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-slate-700 bg-slate-100 hover:bg-slate-200 active:bg-slate-300 rounded-lg shadow-xs transition-colors"
-              title="Exporter le tableau d'inventaire du stock en format Excel (.xlsx)"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-slate-700 bg-slate-100 hover:bg-slate-200 active:bg-slate-300 rounded-lg shadow-xs transition-colors cursor-pointer"
+              title={t('inventory.exportExcelTitle', 'Exporter le tableau d\'inventaire du stock en format Excel (.xlsx)')}
             >
               <FileSpreadsheet className="w-4 h-4 text-emerald-600" />
-              <span>Exporter Excel</span>
+              <span>{t('inventory.exportExcel', 'Exporter Excel')}</span>
             </button>
             <button
               onClick={() => setIsImporterOpen(true)}
-              className="inline-flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-bold text-amber-900 bg-amber-100 hover:bg-amber-200 active:bg-amber-300 rounded-lg shadow-xs transition-colors"
+              className="inline-flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-bold text-amber-900 bg-amber-100 hover:bg-amber-200 active:bg-amber-300 rounded-lg shadow-xs transition-colors cursor-pointer"
             >
               <FileSpreadsheet className="w-4 h-4 text-amber-700" />
-              <span>Importer MP (CSV/Excel)</span>
+              <span>{t('inventory.importCSV', 'Importer MP (CSV/Excel)')}</span>
             </button>
           </div>
         )}
@@ -369,9 +389,9 @@ export const InventoryList: React.FC = () => {
           <div className="pr-2">
             <button
               onClick={handleOpenProduceModal}
-              className="inline-flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg shadow-xs transition-colors"
+              className="inline-flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg shadow-xs transition-colors cursor-pointer"
             >
-              <ChefHat className="w-4 h-4" /> Produire un Lot
+              <ChefHat className="w-4 h-4" /> {t('inventory.produceBatch', 'Produire un Lot')}
             </button>
           </div>
         )}
@@ -382,15 +402,15 @@ export const InventoryList: React.FC = () => {
         <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs flex items-center justify-between">
           <div>
             <span className="text-[11px] font-bold uppercase text-slate-400 tracking-wider">
-              {stockType === 'RAW_MATERIALS' ? 'Valorisation Matières Premières' : 'Valorisation Semi-Finis'}
+              {stockType === 'RAW_MATERIALS' ? t('inventory.rawValuation', 'Valorisation Matières Premières') : t('inventory.sfValuation', 'Valorisation Semi-Finis')}
             </span>
             <div className="text-2xl font-black text-slate-900 mt-1">
-              {(stockType === 'RAW_MATERIALS' ? totalRawValue : totalSfValue).toFixed(2)} DZD
+              {(stockType === 'RAW_MATERIALS' ? totalRawValue : totalSfValue).toFixed(2)} {t('common.currency', 'DZD')}
             </div>
             <p className="text-xs text-slate-500 mt-0.5">
               {stockType === 'RAW_MATERIALS'
-                ? 'Prix moyen pondéré d\'achat'
-                : 'Coût de revient calculé des composants'}
+                ? t('inventory.rawAvgCostDesc', 'Prix moyen pondéré d\'achat')
+                : t('inventory.sfAvgCostDesc', 'Coût de revient calculé des composants')}
             </p>
           </div>
           <div className="p-3 bg-emerald-50 text-emerald-600 rounded-xl">
@@ -401,13 +421,13 @@ export const InventoryList: React.FC = () => {
         <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs flex items-center justify-between">
           <div>
             <span className="text-[11px] font-bold uppercase text-slate-400 tracking-wider">
-              {stockType === 'RAW_MATERIALS' ? 'Matières Actives' : 'Bases Actives'}
+              {stockType === 'RAW_MATERIALS' ? t('inventory.activeMaterials', 'Matières Actives') : t('inventory.activeBases', 'Bases Actives')}
             </span>
             <div className="text-2xl font-black text-slate-900 mt-1">
-              {stockType === 'RAW_MATERIALS' ? `${materials.length} Réf.` : `${sfStockItems.length} Bases`}
+              {stockType === 'RAW_MATERIALS' ? t('inventory.refCount', { count: materials.length, defaultValue: `${materials.length} Réf.` }) : t('inventory.baseCount', { count: sfStockItems.length, defaultValue: `${sfStockItems.length} Bases` })}
             </div>
             <p className="text-xs text-slate-500 mt-0.5">
-              Réparties sur {(stockType === 'RAW_MATERIALS' ? rawMaterialCategories : sfCategories).length} catégories
+              {t('inventory.spreadAcrossCategories', { count: (stockType === 'RAW_MATERIALS' ? rawMaterialCategories : sfCategories).length, defaultValue: `Réparties sur ${(stockType === 'RAW_MATERIALS' ? rawMaterialCategories : sfCategories).length} catégories` })}
             </p>
           </div>
           <div className="p-3 bg-indigo-50 text-indigo-600 rounded-xl">
@@ -417,11 +437,11 @@ export const InventoryList: React.FC = () => {
 
         <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs flex items-center justify-between">
           <div>
-            <span className="text-[11px] font-bold uppercase text-slate-400 tracking-wider">Alertes Stock Bas</span>
+            <span className="text-[11px] font-bold uppercase text-slate-400 tracking-wider">{t('inventory.lowStockAlerts', 'Alertes Stock Bas')}</span>
             <div className="text-2xl font-black text-amber-600 mt-1">
-              {stockType === 'RAW_MATERIALS' ? lowStockRawCount : lowStockSfCount} Articles
+              {t('inventory.itemsCount', { count: (stockType === 'RAW_MATERIALS' ? lowStockRawCount : lowStockSfCount), defaultValue: `${stockType === 'RAW_MATERIALS' ? lowStockRawCount : lowStockSfCount} Articles` })}
             </div>
-            <p className="text-xs text-slate-500 mt-0.5">En-dessous du seuil de réapprovisionnement</p>
+            <p className="text-xs text-slate-500 mt-0.5">{t('inventory.belowReorderLevel', 'En-dessous du seuil de réapprovisionnement')}</p>
           </div>
           <div className="p-3 bg-amber-50 text-amber-600 rounded-xl">
             <AlertTriangle className="w-6 h-6" />
@@ -434,13 +454,13 @@ export const InventoryList: React.FC = () => {
         <div>
           <h3 className="text-base font-bold text-slate-900">
             {stockType === 'RAW_MATERIALS'
-              ? 'Stock de Matières Premières - Laboratoire Central'
-              : 'Stock de Produits Semi-Finis (Bases de Pâtisserie)'}
+              ? t('inventory.rawStockTitle', 'Stock de Matières Premières - Laboratoire Central')
+              : t('inventory.sfStockTitle', 'Stock de Produits Semi-Finis (Bases de Pâtisserie)')}
           </h3>
           <p className="text-xs text-slate-500 mt-0.5">
             {stockType === 'RAW_MATERIALS'
-              ? 'Solde en temps réel et coût moyen pondéré unitaire.'
-              : 'Composants intermédiaires (crèmes, pâtes, mousses) pour l\'assemblage.'}
+              ? t('inventory.rawStockDesc', 'Solde en temps réel et coût moyen pondéré unitaire.')
+              : t('inventory.sfStockDesc', 'Composants intermédiaires (crèmes, pâtes, mousses) pour l\'assemblage.')}
           </p>
         </div>
 
@@ -450,21 +470,21 @@ export const InventoryList: React.FC = () => {
               <button
                 type="button"
                 onClick={() => setIsAddModalOpen(true)}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 rounded-lg shadow-2xs transition-colors shrink-0"
-                title="Ajouter manuellement une nouvelle matière première"
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 rounded-lg shadow-2xs transition-colors shrink-0 cursor-pointer"
+                title={t('inventory.addMaterial', '+ Add Raw Material')}
               >
                 <Plus className="w-3.5 h-3.5 text-white" />
-                <span>+ Add Raw Material</span>
+                <span>{t('inventory.addMaterial', '+ Add Raw Material')}</span>
               </button>
 
               <button
                 type="button"
                 onClick={() => setIsImporterOpen(true)}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-amber-900 bg-amber-100 hover:bg-amber-200 active:bg-amber-300 rounded-lg shadow-2xs transition-colors shrink-0"
-                title="Importer des matières premières depuis un fichier CSV ou Excel"
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-amber-900 bg-amber-100 hover:bg-amber-200 active:bg-amber-300 rounded-lg shadow-2xs transition-colors shrink-0 cursor-pointer"
+                title={t('inventory.importCSV', 'Importer MP (CSV/Excel)')}
               >
                 <FileSpreadsheet className="w-3.5 h-3.5 text-amber-700" />
-                <span>Import Raw Materials (CSV/Excel)</span>
+                <span>{t('inventory.importCSV', 'Importer MP (CSV/Excel)')}</span>
               </button>
             </>
           )}
@@ -472,21 +492,21 @@ export const InventoryList: React.FC = () => {
           <button
             type="button"
             onClick={() => setIsScannerOpen(true)}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-700 active:bg-indigo-800 rounded-lg shadow-2xs transition-colors shrink-0"
-            title="Scanner le code-barres de la matière première"
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-700 active:bg-indigo-800 rounded-lg shadow-2xs transition-colors shrink-0 cursor-pointer"
+            title={t('inventory.scanBarcode', 'Scan Caméra MP')}
           >
             <Scan className="w-3.5 h-3.5 text-emerald-300" />
-            <span>Scan Caméra MP</span>
+            <span>{t('inventory.scanBarcode', 'Scan Caméra MP')}</span>
           </button>
 
           <div className="relative flex-1 sm:w-56">
-            <Search className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" />
+            <Search className="w-4 h-4 text-slate-400 absolute left-3 top-2.5 rtl:left-auto rtl:right-3" />
             <input
               type="text"
-              placeholder={stockType === 'RAW_MATERIALS' ? 'Rechercher matière ou SKU...' : 'Rechercher base semi-finie...'}
+              placeholder={stockType === 'RAW_MATERIALS' ? t('inventory.searchRawPlaceholder', 'Rechercher matière ou SKU...') : t('inventory.searchSfPlaceholder', 'Rechercher base semi-finie...')}
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-9 pr-3 py-1.5 text-xs bg-slate-50 border border-slate-300 rounded-lg text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              className="w-full pl-9 pr-3 rtl:pl-3 rtl:pr-9 py-1.5 text-xs bg-slate-50 border border-slate-300 rounded-lg text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500"
             />
           </div>
 
@@ -497,7 +517,7 @@ export const InventoryList: React.FC = () => {
               onChange={(e) => setCategoryFilter(e.target.value)}
               className="bg-transparent text-xs font-semibold text-slate-700 focus:outline-none cursor-pointer"
             >
-              <option value="ALL">Toutes les Catégories</option>
+              <option value="ALL">{t('inventory.allCategories', 'Toutes les Catégories')}</option>
               {(stockType === 'RAW_MATERIALS' ? rawMaterialCategories : sfCategories).map((cat) => (
                 <option key={cat} value={cat}>
                   {cat}
@@ -513,17 +533,17 @@ export const InventoryList: React.FC = () => {
         /* Raw Materials Table */
         <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-xs">
           <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs border-collapse">
+            <table className="w-full text-left rtl:text-right text-xs border-collapse">
               <thead>
                 <tr className="bg-slate-100 text-slate-700 font-semibold border-b border-slate-200">
-                  <th className="p-3 min-w-[200px]">Matière Première & SKU</th>
-                  <th className="p-3 w-36">Catégorie</th>
-                  <th className="p-3 w-32 text-center">Niveau de Stock</th>
-                  <th className="p-3 w-28 text-center">Statut</th>
-                  <th className="p-3 w-36 text-right">Coût Moyen / Unité</th>
-                  <th className="p-3 w-36 text-right">Valorisation Totale</th>
-                  <th className="p-3 w-28 text-center">Seuil Réappro</th>
-                  <th className="p-3 w-20 text-center">Action</th>
+                  <th className="p-3 min-w-[200px]">{t('inventory.colRawSku', 'Matière Première & SKU')}</th>
+                  <th className="p-3 w-36">{t('inventory.colCategory', 'Catégorie')}</th>
+                  <th className="p-3 w-32 text-center">{t('inventory.colStockLevel', 'Niveau de Stock')}</th>
+                  <th className="p-3 w-28 text-center">{t('inventory.colStatus', 'Statut')}</th>
+                  <th className="p-3 w-36 text-right rtl:text-left">{t('inventory.colUnitCost', 'Coût Moyen / Unité')}</th>
+                  <th className="p-3 w-36 text-right rtl:text-left">{t('inventory.colTotalVal', 'Valorisation Totale')}</th>
+                  <th className="p-3 w-28 text-center">{t('inventory.colReorderThreshold', 'Seuil Réappro')}</th>
+                  <th className="p-3 w-20 text-center">{t('inventory.colAction', 'Action')}</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-200 bg-white">
@@ -544,44 +564,63 @@ export const InventoryList: React.FC = () => {
                         </span>
                       </td>
                       <td className="p-3 text-center">
-                        <span className="font-black text-sm text-slate-900">{mat.currentStock}</span>{' '}
-                        <span className="text-slate-500 font-medium">{mat.unit}</span>
+                        <div className="flex flex-col items-center justify-center gap-1">
+                          <div>
+                            <span className="font-black text-sm text-slate-900">{mat.currentStock}</span>{' '}
+                            <span className="text-slate-500 font-medium">{mat.unit}</span>
+                          </div>
+                          <UnitConversionBadge
+                            quantity={mat.currentStock}
+                            unit={mat.unit}
+                            material={mat}
+                          />
+                        </div>
                       </td>
                       <td className="p-3 text-center">
                         {isOutOfStock ? (
                           <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-rose-100 text-rose-800 border border-rose-300">
-                            Rupture
+                            {t('inventory.outOfStock', 'Rupture')}
                           </span>
                         ) : isLowStock ? (
                           <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-800 border border-amber-300">
-                            Stock Bas
+                            {t('inventory.lowStock', 'Stock Bas')}
                           </span>
                         ) : (
                           <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-300">
-                            En Stock
+                            {t('inventory.inStock', 'En Stock')}
                           </span>
                         )}
                       </td>
-                      <td className="p-3 text-right font-bold text-indigo-700">
-                        {mat.currentAvgCost.toFixed(2)} DZD / {mat.unit}
+                      <td className="p-3 text-right rtl:text-left font-bold text-indigo-700">
+                        {mat.currentAvgCost.toFixed(2)} {t('common.currency', 'DZD')} / {mat.unit}
                       </td>
-                      <td className="p-3 text-right font-bold text-slate-900">{totalVal.toFixed(2)} DZD</td>
+                      <td className="p-3 text-right rtl:text-left font-bold text-slate-900">{totalVal.toFixed(2)} {t('common.currency', 'DZD')}</td>
                       <td className="p-3 text-center text-slate-500">
                         {mat.reorderLevel} {mat.unit}
                       </td>
                       <td className="p-3 text-center">
                         <div className="flex items-center justify-center gap-1">
                           <button
+                            onClick={() => {
+                              setConverterMaterial(mat);
+                              setIsUnitConverterOpen(true);
+                            }}
+                            className="p-1.5 text-slate-400 hover:text-amber-600 hover:bg-amber-50 rounded-lg transition-colors cursor-pointer"
+                            title={t('unitConverter.title', 'Convertisseur d\'Unités')}
+                          >
+                            <Scale className="w-4 h-4" />
+                          </button>
+                          <button
                             onClick={() => handleOpenEditRaw(mat)}
-                            className="p-1.5 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"
-                            title="Ajuster le stock ou coût unitaire"
+                            className="p-1.5 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors cursor-pointer"
+                            title={t('inventory.adjustModalTitle', 'Ajuster le stock ou coût unitaire')}
                           >
                             <Edit2 className="w-4 h-4" />
                           </button>
                           <button
                             onClick={() => handleDeleteRawMaterial(mat)}
-                            className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors"
-                            title="Supprimer de Supabase"
+                            className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer"
+                            title={t('inventory.deleteMaterial', 'Supprimer')}
                           >
                             <Trash2 className="w-4 h-4" />
                           </button>
@@ -598,17 +637,17 @@ export const InventoryList: React.FC = () => {
         /* Semi-Finished Stock Table */
         <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-xs">
           <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs border-collapse">
+            <table className="w-full text-left rtl:text-right text-xs border-collapse">
               <thead>
                 <tr className="bg-slate-100 text-slate-700 font-semibold border-b border-slate-200">
-                  <th className="p-3 min-w-[220px]">Recette Composant Semi-Fini</th>
-                  <th className="p-3 w-36">Catégorie</th>
-                  <th className="p-3 w-32 text-center">Stock Actuel</th>
-                  <th className="p-3 w-28 text-center">Statut</th>
-                  <th className="p-3 w-36 text-right">Coût Unitaire Calculé</th>
-                  <th className="p-3 w-36 text-right">Valorisation Totale</th>
-                  <th className="p-3 w-28 text-center">Seuil Min</th>
-                  <th className="p-3 w-20 text-center">Action</th>
+                  <th className="p-3 min-w-[220px]">{t('inventory.colSfRecipe', 'Recette Composant Semi-Fini')}</th>
+                  <th className="p-3 w-36">{t('inventory.colCategory', 'Catégorie')}</th>
+                  <th className="p-3 w-32 text-center">{t('inventory.colCurrentStock', 'Stock Actuel')}</th>
+                  <th className="p-3 w-28 text-center">{t('inventory.colStatus', 'Statut')}</th>
+                  <th className="p-3 w-36 text-right rtl:text-left">{t('inventory.colCalculatedUnitCost', 'Coût Unitaire Calculé')}</th>
+                  <th className="p-3 w-36 text-right rtl:text-left">{t('inventory.colTotalVal', 'Valorisation Totale')}</th>
+                  <th className="p-3 w-28 text-center">{t('inventory.colMinThreshold', 'Seuil Min')}</th>
+                  <th className="p-3 w-20 text-center">{t('inventory.colAction', 'Action')}</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-200 bg-white">
@@ -626,7 +665,7 @@ export const InventoryList: React.FC = () => {
                           <Layers className="w-3.5 h-3.5 text-indigo-600 shrink-0" />
                           {sf.recipeName}
                         </div>
-                        <span className="text-[10px] text-slate-400 font-medium">Dernière préparation: {sf.lastUpdated}</span>
+                        <span className="text-[10px] text-slate-400 font-medium">{t('inventory.lastPrepared', { date: sf.lastUpdated, defaultValue: `Dernière préparation: ${sf.lastUpdated}` })}</span>
                       </td>
                       <td className="p-3">
                         <span className="px-2.5 py-0.5 rounded-full text-[10px] font-semibold bg-indigo-50 text-indigo-700 border border-indigo-200">
@@ -640,30 +679,30 @@ export const InventoryList: React.FC = () => {
                       <td className="p-3 text-center">
                         {isOutOfStock ? (
                           <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-rose-100 text-rose-800 border border-rose-300">
-                            Épuisé
+                            {t('inventory.exhausted', 'Épuisé')}
                           </span>
                         ) : isLowStock ? (
                           <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-800 border border-amber-300">
-                            Stock Bas
+                            {t('inventory.lowStock', 'Stock Bas')}
                           </span>
                         ) : (
                           <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-300">
-                            Disponible
+                            {t('inventory.inStock', 'Disponible')}
                           </span>
                         )}
                       </td>
-                      <td className="p-3 text-right font-bold text-indigo-700">
-                        {unitCost.toFixed(2)} DZD / {sf.unit}
+                      <td className="p-3 text-right rtl:text-left font-bold text-indigo-700">
+                        {unitCost.toFixed(2)} {t('common.currency', 'DZD')} / {sf.unit}
                       </td>
-                      <td className="p-3 text-right font-bold text-slate-900">{totalVal.toFixed(2)} DZD</td>
+                      <td className="p-3 text-right rtl:text-left font-bold text-slate-900">{totalVal.toFixed(2)} {t('common.currency', 'DZD')}</td>
                       <td className="p-3 text-center text-slate-500">
                         {sf.minStockLevel} {sf.unit}
                       </td>
                       <td className="p-3 text-center">
                         <button
                           onClick={() => handleOpenEditSf(sf)}
-                          className="p-1.5 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"
-                          title="Ajuster le stock semi-fini"
+                          className="p-1.5 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors cursor-pointer"
+                          title={t('inventory.adjustSfModalTitle', 'Ajuster le stock semi-fini')}
                         >
                           <Edit2 className="w-4 h-4" />
                         </button>
@@ -682,19 +721,19 @@ export const InventoryList: React.FC = () => {
         <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
           <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-xl border border-slate-200 space-y-4">
             <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-              <h3 className="text-base font-bold text-slate-900">Ajuster Stock & Coût Moyen</h3>
-              <button onClick={() => setEditingMat(null)} className="text-slate-400 hover:text-slate-600">
+              <h3 className="text-base font-bold text-slate-900">{t('inventory.adjustModalTitle', 'Ajuster Stock & Coût Moyen')}</h3>
+              <button onClick={() => setEditingMat(null)} className="text-slate-400 hover:text-slate-600 cursor-pointer">
                 <X className="w-5 h-5" />
               </button>
             </div>
 
             <p className="text-xs text-slate-600">
-              Ajustement manuel de la matière première <strong className="text-slate-900">{editingMat.name}</strong>.
+              {t('inventory.adjustRawDesc', { name: editingMat.name, defaultValue: `Ajustement manuel de la matière première ${editingMat.name}.` })}
             </p>
 
             <div className="space-y-3">
               <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">Niveau de Stock ({editingMat.unit})</label>
+                <label className="block text-xs font-semibold text-slate-700 mb-1">{t('inventory.stock', 'Niveau de Stock')} ({editingMat.unit})</label>
                 <input
                   type="number"
                   step="0.01"
@@ -705,7 +744,7 @@ export const InventoryList: React.FC = () => {
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">Coût Moyen Par {editingMat.unit} (DZD)</label>
+                <label className="block text-xs font-semibold text-slate-700 mb-1">{t('inventory.averageCost', 'Coût Moyen')} / {editingMat.unit} ({t('common.currency', 'DZD')})</label>
                 <input
                   type="number"
                   step="0.01"
@@ -719,15 +758,15 @@ export const InventoryList: React.FC = () => {
             <div className="flex items-center justify-end gap-2 pt-3">
               <button
                 onClick={() => setEditingMat(null)}
-                className="px-4 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-100 rounded-lg"
+                className="px-4 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-100 rounded-lg cursor-pointer"
               >
-                Annuler
+                {t('common.cancel', 'Annuler')}
               </button>
               <button
                 onClick={handleSaveRawAdjustment}
-                className="px-4 py-2 text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg shadow-sm"
+                className="px-4 py-2 text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg shadow-sm cursor-pointer"
               >
-                Enregistrer l'Ajustement
+                {t('inventory.saveAdjustment', 'Enregistrer l\'Ajustement')}
               </button>
             </div>
           </div>
@@ -739,18 +778,18 @@ export const InventoryList: React.FC = () => {
         <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
           <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-xl border border-slate-200 space-y-4">
             <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-              <h3 className="text-base font-bold text-slate-900">Ajuster Stock Produit Semi-Fini</h3>
-              <button onClick={() => setEditingSfStock(null)} className="text-slate-400 hover:text-slate-600">
+              <h3 className="text-base font-bold text-slate-900">{t('inventory.adjustSfModalTitle', 'Ajuster Stock Produit Semi-Fini')}</h3>
+              <button onClick={() => setEditingSfStock(null)} className="text-slate-400 hover:text-slate-600 cursor-pointer">
                 <X className="w-5 h-5" />
               </button>
             </div>
 
             <p className="text-xs text-slate-600">
-              Mise à jour du niveau de stock pour <strong className="text-slate-900">{editingSfStock.recipeName}</strong>.
+              {t('inventory.adjustSfDesc', { name: editingSfStock.recipeName, defaultValue: `Mise à jour du niveau de stock pour ${editingSfStock.recipeName}.` })}
             </p>
 
             <div>
-              <label className="block text-xs font-semibold text-slate-700 mb-1">Stock Actuel ({editingSfStock.unit})</label>
+              <label className="block text-xs font-semibold text-slate-700 mb-1">{t('inventory.stock', 'Stock Actuel')} ({editingSfStock.unit})</label>
               <input
                 type="number"
                 step="0.1"
@@ -764,15 +803,15 @@ export const InventoryList: React.FC = () => {
             <div className="flex items-center justify-end gap-2 pt-3">
               <button
                 onClick={() => setEditingSfStock(null)}
-                className="px-4 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-100 rounded-lg"
+                className="px-4 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-100 rounded-lg cursor-pointer"
               >
-                Annuler
+                {t('common.cancel', 'Annuler')}
               </button>
               <button
                 onClick={handleSaveSfAdjustment}
-                className="px-4 py-2 text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg shadow-sm"
+                className="px-4 py-2 text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg shadow-sm cursor-pointer"
               >
-                Enregistrer le Stock
+                {t('inventory.saveStock', 'Enregistrer le Stock')}
               </button>
             </div>
           </div>
@@ -786,16 +825,16 @@ export const InventoryList: React.FC = () => {
             <div className="flex items-center justify-between border-b border-slate-100 pb-3">
               <h3 className="text-base font-bold text-slate-900 flex items-center gap-2">
                 <ChefHat className="w-5 h-5 text-indigo-600" />
-                Produire un Lot de Produit Semi-Fini
+                {t('inventory.produceModalTitle', 'Produire un Lot de Produit Semi-Fini')}
               </h3>
-              <button onClick={() => setShowProduceModal(false)} className="text-slate-400 hover:text-slate-600">
+              <button onClick={() => setShowProduceModal(false)} className="text-slate-400 hover:text-slate-600 cursor-pointer">
                 <X className="w-5 h-5" />
               </button>
             </div>
 
             <form onSubmit={handleExecuteProduction} className="space-y-4">
               <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">Sélectionner la Recette Semi-Finie</label>
+                <label className="block text-xs font-semibold text-slate-700 mb-1">{t('inventory.selectSfRecipe', 'Sélectionner la Recette Semi-Finie')}</label>
                 <select
                   value={selectedProduceRecipeId}
                   onChange={(e) => setSelectedProduceRecipeId(e.target.value)}
@@ -803,14 +842,14 @@ export const InventoryList: React.FC = () => {
                 >
                   {semiFinishedRecipes.map((r) => (
                     <option key={r.id} value={r.id}>
-                      {r.name} (1 lot produit {r.yieldUnits} {r.unitName})
+                      {r.name} (1 lot -&gt; {r.yieldUnits} {r.unitName})
                     </option>
                   ))}
                 </select>
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">Nombre de Lots à Produire</label>
+                <label className="block text-xs font-semibold text-slate-700 mb-1">{t('inventory.batchesCount', 'Nombre de Lots à Produire')}</label>
                 <input
                   type="number"
                   min="1"
@@ -824,14 +863,14 @@ export const InventoryList: React.FC = () => {
               {selectedProduceRecipe && (
                 <div className="bg-indigo-50/70 border border-indigo-200 rounded-xl p-3.5 space-y-2 text-xs">
                   <div className="flex items-center justify-between font-bold text-indigo-900">
-                    <span>Rendement du Lot :</span>
+                    <span>{t('inventory.yieldLabel', 'Rendement du Lot :')}</span>
                     <span className="text-sm font-black text-indigo-700">
                       +{selectedProduceRecipe.yieldUnits * batchesToProduce} {selectedProduceRecipe.unitName}
                     </span>
                   </div>
 
                   <div className="pt-2 border-t border-indigo-200/60 space-y-1">
-                    <span className="font-bold text-indigo-800 text-[11px]">Déduction Requise des Matières Premières :</span>
+                    <span className="font-bold text-indigo-800 text-[11px]">{t('inventory.deductionRequired', 'Déduction Requise des Matières Premières :')}</span>
                     <ul className="space-y-1 text-[11px] text-slate-700">
                       {selectedProduceRecipe.ingredients.map((ing, idx) => {
                         const mat = materials.find((m) => m.id === ing.rawMaterialId);
@@ -841,15 +880,15 @@ export const InventoryList: React.FC = () => {
                         return (
                           <li key={idx} className="flex items-center justify-between">
                             <span>
-                              • {mat ? mat.name : 'Matière Première'} : <strong>{qtyNeeded} {mat?.unit || 'unité'}</strong>
+                              • {mat ? mat.name : t('inventory.rawMaterials', 'Matière Première')} : <strong>{qtyNeeded} {mat?.unit || 'unité'}</strong>
                             </span>
                             {hasEnough ? (
                               <span className="text-emerald-700 font-bold flex items-center gap-1">
-                                <PackageCheck className="w-3 h-3" /> Disponible ({mat?.currentStock} {mat?.unit})
+                                <PackageCheck className="w-3 h-3" /> {t('inventory.available', 'Disponible')} ({mat?.currentStock} {mat?.unit})
                               </span>
                             ) : (
                               <span className="text-rose-600 font-bold flex items-center gap-1">
-                                <AlertTriangle className="w-3 h-3" /> Insuffisant ! (Stock : {mat?.currentStock})
+                                <AlertTriangle className="w-3 h-3" /> {t('inventory.insufficient', 'Insuffisant !')} ({t('inventory.stock', 'Stock')} : {mat?.currentStock})
                               </span>
                             )}
                           </li>
@@ -864,15 +903,15 @@ export const InventoryList: React.FC = () => {
                 <button
                   type="button"
                   onClick={() => setShowProduceModal(false)}
-                  className="px-4 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-100 rounded-lg"
+                  className="px-4 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-100 rounded-lg cursor-pointer"
                 >
-                  Annuler
+                  {t('common.cancel', 'Annuler')}
                 </button>
                 <button
                   type="submit"
-                  className="px-4 py-2 text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg shadow-xs"
+                  className="px-4 py-2 text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg shadow-xs cursor-pointer"
                 >
-                  Déduire le Stock & Produire
+                  {t('inventory.deductAndProduce', 'Déduire le Stock & Produire')}
                 </button>
               </div>
             </form>
@@ -904,6 +943,16 @@ export const InventoryList: React.FC = () => {
         onSuccess={() => {
           setMaterials(getRawMaterials());
         }}
+      />
+
+      {/* Unit Converter Modal */}
+      <UnitConverterModal
+        isOpen={isUnitConverterOpen}
+        onClose={() => {
+          setIsUnitConverterOpen(false);
+          setConverterMaterial(null);
+        }}
+        initialMaterial={converterMaterial}
       />
 
     </div>

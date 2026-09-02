@@ -2,6 +2,7 @@ import React, { Component, ErrorInfo, ReactNode } from 'react';
 import { AlertOctagon, RefreshCw, Trash2, Copy, Check, ChevronDown, ChevronUp, ShieldAlert } from 'lucide-react';
 import { NotificationType, ImpactStyle } from '@capacitor/haptics';
 import { safeHapticsNotification, safeHapticsImpact } from '../utils/platform';
+import i18n from '../i18n';
 
 export interface ErrorBoundaryProps {
   children: ReactNode;
@@ -94,7 +95,7 @@ User Agent: ${typeof navigator !== 'undefined' ? navigator.userAgent : 'N/A'}`;
   public override render(): ReactNode {
     if (this.state.hasError) {
       const { error, errorInfo, showDetails, copied } = this.state;
-      const title = this.props.fallbackTitle || "Une anomalie inattendue s'est produite";
+      const title = this.props.fallbackTitle || i18n.t('errorBoundary.title', "Une anomalie inattendue s'est produite");
 
       return (
         <div 
@@ -112,18 +113,18 @@ User Agent: ${typeof navigator !== 'undefined' ? navigator.userAgent : 'N/A'}`;
                   {title}
                 </h1>
                 <p className="text-xs sm:text-sm text-slate-400 mt-1 max-w-sm">
-                  L'application a intercepté une exception système. Vos données locales sont sécurisées et intactes.
+                  {i18n.t('errorBoundary.subtitle', "L'application a intercepté une exception système. Vos données locales sont sécurisées et intactes.")}
                 </p>
               </div>
             </div>
 
             {/* Error Message Box */}
-            <div className="p-4 rounded-2xl bg-slate-950/80 border border-rose-900/40 text-rose-300 text-xs font-mono break-words">
+            <div className="p-4 rounded-2xl bg-slate-950/80 border border-rose-900/40 text-rose-300 text-xs font-mono break-words text-start">
               <div className="flex items-center gap-1.5 font-bold text-rose-400 mb-1">
                 <ShieldAlert className="w-4 h-4 shrink-0" />
-                <span>Détail de l'erreur :</span>
+                <span>{i18n.t('errorBoundary.errorDetail', "Détail de l'erreur :")}</span>
               </div>
-              <p>{error?.message || 'Erreur d\'exécution inconnue'}</p>
+              <p>{error?.message || i18n.t('errorBoundary.unknownError', "Erreur d'exécution inconnue")}</p>
             </div>
 
             {/* Action Buttons */}
@@ -135,7 +136,7 @@ User Agent: ${typeof navigator !== 'undefined' ? navigator.userAgent : 'N/A'}`;
                 className="w-full min-h-[48px] px-4 py-3 rounded-2xl bg-indigo-600 hover:bg-indigo-500 active:scale-[0.98] text-white text-sm font-bold flex items-center justify-center gap-2 shadow-lg shadow-indigo-600/30 transition-all cursor-pointer"
               >
                 <RefreshCw className="w-4 h-4" />
-                <span>Recharger & Récupérer la session</span>
+                <span>{i18n.t('errorBoundary.reloadBtn', 'Recharger & Récupérer la session')}</span>
               </button>
 
               <div className="grid grid-cols-2 gap-3">
@@ -146,7 +147,7 @@ User Agent: ${typeof navigator !== 'undefined' ? navigator.userAgent : 'N/A'}`;
                   className="min-h-[44px] px-3 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 active:scale-[0.98] text-slate-200 text-xs font-bold flex items-center justify-center gap-1.5 border border-slate-700 transition-all cursor-pointer"
                 >
                   {copied ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
-                  <span>{copied ? 'Rapport Copié !' : 'Copier Rapport'}</span>
+                  <span>{copied ? i18n.t('errorBoundary.copied', 'Rapport Copié !') : i18n.t('errorBoundary.copyReport', 'Copier Rapport')}</span>
                 </button>
 
                 <button
@@ -156,7 +157,7 @@ User Agent: ${typeof navigator !== 'undefined' ? navigator.userAgent : 'N/A'}`;
                   className="min-h-[44px] px-3 py-2.5 rounded-xl bg-rose-950/40 hover:bg-rose-900/50 active:scale-[0.98] text-rose-300 text-xs font-bold flex items-center justify-center gap-1.5 border border-rose-800/40 transition-all cursor-pointer"
                 >
                   <Trash2 className="w-3.5 h-3.5" />
-                  <span>Réinitialiser</span>
+                  <span>{i18n.t('errorBoundary.hardReset', 'Réinitialiser')}</span>
                 </button>
               </div>
             </div>
@@ -168,12 +169,12 @@ User Agent: ${typeof navigator !== 'undefined' ? navigator.userAgent : 'N/A'}`;
                 onClick={this.toggleDetails}
                 className="w-full flex items-center justify-between text-xs text-slate-400 hover:text-slate-200 py-1 transition-colors cursor-pointer"
               >
-                <span className="font-semibold">Diagnostics techniques pour développeur</span>
+                <span className="font-semibold">{i18n.t('errorBoundary.devDiagnostics', 'Diagnostics techniques pour développeur')}</span>
                 {showDetails ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
               </button>
 
               {showDetails && (
-                <div className="mt-3 p-3.5 rounded-xl bg-slate-950 border border-slate-800 text-[11px] font-mono text-slate-400 max-h-48 overflow-y-auto space-y-2 select-text">
+                <div className="mt-3 p-3.5 rounded-xl bg-slate-950 border border-slate-800 text-[11px] font-mono text-slate-400 max-h-48 overflow-y-auto space-y-2 select-text text-start">
                   {error?.stack && (
                     <div>
                       <strong className="text-slate-300 block mb-0.5">Stack Trace:</strong>

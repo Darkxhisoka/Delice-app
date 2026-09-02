@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import { supabase } from '../../lib/supabaseClient';
 import { PackagingMaterial } from '../../types';
 import { upsertPackagingMaterialToSupabase } from '../../services/supabaseService';
@@ -18,6 +19,7 @@ export const PackagingFormModal: React.FC<PackagingFormModalProps> = ({
   editingItem,
   onSuccess,
 }) => {
+  const { t } = useTranslation();
   const [pkgCode, setPkgCode] = useState('');
   const [pkgName, setPkgName] = useState('');
   const [pkgCategory, setPkgCategory] = useState('Boxes');
@@ -147,26 +149,26 @@ export const PackagingFormModal: React.FC<PackagingFormModalProps> = ({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-xs animate-in fade-in duration-150">
-      <div className="bg-white rounded-3xl max-w-lg w-full p-6 shadow-2xl border border-slate-100 space-y-5">
+      <div className="bg-white rounded-3xl max-w-lg w-full p-6 shadow-2xl border border-slate-100 space-y-5 text-start">
         <div className="flex items-center justify-between border-b border-slate-100 pb-4">
           <div className="flex items-center gap-2">
-            <div className="p-2 bg-indigo-100 text-indigo-700 rounded-xl">
+            <div className="p-2 bg-indigo-100 text-indigo-700 rounded-xl shrink-0">
               <Package className="w-5 h-5" />
             </div>
             <div>
               <h3 className="font-black text-slate-900 text-base">
-                {editingItem ? "Modifier l'Article d'Emballage" : 'Ajouter un Nouvel Emballage'}
+                {editingItem ? t('packagingModal.editTitle', "Modifier l'Article d'Emballage") : t('packagingModal.addTitle', 'Ajouter un Nouvel Emballage')}
               </h3>
               <p className="text-xs text-slate-500">
                 {editingItem
-                  ? 'Mettre à jour les paramètres de la référence dans Supabase'
-                  : "Créer une référence d'emballage dans le catalogue Supabase"}
+                  ? t('packagingModal.editSubtitle', 'Mettre à jour les paramètres de la référence dans Supabase')
+                  : t('packagingModal.addSubtitle', "Créer une référence d'emballage dans le catalogue Supabase")}
               </p>
             </div>
           </div>
           <button
             onClick={onClose}
-            className="p-2 hover:bg-slate-100 rounded-2xl text-slate-400 hover:text-slate-700 transition-colors"
+            className="p-2 hover:bg-slate-100 rounded-2xl text-slate-400 hover:text-slate-700 transition-colors cursor-pointer"
           >
             <X className="w-5 h-5" />
           </button>
@@ -176,7 +178,7 @@ export const PackagingFormModal: React.FC<PackagingFormModalProps> = ({
           {/* Code / SKU */}
           <div>
             <label className="block font-bold text-slate-700 mb-1 uppercase tracking-wider">
-              Code / SKU {editingItem && <span className="text-slate-400 font-normal">(Non modifiable)</span>}
+              {t('packagingModal.codeSku', 'Code / SKU')} {editingItem && <span className="text-slate-400 font-normal">{t('packagingModal.nonEditable', '(Non modifiable)')}</span>}
             </label>
             <input
               type="text"
@@ -184,7 +186,7 @@ export const PackagingFormModal: React.FC<PackagingFormModalProps> = ({
               onChange={(e) => setPkgCode(e.target.value)}
               disabled={Boolean(editingItem)}
               placeholder="Ex: PKG-BOX-XL"
-              className="w-full p-3 rounded-2xl bg-slate-50 border border-slate-200 font-mono font-bold text-slate-900 disabled:opacity-60 disabled:bg-slate-100"
+              className="w-full p-3 rounded-2xl bg-slate-50 border border-slate-200 font-mono font-bold text-slate-900 disabled:opacity-60 disabled:bg-slate-100 text-start"
               required
             />
           </div>
@@ -192,14 +194,14 @@ export const PackagingFormModal: React.FC<PackagingFormModalProps> = ({
           {/* Name */}
           <div>
             <label className="block font-bold text-slate-700 mb-1 uppercase tracking-wider">
-              Nom de l'Emballage <span className="text-rose-500">*</span>
+              {t('packagingModal.packagingName', "Nom de l'Emballage")} <span className="text-rose-500">*</span>
             </label>
             <input
               type="text"
               value={pkgName}
               onChange={(e) => setPkgName(e.target.value)}
               placeholder="Ex: Boîte à Gâteau XL"
-              className="w-full p-3 rounded-2xl bg-slate-50 border border-slate-200 font-bold text-slate-900 focus:outline-none focus:border-indigo-500"
+              className="w-full p-3 rounded-2xl bg-slate-50 border border-slate-200 font-bold text-slate-900 focus:outline-none focus:border-indigo-500 text-start"
               required
             />
           </div>
@@ -208,33 +210,33 @@ export const PackagingFormModal: React.FC<PackagingFormModalProps> = ({
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="block font-bold text-slate-700 mb-1 uppercase tracking-wider">
-                Catégorie
+                {t('packagingModal.category', 'Catégorie')}
               </label>
               <select
                 value={pkgCategory}
                 onChange={(e) => setPkgCategory(e.target.value)}
                 className="w-full p-3 rounded-2xl bg-slate-50 border border-slate-200 font-bold text-slate-900"
               >
-                <option value="Boxes">Boxes (Boîtes)</option>
-                <option value="Bags">Bags (Sacs)</option>
-                <option value="Boards">Boards (Supports/Semelles)</option>
-                <option value="Accessories">Accessories (Accessoires)</option>
+                <option value="Boxes">{t('packagingModal.boxes', 'Boxes (Boîtes)')}</option>
+                <option value="Bags">{t('packagingModal.bags', 'Bags (Sacs)')}</option>
+                <option value="Boards">{t('packagingModal.boards', 'Boards (Supports/Semelles)')}</option>
+                <option value="Accessories">{t('packagingModal.accessories', 'Accessories (Accessoires)')}</option>
               </select>
             </div>
 
             <div>
               <label className="block font-bold text-slate-700 mb-1 uppercase tracking-wider">
-                Unité Conditionnement
+                {t('packagingModal.unitPackaging', 'Unité Conditionnement')}
               </label>
               <select
                 value={pkgUnit}
                 onChange={(e) => setPkgUnit(e.target.value)}
                 className="w-full p-3 rounded-2xl bg-slate-50 border border-slate-200 font-bold text-slate-900"
               >
-                <option value="piece">piece (pièce)</option>
-                <option value="pack">pack (paquet)</option>
-                <option value="roll">roll (rouleau)</option>
-                <option value="box">box (carton)</option>
+                <option value="piece">{t('packagingModal.piece', 'piece (pièce)')}</option>
+                <option value="pack">{t('packagingModal.pack', 'pack (paquet)')}</option>
+                <option value="roll">{t('packagingModal.roll', 'roll (rouleau)')}</option>
+                <option value="box">{t('packagingModal.box', 'box (carton)')}</option>
               </select>
             </div>
           </div>
@@ -243,20 +245,20 @@ export const PackagingFormModal: React.FC<PackagingFormModalProps> = ({
           <div className="grid grid-cols-3 gap-3">
             <div>
               <label className="block font-bold text-slate-700 mb-1 uppercase tracking-wider">
-                Stock Central
+                {t('packagingModal.centralStock', 'Stock Central')}
               </label>
               <input
                 type="number"
                 min="0"
                 value={pkgCentralStock}
                 onChange={(e) => setPkgCentralStock(parseInt(e.target.value) || 0)}
-                className="w-full p-3 rounded-2xl bg-slate-50 border border-slate-200 font-black text-slate-900"
+                className="w-full p-3 rounded-2xl bg-slate-50 border border-slate-200 font-black text-slate-900 text-start"
               />
             </div>
 
             <div>
               <label className="block font-bold text-slate-700 mb-1 uppercase tracking-wider">
-                Coût Unitaire (DA)
+                {t('packagingModal.unitCostDa', 'Coût Unitaire (DA)')}
               </label>
               <input
                 type="number"
@@ -264,20 +266,20 @@ export const PackagingFormModal: React.FC<PackagingFormModalProps> = ({
                 step="0.5"
                 value={pkgUnitCost}
                 onChange={(e) => setPkgUnitCost(parseFloat(e.target.value) || 0)}
-                className="w-full p-3 rounded-2xl bg-slate-50 border border-slate-200 font-black text-slate-900"
+                className="w-full p-3 rounded-2xl bg-slate-50 border border-slate-200 font-black text-slate-900 text-start"
               />
             </div>
 
             <div>
               <label className="block font-bold text-slate-700 mb-1 uppercase tracking-wider">
-                Seuil Alerte Min
+                {t('packagingModal.minAlertThreshold', 'Seuil Alerte Min')}
               </label>
               <input
                 type="number"
                 min="0"
                 value={pkgMinAlert}
                 onChange={(e) => setPkgMinAlert(parseInt(e.target.value) || 0)}
-                className="w-full p-3 rounded-2xl bg-slate-50 border border-slate-200 font-bold text-slate-900"
+                className="w-full p-3 rounded-2xl bg-slate-50 border border-slate-200 font-bold text-slate-900 text-start"
               />
             </div>
           </div>
@@ -286,21 +288,21 @@ export const PackagingFormModal: React.FC<PackagingFormModalProps> = ({
             <button
               type="button"
               onClick={onClose}
-              className="px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-2xl font-bold transition-colors"
+              className="px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-2xl font-bold transition-colors cursor-pointer"
             >
-              Annuler
+              {t('packagingModal.cancel', 'Annuler')}
             </button>
             <button
               type="submit"
               disabled={isSaving}
-              className="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-2xl font-black shadow-md flex items-center gap-2 disabled:opacity-50"
+              className="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-2xl font-black shadow-md flex items-center gap-2 disabled:opacity-50 cursor-pointer"
             >
               {isSaving ? (
                 <Loader2 className="w-4 h-4 animate-spin" />
               ) : (
                 <Check className="w-4 h-4" />
               )}
-              <span>{editingItem ? 'Mettre à jour' : 'Enregistrer'}</span>
+              <span>{editingItem ? t('packagingModal.update', 'Mettre à jour') : t('packagingModal.save', 'Enregistrer')}</span>
             </button>
           </div>
         </form>

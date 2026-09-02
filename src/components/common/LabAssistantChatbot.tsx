@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   Bot,
   X,
@@ -24,40 +25,42 @@ interface ChatMessage {
   timestamp: string;
 }
 
-const PRESET_QUESTIONS = [
-  {
-    category: 'Flux Lab',
-    question: 'Comment traiter et valider une réquisition boutique ?',
-    icon: '📋'
-  },
-  {
-    category: 'Pâtisserie',
-    question: 'Ma ganache au chocolat est tranchée, comment la rattraper ?',
-    icon: '🍫'
-  },
-  {
-    category: 'Production',
-    question: 'Comment fonctionne la cascade de production (sous-lots) ?',
-    icon: '👨‍🍳'
-  },
-  {
-    category: 'Stock',
-    question: 'Comment utiliser le scanner code-barres pour la réception ?',
-    icon: '📦'
-  },
-  {
-    category: 'Coût',
-    question: 'Comment est calculé le coût de revient d\'une recette ?',
-    icon: '💰'
-  },
-  {
-    category: 'Dépannage',
-    question: 'Pourquoi ma pâte feuilletée se rétracte à la cuisson ?',
-    icon: '🥐'
-  }
-];
-
 export const LabAssistantChatbot: React.FC = () => {
+  const { t, i18n } = useTranslation();
+
+  const presetQuestions = [
+    {
+      category: t('navbar.lab', 'Flux Lab'),
+      question: t('labAssistant.topic1', 'Comment traiter et valider une réquisition boutique ?'),
+      icon: '📋'
+    },
+    {
+      category: t('navbar.inventory', 'Pâtisserie'),
+      question: t('labAssistant.topic2', 'Ma ganache au chocolat est tranchée, comment la rattraper ?'),
+      icon: '🍫'
+    },
+    {
+      category: t('navbar.production', 'Production'),
+      question: t('labAssistant.topic3', 'Comment fonctionne la cascade de production (sous-lots) ?'),
+      icon: '👨‍🍳'
+    },
+    {
+      category: t('navbar.inventory', 'Stock'),
+      question: t('labAssistant.topic4', 'Comment utiliser le scanner code-barres pour la réception ?'),
+      icon: '📦'
+    },
+    {
+      category: t('navbar.costs', 'Coût'),
+      question: t('labAssistant.topic5', 'Comment est calculé le coût de revient d\'une recette ?'),
+      icon: '💰'
+    },
+    {
+      category: t('navbar.quality', 'Dépannage'),
+      question: t('labAssistant.topic6', 'Pourquoi ma pâte feuilletée se rétracte à la cuisson ?'),
+      icon: '🥐'
+    }
+  ];
+
   const [isOpen, setIsOpen] = useState<boolean>(false);
   const [isExpanded, setIsExpanded] = useState<boolean>(false);
   const [inputMessage, setInputMessage] = useState<string>('');
@@ -66,10 +69,27 @@ export const LabAssistantChatbot: React.FC = () => {
     {
       id: 'welcome-1',
       role: 'assistant',
-      content: "Bonjour et bienvenue au **Laboratoire Central de Pâtisserie le Délice** ! 👨‍🍳\n\nJe suis **Chef Émile**, votre assistant virtuel. Je suis là pour vous former aux flux de travail du laboratoire, vous expliquer le fonctionnement de la plateforme ou vous aider à résoudre un problème technique en pâtisserie.\n\nPosez-moi une question ou choisissez un sujet ci-dessous !",
+      content: t('labAssistant.welcomeMessage', "Bonjour et bienvenue au **Laboratoire Central de Pâtisserie le Délice** ! 👨‍🍳\n\nJe suis **Chef Émile**, votre assistant virtuel. Je suis là pour vous former aux flux de travail du laboratoire, vous expliquer le fonctionnement de la plateforme ou vous aider à résoudre un problème technique en pâtisserie.\n\nPosez-moi une question ou choisissez un sujet ci-dessous !"),
       timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
     }
   ]);
+
+  // Update initial welcome message if language changes and only welcome message exists
+  useEffect(() => {
+    setMessages((prev) => {
+      if (prev.length === 1 && prev[0].id === 'welcome-1') {
+        return [
+          {
+            id: 'welcome-1',
+            role: 'assistant',
+            content: t('labAssistant.welcomeMessage', "Bonjour et bienvenue au **Laboratoire Central de Pâtisserie le Délice** ! 👨‍🍳\n\nJe suis **Chef Émile**, votre assistant virtuel. Je suis là pour vous former aux flux de travail du laboratoire, vous expliquer le fonctionnement de la plateforme ou vous aider à résoudre un problème technique en pâtisserie.\n\nPosez-moi une question ou choisissez un sujet ci-dessous !"),
+            timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+          }
+        ];
+      }
+      return prev;
+    });
+  }, [i18n.language, t]);
 
   // Draggable Floating Button State & Refs
   const [position, setPosition] = useState<{ x: number; y: number } | null>(null);
@@ -299,7 +319,7 @@ export const LabAssistantChatbot: React.FC = () => {
       const botMsg: ChatMessage = {
         id: `bot-${Date.now()}`,
         role: 'assistant',
-        content: data.text || "Désolé, je n'ai pas pu obtenir de réponse.",
+        content: data.text || t('labAssistant.noResponse', "Désolé, je n'ai pas pu obtenir de réponse."),
         timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
       };
 
@@ -309,7 +329,7 @@ export const LabAssistantChatbot: React.FC = () => {
       const errorMsg: ChatMessage = {
         id: `err-${Date.now()}`,
         role: 'assistant',
-        content: "⚠️ **Oups, petit pépin technique !** Je n'ai pas pu joindre le serveur. Vérifiez votre connexion ou contactez le chef d'atelier.",
+        content: t('labAssistant.networkError', "⚠️ **Oups, petit pépin technique !** Je n'ai pas pu joindre le serveur. Vérifiez votre connexion ou contactez le chef d'atelier."),
         timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
       };
       setMessages((prev) => [...prev, errorMsg]);
@@ -323,7 +343,7 @@ export const LabAssistantChatbot: React.FC = () => {
       {
         id: 'welcome-1',
         role: 'assistant',
-        content: "Discussion réinitialisée ! En quoi puis-je vous aider sur les recettes ou le laboratoire aujourd'hui ?",
+        content: t('labAssistant.resetWelcome', "Discussion réinitialisée ! En quoi puis-je vous aider sur les recettes ou le laboratoire aujourd'hui ?"),
         timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
       }
     ]);
@@ -344,7 +364,7 @@ export const LabAssistantChatbot: React.FC = () => {
 
       if (line.startsWith('- ') || line.startsWith('* ')) {
         return (
-          <li key={idx} className="ml-4 list-disc my-1 text-slate-800 font-medium">
+          <li key={idx} className="ml-4 rtl:ml-0 rtl:mr-4 list-disc my-1 text-slate-800 font-medium">
             {formattedParts.slice(1)}
           </li>
         );
@@ -364,7 +384,7 @@ export const LabAssistantChatbot: React.FC = () => {
       }
 
       return (
-        <p key={idx} className="my-0.5 leading-relaxed">
+        <p key={idx} className="my-0.5 leading-relaxed text-start">
           {formattedParts}
         </p>
       );
@@ -390,19 +410,23 @@ export const LabAssistantChatbot: React.FC = () => {
               ? { left: `${position.x}px`, top: `${position.y}px`, right: 'auto', bottom: 'auto' }
               : {})
           }}
-          className={`fixed ${position ? '' : 'bottom-[calc(1.25rem+env(safe-area-inset-bottom,0px))] right-[calc(1.25rem+env(safe-area-inset-right,0px))]'} z-40 bg-gradient-to-r from-indigo-600 via-indigo-700 to-amber-600 hover:from-indigo-700 hover:to-amber-700 text-white p-3.5 rounded-full shadow-2xl flex items-center gap-3 transition-shadow duration-200 group border-2 border-white/20 cursor-grab active:cursor-grabbing ${
+          className={`fixed ${
+            position
+              ? ''
+              : 'bottom-[calc(1.25rem+env(safe-area-inset-bottom,0px))] right-[calc(1.25rem+env(safe-area-inset-right,0px))] rtl:right-auto rtl:left-[calc(1.25rem+env(safe-area-inset-left,0px))]'
+          } z-40 bg-gradient-to-r from-indigo-600 via-indigo-700 to-amber-600 hover:from-indigo-700 hover:to-amber-700 text-white p-3.5 rounded-full shadow-2xl flex items-center gap-3 transition-shadow duration-200 group border-2 border-white/20 cursor-grab active:cursor-grabbing ${
             isDragging ? 'scale-105 shadow-2xl opacity-95 ring-4 ring-amber-400/50' : 'hover:scale-105 active:scale-95'
           }`}
         >
           <div className="relative pointer-events-none">
             <ChefHat className="w-6 h-6 text-amber-300 animate-bounce" />
-            <span className="absolute -top-1 -right-1 w-3 h-3 bg-emerald-400 rounded-full border-2 border-indigo-900 animate-ping" />
+            <span className="absolute -top-1 -right-1 rtl:-right-auto rtl:-left-1 w-3 h-3 bg-emerald-400 rounded-full border-2 border-indigo-900 animate-ping" />
           </div>
-          <span className="text-xs font-black pr-1 hidden sm:inline-block tracking-wide pointer-events-none">
-            Assistant IA Lab
+          <span className="text-xs font-black pr-1 rtl:pr-0 rtl:pl-1 hidden sm:inline-block tracking-wide pointer-events-none">
+            {t('labAssistant.launcherBadge', 'Assistant IA Lab')}
           </span>
           <span className="bg-amber-400 text-slate-950 font-black text-[10px] px-2 py-0.5 rounded-full shadow-xs pointer-events-none">
-            Chef Émile
+            {t('labAssistant.chefName', 'Chef Émile')}
           </span>
         </button>
       )}
@@ -413,7 +437,7 @@ export const LabAssistantChatbot: React.FC = () => {
           className={`fixed z-50 transition-all duration-300 flex flex-col bg-white rounded-2xl shadow-2xl border border-slate-200 overflow-hidden ${
             isExpanded
               ? 'top-[calc(1rem+env(safe-area-inset-top,0px))] bottom-[calc(1rem+env(safe-area-inset-bottom,0px))] left-[calc(1rem+env(safe-area-inset-left,0px))] right-[calc(1rem+env(safe-area-inset-right,0px))] sm:inset-10 max-w-5xl mx-auto'
-              : 'bottom-[calc(1rem+env(safe-area-inset-bottom,0px))] right-[calc(1rem+env(safe-area-inset-right,0px))] left-[calc(1rem+env(safe-area-inset-left,0px))] sm:left-auto sm:bottom-6 sm:right-6 w-auto sm:w-[440px] h-[600px] max-h-[85vh]'
+              : 'bottom-[calc(1rem+env(safe-area-inset-bottom,0px))] right-[calc(1rem+env(safe-area-inset-right,0px))] left-[calc(1rem+env(safe-area-inset-left,0px))] sm:left-auto sm:right-6 rtl:sm:right-auto rtl:sm:left-6 sm:bottom-6 w-auto sm:w-[440px] h-[600px] max-h-[85vh]'
           }`}
         >
           {/* Header */}
@@ -421,18 +445,18 @@ export const LabAssistantChatbot: React.FC = () => {
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-amber-500 to-indigo-600 flex items-center justify-center font-bold text-white shadow-inner relative shrink-0">
                 <ChefHat className="w-5 h-5 text-white" />
-                <span className="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-emerald-500 rounded-full border-2 border-slate-900" />
+                <span className="absolute -bottom-0.5 -right-0.5 rtl:-right-auto rtl:-left-0.5 w-3 h-3 bg-emerald-500 rounded-full border-2 border-slate-900" />
               </div>
-              <div>
+              <div className="text-start">
                 <div className="flex items-center gap-2">
                   <h3 className="text-sm font-extrabold text-white flex items-center gap-1.5">
-                    Chef Émile
+                    {t('labAssistant.chefName', 'Chef Émile')}
                   </h3>
                   <span className="px-2 py-0.5 rounded-full text-[9px] font-black bg-amber-400/20 text-amber-300 border border-amber-400/30">
-                    Gemini 3.6 Flash
+                    {t('labAssistant.modelBadge', 'Gemini 3.6 Flash')}
                   </span>
                 </div>
-                <p className="text-[11px] text-slate-300">Assistant Formateur & Dépannage Pâtisserie</p>
+                <p className="text-[11px] text-slate-300">{t('labAssistant.chefSubtitle', 'Assistant Formateur & Dépannage Pâtisserie')}</p>
               </div>
             </div>
 
@@ -441,23 +465,23 @@ export const LabAssistantChatbot: React.FC = () => {
               <button
                 type="button"
                 onClick={handleClearHistory}
-                className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
-                title="Réinitialiser la discussion"
+                className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-colors cursor-pointer"
+                title={t('labAssistant.resetHistory', 'Réinitialiser la discussion')}
               >
                 <RefreshCw className="w-4 h-4" />
               </button>
               <button
                 type="button"
                 onClick={() => setIsExpanded(!isExpanded)}
-                className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-colors hidden sm:block"
-                title={isExpanded ? 'Réduire la fenêtre' : 'Agrandir la fenêtre'}
+                className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-colors hidden sm:block cursor-pointer"
+                title={isExpanded ? t('labAssistant.minimize', 'Réduire la fenêtre') : t('labAssistant.maximize', 'Agrandir la fenêtre')}
               >
                 {isExpanded ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
               </button>
               <button
                 type="button"
                 onClick={() => setIsOpen(false)}
-                className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
+                className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-colors cursor-pointer"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -468,15 +492,15 @@ export const LabAssistantChatbot: React.FC = () => {
           <div className="bg-slate-50 border-b border-slate-200 p-2.5 shrink-0 overflow-x-auto scrollbar-none flex items-center gap-2">
             <span className="text-[10px] font-extrabold uppercase text-slate-500 shrink-0 flex items-center gap-1">
               <HelpCircle className="w-3 h-3 text-indigo-600" />
-              Sujets Rapides :
+              {t('labAssistant.quickTopics', 'Sujets Rapides :')}
             </span>
-            {PRESET_QUESTIONS.map((item, idx) => (
+            {presetQuestions.map((item, idx) => (
               <button
                 key={idx}
                 type="button"
                 onClick={() => handleSendMessage(item.question)}
                 disabled={loading}
-                className="px-2.5 py-1 rounded-xl bg-white hover:bg-indigo-50 border border-slate-200 hover:border-indigo-300 text-slate-700 text-[11px] font-semibold whitespace-nowrap transition-all shadow-2xs flex items-center gap-1 shrink-0 disabled:opacity-50"
+                className="px-2.5 py-1 rounded-xl bg-white hover:bg-indigo-50 border border-slate-200 hover:border-indigo-300 text-slate-700 text-[11px] font-semibold whitespace-nowrap transition-all shadow-2xs flex items-center gap-1 shrink-0 disabled:opacity-50 cursor-pointer"
               >
                 <span>{item.icon}</span>
                 <span>{item.category}</span>
@@ -502,13 +526,13 @@ export const LabAssistantChatbot: React.FC = () => {
                   <div
                     className={`max-w-[85%] rounded-2xl p-3.5 text-xs shadow-2xs ${
                       isAssistant
-                        ? 'bg-white border border-slate-200 text-slate-800 rounded-tl-xs'
-                        : 'bg-indigo-600 text-white rounded-tr-xs font-medium'
+                        ? 'bg-white border border-slate-200 text-slate-800 rounded-tl-xs rtl:rounded-tl-2xl rtl:rounded-tr-xs'
+                        : 'bg-indigo-600 text-white rounded-tr-xs rtl:rounded-tr-2xl rtl:rounded-tl-xs font-medium'
                     }`}
                   >
                     <div className="space-y-1">{renderFormattedText(msg.content)}</div>
                     <span
-                      className={`block text-[9px] mt-2 text-right ${
+                      className={`block text-[9px] mt-2 text-right rtl:text-left ${
                         isAssistant ? 'text-slate-400' : 'text-indigo-200'
                       }`}
                     >
@@ -525,9 +549,9 @@ export const LabAssistantChatbot: React.FC = () => {
                 <div className="w-8 h-8 rounded-xl bg-indigo-600 text-white flex items-center justify-center shrink-0 text-xs font-bold">
                   <Bot className="w-4 h-4 text-amber-300" />
                 </div>
-                <div className="bg-white border border-slate-200 rounded-2xl p-3.5 rounded-tl-xs text-xs text-slate-500 flex items-center gap-2">
+                <div className="bg-white border border-slate-200 rounded-2xl p-3.5 rounded-tl-xs rtl:rounded-tl-2xl rtl:rounded-tr-xs text-xs text-slate-500 flex items-center gap-2">
                   <Sparkles className="w-4 h-4 text-amber-500 animate-spin" />
-                  <span>Chef Émile consulte ses fiches techniques...</span>
+                  <span>{t('labAssistant.thinking', 'Chef Émile consulte ses fiches techniques...')}</span>
                 </div>
               </div>
             )}
@@ -548,23 +572,23 @@ export const LabAssistantChatbot: React.FC = () => {
                 type="text"
                 value={inputMessage}
                 onChange={(e) => setInputMessage(e.target.value)}
-                placeholder="Posez votre question (ex: recette, ganache, stock, bon de réquisition...)"
+                placeholder={t('labAssistant.placeholder', 'Posez votre question (ex: recette, ganache, stock, bon de réquisition...)')}
                 disabled={loading}
-                className="flex-1 bg-slate-50 border border-slate-300 rounded-xl px-3.5 py-2.5 text-xs text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 min-h-[42px]"
+                className="flex-1 bg-slate-50 border border-slate-300 rounded-xl px-3.5 py-2.5 text-xs text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 min-h-[42px] text-start"
               />
               <button
                 type="submit"
                 disabled={!inputMessage.trim() || loading}
-                className="p-2.5 bg-indigo-600 hover:bg-indigo-700 active:bg-indigo-800 text-white rounded-xl transition-all disabled:opacity-40 shrink-0 shadow-xs flex items-center justify-center min-w-[42px] min-h-[42px]"
+                className="p-2.5 bg-indigo-600 hover:bg-indigo-700 active:bg-indigo-800 text-white rounded-xl transition-all disabled:opacity-40 shrink-0 shadow-xs flex items-center justify-center min-w-[42px] min-h-[42px] cursor-pointer"
               >
-                <Send className="w-4 h-4" />
+                <Send className="w-4 h-4 rtl:rotate-180" />
               </button>
             </form>
             <div className="flex items-center justify-between mt-2 px-1 text-[10px] text-slate-400">
               <span className="flex items-center gap-1">
-                <Info className="w-3 h-3 text-indigo-500" /> Propulsé par Gemini AI Studio
+                <Info className="w-3 h-3 text-indigo-500" /> {t('labAssistant.poweredBy', 'Propulsé par Gemini AI Studio')}
               </span>
-              <span>Pâtisserie le Délice • V2.4</span>
+              <span>{t('labAssistant.version', 'Pâtisserie le Délice • V2.4')}</span>
             </div>
           </div>
         </div>

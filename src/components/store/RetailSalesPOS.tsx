@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   RetailProduct,
   RetailStoreStock,
@@ -56,17 +57,18 @@ const CATEGORIES: ('ALL' | RetailCategory)[] = [
   'Savory & Bread',
 ];
 
-const CATEGORY_LABELS_FR: Record<string, string> = {
-  'ALL': 'Tous les produits',
-  'Croissants & Pastries': 'Viennoiseries & Croissants',
-  'Cakes & Tortes': 'Gâteaux & Entremets',
-  'Tart Shells & Desserts': 'Tartes & Tartelettes',
-  'Macarons & Sweets': 'Macarons & Douceurs',
-  'Beverages & Coffee': 'Boissons & Café',
-  'Savory & Bread': 'Salés & Pains',
+const CATEGORY_TRANSLATION_KEYS: Record<string, string> = {
+  'ALL': 'pos.categoryAll',
+  'Croissants & Pastries': 'pos.categoryCroissants',
+  'Cakes & Tortes': 'pos.categoryCakes',
+  'Tart Shells & Desserts': 'pos.categoryTarts',
+  'Macarons & Sweets': 'pos.categoryMacarons',
+  'Beverages & Coffee': 'pos.categoryBeverages',
+  'Savory & Bread': 'pos.categorySavory',
 };
 
 export const RetailSalesPOS: React.FC<RetailSalesPOSProps> = ({ currentStore }) => {
+  const { t } = useTranslation();
   const {
     triggerAddCart,
     triggerQuantityChange,
@@ -124,8 +126,8 @@ export const RetailSalesPOS: React.FC<RetailSalesPOSProps> = ({ currentStore }) 
       triggerError();
       notifyToast({
         type: 'warning',
-        title: 'Stock Épuisé',
-        message: `Le produit "${product.productName}" est en rupture de stock.`
+        title: t('pos.stockWarningTitle', 'Stock Épuisé'),
+        message: t('pos.stockWarningMsg', { name: product.productName, defaultValue: `Le produit "${product.productName}" est en rupture de stock.` })
       });
       return;
     }
@@ -140,8 +142,8 @@ export const RetailSalesPOS: React.FC<RetailSalesPOSProps> = ({ currentStore }) 
         if (currentQty >= product.currentStock) {
           notifyToast({
             type: 'warning',
-            title: 'Stock Maximum Atteint',
-            message: `Vous ne pouvez pas ajouter plus de ${product.currentStock} unités.`
+            title: t('pos.maxStockTitle', 'Stock Maximum Atteint'),
+            message: t('pos.maxStockMsg', { max: product.currentStock, defaultValue: `Vous ne pouvez pas ajouter plus de ${product.currentStock} unités.` })
           });
           return prev;
         }
@@ -168,7 +170,7 @@ export const RetailSalesPOS: React.FC<RetailSalesPOSProps> = ({ currentStore }) 
         ];
       }
     });
-  }, [triggerAddCart, triggerError]);
+  }, [triggerAddCart, triggerError, t]);
 
   const updateQuantity = useCallback((productId: string, delta: number) => {
     triggerQuantityChange();
@@ -236,8 +238,8 @@ export const RetailSalesPOS: React.FC<RetailSalesPOSProps> = ({ currentStore }) 
       triggerError();
       notifyToast({
         type: 'error',
-        title: 'Montant Insuffisant',
-        message: `Montant reçu (${numericCashTendered.toFixed(2)} DZD) inférieur au total (${totalAmount.toFixed(2)} DZD)`
+        title: t('common.error', 'Montant Insuffisant'),
+        message: `${t('pos.amountReceived', 'Montant reçu')} (${numericCashTendered.toFixed(2)} DZD) < ${t('common.total', 'Total')} (${totalAmount.toFixed(2)} DZD)`
       });
       return;
     }
@@ -262,6 +264,11 @@ export const RetailSalesPOS: React.FC<RetailSalesPOSProps> = ({ currentStore }) 
     clearCart();
   };
 
+  const getCategoryLabel = (cat: string) => {
+    const key = CATEGORY_TRANSLATION_KEYS[cat];
+    return key ? t(key, cat) : cat;
+  };
+
   return (
     <div className="space-y-6">
       {/* Top Banner & Quick Controls */}
@@ -273,14 +280,14 @@ export const RetailSalesPOS: React.FC<RetailSalesPOSProps> = ({ currentStore }) 
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <h2 className="text-xl font-black tracking-tight">Caisse Enregistreuse Vente Détail</h2>
+                <h2 className="text-xl font-black tracking-tight">{t('pos.title', 'Caisse & Point de Vente')}</h2>
                 <span className="px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 flex items-center gap-1">
                   <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
-                  Caisse Active
+                  {t('common.active', 'Actif')}
                 </span>
               </div>
               <p className="text-xs text-slate-300 mt-1">
-                Terminal de caisse pour <strong className="text-white font-semibold">{currentStore.name}</strong>. Déduction automatique du stock en temps réel.
+                {currentStore.name} • {t('common.brandSubtitle')}
               </p>
             </div>
           </div>
@@ -288,7 +295,7 @@ export const RetailSalesPOS: React.FC<RetailSalesPOSProps> = ({ currentStore }) 
           <div className="flex items-center gap-3 self-start md:self-auto bg-white/10 px-4 py-2.5 rounded-xl border border-white/10 text-xs">
             <Store className="w-4 h-4 text-amber-400 shrink-0" />
             <div>
-              <div className="text-[10px] text-slate-300 uppercase font-semibold">Point de Vente</div>
+              <div className="text-[10px] text-slate-300 uppercase font-semibold">{t('nav.retailStore', 'Point de Vente')}</div>
               <div className="font-bold text-white">{currentStore.name}</div>
             </div>
           </div>
@@ -302,20 +309,20 @@ export const RetailSalesPOS: React.FC<RetailSalesPOSProps> = ({ currentStore }) 
           {/* Search Bar & Category Filter Bar */}
           <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-xs space-y-3">
             <div className="relative">
-              <Search className="w-4 h-4 absolute left-3.5 top-3 text-slate-400" />
+              <Search className="w-4 h-4 absolute start-3.5 top-3 text-slate-400" />
               <input
                 type="text"
-                placeholder="Rechercher par nom, catégorie ou référence..."
+                placeholder={t('pos.searchPlaceholder', 'Rechercher un produit ou scanner...')}
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-10 pr-4 py-2 bg-slate-50 rounded-xl border border-slate-200 text-xs font-medium focus:ring-2 focus:ring-indigo-500 focus:bg-white outline-none transition-all"
+                className="w-full ps-10 pe-4 py-2 bg-slate-50 rounded-xl border border-slate-200 text-xs font-medium focus:ring-2 focus:ring-indigo-500 focus:bg-white outline-none transition-all"
               />
               {searchQuery && (
                 <button
                   onClick={() => setSearchQuery('')}
-                  className="absolute right-3 top-2.5 text-xs text-slate-400 hover:text-slate-600 font-bold"
+                  className="absolute end-3 top-2.5 text-xs text-slate-400 hover:text-slate-600 font-bold"
                 >
-                  Effacer
+                  {t('common.cancel', 'Effacer')}
                 </button>
               )}
             </div>
@@ -332,7 +339,7 @@ export const RetailSalesPOS: React.FC<RetailSalesPOSProps> = ({ currentStore }) 
                       : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
                   }`}
                 >
-                  {CATEGORY_LABELS_FR[cat] || cat}
+                  {getCategoryLabel(cat)}
                 </button>
               ))}
             </div>
@@ -359,7 +366,7 @@ export const RetailSalesPOS: React.FC<RetailSalesPOSProps> = ({ currentStore }) 
                   <div className="space-y-2">
                     <div className="flex items-start justify-between gap-2">
                       <span className="text-[10px] font-bold uppercase tracking-wider text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded-lg border border-indigo-100">
-                        {CATEGORY_LABELS_FR[prod.category] || prod.category}
+                        {getCategoryLabel(prod.category)}
                       </span>
                       <span
                         className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
@@ -371,10 +378,10 @@ export const RetailSalesPOS: React.FC<RetailSalesPOSProps> = ({ currentStore }) 
                         }`}
                       >
                         {isOutOfStock
-                          ? 'Rupture de Stock'
+                          ? t('pos.outOfStock', 'Rupture de Stock')
                           : isLowStock
-                          ? `Stock Bas: ${prod.currentStock}`
-                          : `${prod.currentStock} en stock`}
+                          ? `${t('pos.lowStock', 'Stock Bas')}: ${prod.currentStock}`
+                          : `${prod.currentStock} ${t('pos.inStock', 'en stock')}`}
                       </span>
                     </div>
 
@@ -386,9 +393,9 @@ export const RetailSalesPOS: React.FC<RetailSalesPOSProps> = ({ currentStore }) 
                   {/* Price & Add Button */}
                   <div className="pt-3 mt-3 border-t border-slate-100 flex items-center justify-between">
                     <div>
-                      <span className="text-xs text-slate-400 block font-semibold">Prix Unitaire</span>
+                      <span className="text-xs text-slate-400 block font-semibold">{t('pos.unitPrice', 'Prix Unitaire')}</span>
                       <span className="text-base font-black text-slate-900 font-mono">
-                        {prod.price.toFixed(2)} DZD
+                        {prod.price.toFixed(2)} {t('common.currency', 'DZD')}
                       </span>
                     </div>
 
@@ -408,11 +415,11 @@ export const RetailSalesPOS: React.FC<RetailSalesPOSProps> = ({ currentStore }) 
                     >
                       {inCart ? (
                         <>
-                          <Check className="w-3.5 h-3.5" /> Ajouté ({inCart.quantity})
+                          <Check className="w-3.5 h-3.5" /> {t('pos.added', 'Ajouté')} ({inCart.quantity})
                         </>
                       ) : (
                         <>
-                          <Plus className="w-3.5 h-3.5" /> Ajouter
+                          <Plus className="w-3.5 h-3.5" /> {t('pos.add', 'Ajouter')}
                         </>
                       )}
                     </button>
@@ -424,9 +431,9 @@ export const RetailSalesPOS: React.FC<RetailSalesPOSProps> = ({ currentStore }) 
             {filteredStock.length === 0 && (
               <div className="col-span-full bg-white p-8 rounded-2xl border border-slate-200 text-center space-y-2">
                 <AlertTriangle className="w-8 h-8 text-amber-500 mx-auto" />
-                <h4 className="font-bold text-slate-800 text-sm">Aucun Produit Trouvé</h4>
+                <h4 className="font-bold text-slate-800 text-sm">{t('pos.noProductsFound', 'Aucun Produit Trouvé')}</h4>
                 <p className="text-xs text-slate-500">
-                  Aucun produit ne correspond à votre recherche "{searchQuery}". Essayez une autre catégorie.
+                  {t('pos.noProductsFoundDesc', 'Aucun produit ne correspond à votre recherche. Essayez une autre catégorie.')}
                 </p>
               </div>
             )}
@@ -440,9 +447,9 @@ export const RetailSalesPOS: React.FC<RetailSalesPOSProps> = ({ currentStore }) 
             <div className="flex items-center gap-2">
               <Receipt className="w-5 h-5 text-amber-400" />
               <div>
-                <h3 className="font-bold text-sm">Panier de Vente</h3>
+                <h3 className="font-bold text-sm">{t('pos.cartTitle', 'Panier de Vente')}</h3>
                 <p className="text-[11px] text-slate-400">
-                  {cartItems.length} article(s) sélectionné(s)
+                  {t('pos.cartItemsCount', { count: cartItems.length, defaultValue: `${cartItems.length} article(s)` })}
                 </p>
               </div>
             </div>
@@ -452,7 +459,7 @@ export const RetailSalesPOS: React.FC<RetailSalesPOSProps> = ({ currentStore }) 
                 onClick={clearCart}
                 className="text-[11px] text-slate-400 hover:text-red-400 font-bold flex items-center gap-1 transition-colors"
               >
-                <RotateCcw className="w-3.5 h-3.5" /> Vider
+                <RotateCcw className="w-3.5 h-3.5" /> {t('pos.clearCart', 'Vider')}
               </button>
             )}
           </div>
@@ -460,18 +467,18 @@ export const RetailSalesPOS: React.FC<RetailSalesPOSProps> = ({ currentStore }) 
           <form onSubmit={handleCheckout} className="p-4 space-y-4">
             {/* Cashier input */}
             <div className="flex items-center gap-2 bg-slate-50 p-2.5 rounded-xl border border-slate-200 text-xs">
-              <span className="text-slate-500 font-semibold shrink-0">Caissier :</span>
+              <span className="text-slate-500 font-semibold shrink-0">{t('pos.cashierLabel', 'Caissier :')}</span>
               <input
                 type="text"
                 value={cashierName}
                 onChange={(e) => setCashierName(e.target.value)}
-                placeholder="Nom du Caissier"
+                placeholder={t('pos.cashierPlaceholder', 'Nom du Caissier')}
                 className="w-full bg-transparent font-bold text-slate-800 outline-none text-xs"
               />
             </div>
 
             {/* Cart Items List */}
-            <div className="max-h-52 overflow-y-auto divide-y divide-slate-100 pr-1 space-y-1">
+            <div className="max-h-52 overflow-y-auto divide-y divide-slate-100 pe-1 space-y-1">
               {cartItems.map((item) => (
                 <div key={item.productId} className="py-2 flex items-center justify-between gap-2">
                   <div className="min-w-0 flex-1">
@@ -479,7 +486,7 @@ export const RetailSalesPOS: React.FC<RetailSalesPOSProps> = ({ currentStore }) 
                       {item.productName}
                     </div>
                     <div className="text-[10px] text-slate-400 font-mono">
-                      {item.unitPrice.toFixed(2)} DZD × {item.quantity} = {item.totalPrice.toFixed(2)} DZD
+                      {item.unitPrice.toFixed(2)} {t('common.currency', 'DZD')} × {item.quantity} = {item.totalPrice.toFixed(2)} {t('common.currency', 'DZD')}
                     </div>
                   </div>
 
@@ -505,7 +512,7 @@ export const RetailSalesPOS: React.FC<RetailSalesPOSProps> = ({ currentStore }) 
                     <button
                       type="button"
                       onClick={() => removeFromCart(item.productId)}
-                      className="p-1 text-slate-400 hover:text-red-500 rounded-lg transition-colors ml-1"
+                      className="p-1 text-slate-400 hover:text-red-500 rounded-lg transition-colors ms-1"
                     >
                       <Trash2 className="w-3.5 h-3.5" />
                     </button>
@@ -516,8 +523,8 @@ export const RetailSalesPOS: React.FC<RetailSalesPOSProps> = ({ currentStore }) 
               {cartItems.length === 0 && (
                 <div className="py-8 text-center text-slate-400 text-xs space-y-1">
                   <ShoppingCart className="w-8 h-8 text-slate-300 mx-auto" />
-                  <p className="font-bold text-slate-600">Le panier est vide</p>
-                  <p className="text-[11px]">Cliquez sur les articles à gauche pour ajouter au panier.</p>
+                  <p className="font-bold text-slate-600">{t('pos.emptyCartTitle', 'Le panier est vide')}</p>
+                  <p className="text-[11px]">{t('pos.emptyCartDesc', 'Cliquez sur les articles à gauche pour ajouter au panier.')}</p>
                 </div>
               )}
             </div>
@@ -526,7 +533,7 @@ export const RetailSalesPOS: React.FC<RetailSalesPOSProps> = ({ currentStore }) 
             {cartItems.length > 0 && (
               <div className="space-y-1.5 pt-2 border-t border-slate-100">
                 <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider block">
-                  Remise Promo
+                  {t('pos.promoDiscount', 'Remise Promo')}
                 </label>
                 <div className="grid grid-cols-4 gap-1.5 text-xs">
                   {[0, 5, 10, 15].map((pct) => (
@@ -543,7 +550,7 @@ export const RetailSalesPOS: React.FC<RetailSalesPOSProps> = ({ currentStore }) 
                           : 'bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100'
                       }`}
                     >
-                      {pct === 0 ? 'Aucune' : `-${pct}%`}
+                      {pct === 0 ? t('pos.discountNone', 'Aucune') : `-${pct}%`}
                     </button>
                   ))}
                 </div>
@@ -554,13 +561,13 @@ export const RetailSalesPOS: React.FC<RetailSalesPOSProps> = ({ currentStore }) 
             {cartItems.length > 0 && (
               <div className="space-y-1.5">
                 <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider block">
-                  Mode de Paiement
+                  {t('pos.paymentMethod', 'Mode de Paiement')}
                 </label>
                 <div className="grid grid-cols-3 gap-1.5 text-xs">
                   {[
-                    { id: 'CARD', label: 'Carte', icon: CreditCard },
-                    { id: 'CASH', label: 'Espèces', icon: Banknote },
-                    { id: 'CONTACTLESS', label: 'Sans Contact', icon: Smartphone },
+                    { id: 'CARD', label: t('pos.paymentCard', 'Carte'), icon: CreditCard },
+                    { id: 'CASH', label: t('pos.paymentCash', 'Espèces'), icon: Banknote },
+                    { id: 'CONTACTLESS', label: t('pos.paymentContactless', 'Sans Contact'), icon: Smartphone },
                   ].map((pm) => {
                     const Icon = pm.icon;
                     return (
@@ -590,7 +597,7 @@ export const RetailSalesPOS: React.FC<RetailSalesPOSProps> = ({ currentStore }) 
             {cartItems.length > 0 && paymentMethod === 'CASH' && (
               <div className="bg-emerald-50 p-3 rounded-xl border border-emerald-200 space-y-2.5">
                 <div className="flex items-center justify-between text-xs">
-                  <label className="font-bold text-emerald-900">Montant Reçu (DZD) :</label>
+                  <label className="font-bold text-emerald-900">{t('pos.amountReceived', 'Montant Reçu (DZD) :')}</label>
                   <input
                     type="number"
                     step="0.01"
@@ -598,7 +605,7 @@ export const RetailSalesPOS: React.FC<RetailSalesPOSProps> = ({ currentStore }) 
                     placeholder={`Ex: ${(Math.ceil(totalAmount / 5) * 5).toFixed(2)}`}
                     value={cashTendered}
                     onChange={(e) => setCashTendered(e.target.value)}
-                    className="w-28 px-2.5 py-1 bg-white font-mono font-bold text-slate-900 rounded-lg border border-emerald-300 text-right text-xs outline-none focus:ring-2 focus:ring-emerald-500"
+                    className="w-28 px-2.5 py-1 bg-white font-mono font-bold text-slate-900 rounded-lg border border-emerald-300 text-end text-xs outline-none focus:ring-2 focus:ring-emerald-500"
                   />
                 </div>
 
@@ -612,7 +619,7 @@ export const RetailSalesPOS: React.FC<RetailSalesPOSProps> = ({ currentStore }) 
                     }}
                     className="px-2 py-1 bg-emerald-100 hover:bg-emerald-200 text-emerald-900 rounded-lg text-[10px] font-bold border border-emerald-300 transition-colors shrink-0"
                   >
-                    Exact ({totalAmount.toFixed(0)} DZD)
+                    {t('pos.exactAmount', 'Exact')} ({totalAmount.toFixed(0)} {t('common.currency', 'DZD')})
                   </button>
                   {[500, 1000, 2000].map((preset) => {
                     if (preset < totalAmount && totalAmount > 2000) return null;
@@ -626,16 +633,16 @@ export const RetailSalesPOS: React.FC<RetailSalesPOSProps> = ({ currentStore }) 
                         }}
                         className="px-2 py-1 bg-white hover:bg-emerald-100 text-emerald-800 rounded-lg text-[10px] font-mono font-bold border border-emerald-200 transition-colors shrink-0"
                       >
-                        {preset} DZD
+                        {preset} {t('common.currency', 'DZD')}
                       </button>
                     );
                   })}
                 </div>
 
                 <div className="flex justify-between items-center text-xs font-mono pt-1 border-t border-emerald-200">
-                  <span className="font-semibold text-emerald-800">Rendu Monnaie :</span>
+                  <span className="font-semibold text-emerald-800">{t('pos.changeDue', 'Rendu Monnaie :')}</span>
                   <span className="text-emerald-900 font-black text-sm">
-                    {changeGiven.toFixed(2)} DZD
+                    {changeGiven.toFixed(2)} {t('common.currency', 'DZD')}
                   </span>
                 </div>
               </div>
@@ -645,22 +652,22 @@ export const RetailSalesPOS: React.FC<RetailSalesPOSProps> = ({ currentStore }) 
             {cartItems.length > 0 && (
               <div className="space-y-1.5 pt-3 border-t-2 border-dashed border-slate-200 text-xs font-mono">
                 <div className="flex justify-between text-slate-500">
-                  <span>Sous-total :</span>
-                  <span>{rawSubtotal.toFixed(2)} DZD</span>
+                  <span>{t('pos.subtotal', 'Sous-total :')}</span>
+                  <span>{rawSubtotal.toFixed(2)} {t('common.currency', 'DZD')}</span>
                 </div>
                 {discountAmount > 0 && (
                   <div className="flex justify-between text-amber-700 font-semibold">
-                    <span>Remise ({discountPercent}%) :</span>
-                    <span>-{discountAmount.toFixed(2)} DZD</span>
+                    <span>{t('pos.discount', { pct: discountPercent, defaultValue: `Remise (${discountPercent}%) :` })}</span>
+                    <span>-{discountAmount.toFixed(2)} {t('common.currency', 'DZD')}</span>
                   </div>
                 )}
                 <div className="flex justify-between text-slate-500">
-                  <span>TVA (8%) :</span>
-                  <span>{taxAmount.toFixed(2)} DZD</span>
+                  <span>{t('pos.tax', 'TVA (8%) :')}</span>
+                  <span>{taxAmount.toFixed(2)} {t('common.currency', 'DZD')}</span>
                 </div>
                 <div className="flex justify-between items-center text-base font-black text-slate-900 pt-2 border-t border-slate-200">
-                  <span className="font-sans">Total à Payer :</span>
-                  <span className="text-emerald-600 text-xl font-bold">{totalAmount.toFixed(2)} DZD</span>
+                  <span className="font-sans">{t('pos.totalToPay', 'Total à Payer :')}</span>
+                  <span className="text-emerald-600 text-xl font-bold">{totalAmount.toFixed(2)} {t('common.currency', 'DZD')}</span>
                 </div>
               </div>
             )}
@@ -669,14 +676,14 @@ export const RetailSalesPOS: React.FC<RetailSalesPOSProps> = ({ currentStore }) 
             <button
               type="submit"
               disabled={cartItems.length === 0}
-              className={`w-full py-3.5 rounded-xl font-bold text-xs uppercase tracking-wider flex items-center justify-center gap-2 shadow-md transition-all ${
+              className={`w-full py-3.5 rounded-xl font-bold text-xs uppercase tracking-wider flex items-center justify-center gap-2 shadow-md transition-all cursor-pointer ${
                 cartItems.length === 0
                   ? 'bg-slate-200 text-slate-400 cursor-not-allowed'
                   : 'bg-emerald-600 hover:bg-emerald-500 text-white shadow-emerald-600/20 active:scale-[0.98]'
               }`}
             >
               <Zap className="w-4 h-4 text-amber-300" />
-              Valider la Vente & Imprimer Reçu
+              {t('pos.validateSale', 'Valider la Vente & Imprimer Reçu')}
             </button>
           </form>
         </div>
@@ -693,3 +700,4 @@ export const RetailSalesPOS: React.FC<RetailSalesPOSProps> = ({ currentStore }) 
     </div>
   );
 };
+

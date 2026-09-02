@@ -40,6 +40,8 @@ export interface RawMaterial {
   min_reorder_level?: number; // threshold for automated supplier reordering
   totalPurchasedQty: number;
   lastUpdated: string;
+  density?: number; // Density in kg/L for volume/mass conversion
+  packagingSpec?: { weightKg?: number; piecesCount?: number; description?: string };
 }
 
 export interface ReceiptItem {
@@ -66,6 +68,111 @@ export interface Receipt {
   recordedBy: string;
 }
 
+// --- CENTRAL LAB 7 PRODUCTION ROOMS ---
+export type ProductionRoomId = 
+  | 'gateaux_secs'
+  | 'gateaux_orientaux'
+  | 'mille_feuille'
+  | 'viennoiserie'
+  | 'patisserie_fine'
+  | 'piece_montee'
+  | 'trompe_oeil';
+
+export interface Product {
+  id: string;
+  name: string;
+  category: string;
+  roomId: ProductionRoomId;
+  unit: string;
+  unitEstimatedCost: number;
+  sellingPrice?: number;
+  sku?: string;
+  description?: string;
+  standardBatchSize?: number;
+  prepTimeMinutes?: number;
+  imageIcon?: string;
+}
+
+export interface StoreOrderItem {
+  id?: string;
+  productId?: string;
+  productName: string;
+  category?: string;
+  roomId?: ProductionRoomId;
+  quantityRequested: number;
+  fulfilledQuantity?: number;
+  unit: string;
+  unitEstimatedCost?: number;
+  notes?: string;
+}
+
+export interface StoreOrder {
+  id: string;
+  requisitionNumber?: string;
+  orderNumber?: string;
+  storeId: string;
+  storeName: string;
+  requestedBy?: string;
+  dateRequested: string;
+  dateNeeded: string;
+  status: RequisitionStatus | string;
+  items: (RequisitionItem | StoreOrderItem)[];
+  totalEstimatedCost?: number;
+  notes?: string;
+}
+
+export interface StoreQuantityBreakdown {
+  storeId: string;
+  storeName: string;
+  quantity: number;
+  orderId?: string;
+  orderNumber?: string;
+  notes?: string;
+}
+
+export interface AggregatedProductionItem {
+  productId: string;
+  productName: string;
+  category: string;
+  roomId: ProductionRoomId;
+  unit: string;
+  unitEstimatedCost: number;
+  totalQuantityRequired: number;
+  standardBatchSize: number;
+  totalBatchesNeeded: number;
+  storeBreakdown: StoreQuantityBreakdown[];
+  completedQuantity?: number;
+  status?: 'PENDING' | 'IN_PRODUCTION' | 'COMPLETED';
+}
+
+export interface RoomProductionReport {
+  roomId: ProductionRoomId;
+  roomNameKey: string;
+  roomNameFr: string;
+  roomNameAr: string;
+  roomDescriptionFr?: string;
+  roomDescriptionAr?: string;
+  iconName: string;
+  colorTheme: {
+    primary: string;
+    accent: string;
+    bgLight: string;
+    border: string;
+    badgeBg: string;
+    badgeText: string;
+    gradient: string;
+    headerBg?: string;
+    borderActive?: string;
+  };
+  totalProductsCount: number;
+  totalUnitsToProduce: number;
+  totalEstimatedCost: number;
+  participatingStoresCount: number;
+  items: AggregatedProductionItem[];
+  targetDate: string;
+  generatedAt: string;
+}
+
 export type RequisitionStatus = 
   | 'PENDING' 
   | 'APPROVED' 
@@ -80,11 +187,27 @@ export type RequisitionStatus =
 export interface RequisitionItem {
   id: string;
   productName: string;
-  category: 'Croissants & Pastries' | 'Cakes & Tortes' | 'Tart Shells & Bases' | 'Fillings & Creams' | 'Finished Desserts' | 'Bread & Savory';
+  category:
+    | 'Croissants & Pastries'
+    | 'Cakes & Tortes'
+    | 'Tart Shells & Bases'
+    | 'Fillings & Creams'
+    | 'Finished Desserts'
+    | 'Bread & Savory'
+    | 'Gâteaux Secs'
+    | 'Gâteaux Orientaux'
+    | 'Mille-Feuille'
+    | 'Viennoiserie & Briocherie'
+    | 'Pâtisseries Fines'
+    | 'Pièce Montée'
+    | 'Trompe-l’œil'
+    | 'Tart Shells & Desserts'
+    | string;
   quantityRequested: number;
   fulfilledQuantity?: number;
   unit: string;
   unitEstimatedCost: number;
+  roomId?: ProductionRoomId;
 }
 
 export interface Requisition {
@@ -114,6 +237,7 @@ export interface RecipeIngredient {
   rawMaterialId?: string;
   semiFinishedRecipeId?: string;
   quantity: number; // in base unit or sub-recipe unit
+  unit?: string;
 }
 
 export interface Recipe {

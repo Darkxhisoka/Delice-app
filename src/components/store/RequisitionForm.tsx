@@ -1,17 +1,22 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
+import { useTranslation } from 'react-i18next';
 import { CATALOG_PRODUCTS } from '../../data/mockData';
 import { addRequisition, getActiveStore, notifyToast } from '../../services/storage';
 import { insertRequisitionToSupabase } from '../../services/supabaseService';
 import { RequisitionItem } from '../../types';
-import { Plus, Minus, Trash2, Send, ShoppingBag, Calendar, AlertCircle, Sparkles, Check, Loader2 } from 'lucide-react';
+import { UnitConverterModal } from '../common/UnitConverterModal';
+import { UnitConversionBadge } from '../common/UnitConversionBadge';
+import { Plus, Minus, Trash2, Send, ShoppingBag, Calendar, AlertCircle, Sparkles, Check, Loader2, Scale } from 'lucide-react';
 
 interface RequisitionFormProps {
   onSuccess?: () => void;
 }
 
 export const RequisitionForm: React.FC<RequisitionFormProps> = ({ onSuccess }) => {
+  const { t } = useTranslation();
   const activeStore = getActiveStore();
+  const [isConverterOpen, setIsConverterOpen] = useState<boolean>(false);
 
   const [dateNeeded, setDateNeeded] = useState<string>(() => {
     const tomorrow = new Date();
@@ -296,13 +301,24 @@ export const RequisitionForm: React.FC<RequisitionFormProps> = ({ onSuccess }) =
               <ShoppingBag className="w-4 h-4 text-emerald-600" />
               Lignes de Commande ({items.length})
             </h3>
-            <button
-              type="button"
-              onClick={handleAddItem}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-300 rounded-lg transition-colors"
-            >
-              <Plus className="w-4 h-4" /> Ajouter une Ligne
-            </button>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => setIsConverterOpen(true)}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-amber-900 bg-amber-100 hover:bg-amber-200 border border-amber-300 rounded-lg transition-colors cursor-pointer"
+                title={t('unitConverter.title', 'Convertisseur d\'Unités')}
+              >
+                <Scale className="w-3.5 h-3.5 text-amber-700" />
+                <span>{t('unitConverter.openTool', 'Convertisseur d\'Unités')}</span>
+              </button>
+              <button
+                type="button"
+                onClick={handleAddItem}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-300 rounded-lg transition-colors cursor-pointer"
+              >
+                <Plus className="w-4 h-4" /> Ajouter une Ligne
+              </button>
+            </div>
           </div>
 
           <div className="border border-slate-200 rounded-xl overflow-hidden shadow-xs">
@@ -381,7 +397,15 @@ export const RequisitionForm: React.FC<RequisitionFormProps> = ({ onSuccess }) =
                               </button>
                             </div>
                           </td>
-                          <td className="p-3 font-medium text-slate-600">{item.unit}</td>
+                          <td className="p-3">
+                            <div className="flex flex-col gap-1">
+                              <span className="font-semibold text-slate-700">{item.unit}</span>
+                              <UnitConversionBadge
+                                quantity={item.quantityRequested}
+                                unit={item.unit}
+                              />
+                            </div>
+                          </td>
                           <td className="p-3 text-right font-medium text-slate-600">
                             {item.unitEstimatedCost.toFixed(2)} DZD
                           </td>
@@ -439,6 +463,12 @@ export const RequisitionForm: React.FC<RequisitionFormProps> = ({ onSuccess }) =
         </div>
 
       </form>
+
+      {/* Unit Converter Modal */}
+      <UnitConverterModal
+        isOpen={isConverterOpen}
+        onClose={() => setIsConverterOpen(false)}
+      />
     </div>
   );
 };

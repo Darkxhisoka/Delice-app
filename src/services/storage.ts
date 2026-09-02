@@ -1,5 +1,6 @@
 import { syncToFirestore } from '../lib/firebaseSync';
 import { enqueueOfflineAction } from './indexedDbQueue';
+import { convertCost, convertQuantity } from './unitConversionService';
 import {
   UserRole,
   UserSession,
@@ -803,7 +804,7 @@ export function deleteRecipe(id: string): boolean {
   return true;
 }
 
-// Calculate Recipe Unit Cost recursively (supporting sub-recipes)
+// Calculate Recipe Unit Cost recursively (supporting sub-recipes and accurate unit conversions)
 export function getRecipeUnitCost(
   recipe: Recipe,
   allRecipes: Recipe[],
@@ -820,12 +821,28 @@ export function getRecipeUnitCost(
       const subRecipe = allRecipes.find((r) => r.id === ing.semiFinishedRecipeId);
       if (subRecipe) {
         const subUnitCost = getRecipeUnitCost(subRecipe, allRecipes, allRawMaterials, new Set(visited));
-        totalBatchCost += ing.quantity * subUnitCost;
+        const unitCostInIngUnit = convertCost(
+          subUnitCost,
+          subRecipe.unitName || 'kg',
+          ing.unit || subRecipe.unitName || 'kg'
+        );
+        totalBatchCost += ing.quantity * unitCostInIngUnit;
       }
     } else if (ing.rawMaterialId) {
       const mat = allRawMaterials.find((m) => m.id === ing.rawMaterialId);
       if (mat) {
-        totalBatchCost += ing.quantity * mat.currentAvgCost;
+        const unitCostInIngUnit = convertCost(
+          mat.currentAvgCost,
+          mat.unit,
+          ing.unit || mat.unit,
+          {
+            density: mat.density,
+            packWeightKg: mat.packagingSpec?.weightKg,
+            rawMaterialName: mat.name,
+            rawMaterialCategory: mat.category,
+          }
+        );
+        totalBatchCost += ing.quantity * unitCostInIngUnit;
       }
     }
   }
@@ -896,10 +913,25 @@ export function produceSemiFinishedBatch(recipeId: string, batchesToProduce: num
   for (const ing of recipe.ingredients) {
     if (ing.rawMaterialId) {
       const mat = rawMaterials.find((m) => m.id === ing.rawMaterialId);
-      const required = ing.quantity * batchesToProduce;
-      if (!mat || mat.currentStock < required) {
+      if (!mat) {
         canProduce = false;
-        missingItemName = mat ? mat.name : 'Raw Material';
+        missingItemName = 'Raw Material';
+        break;
+      }
+      const rawQtyNeeded = convertQuantity(
+        ing.quantity * batchesToProduce,
+        ing.unit || mat.unit,
+        mat.unit,
+        {
+          density: mat.density,
+          packWeightKg: mat.packagingSpec?.weightKg,
+          rawMaterialName: mat.name,
+          rawMaterialCategory: mat.category,
+        }
+      ).targetQuantity;
+      if (mat.currentStock < rawQtyNeeded) {
+        canProduce = false;
+        missingItemName = mat.name;
         break;
       }
     }
@@ -918,9 +950,20 @@ export function produceSemiFinishedBatch(recipeId: string, batchesToProduce: num
   const updatedMaterials = rawMaterials.map((mat) => {
     const ing = recipe.ingredients.find((i) => i.rawMaterialId === mat.id);
     if (ing) {
+      const deductQty = convertQuantity(
+        ing.quantity * batchesToProduce,
+        ing.unit || mat.unit,
+        mat.unit,
+        {
+          density: mat.density,
+          packWeightKg: mat.packagingSpec?.weightKg,
+          rawMaterialName: mat.name,
+          rawMaterialCategory: mat.category,
+        }
+      ).targetQuantity;
       return {
         ...mat,
-        currentStock: Math.max(0, mat.currentStock - ing.quantity * batchesToProduce),
+        currentStock: Math.max(0, mat.currentStock - deductQty),
         lastUpdated: new Date().toISOString().slice(0, 10),
       };
     }
@@ -1026,7 +1069,17 @@ export function calculateProductionCascadePreview(
           if (sfIng.rawMaterialId) {
             const mat = rawMaterials.find((m) => m.id === sfIng.rawMaterialId);
             if (mat) {
-              const qtyNeeded = sfIng.quantity * subRunRatio;
+              const qtyNeeded = convertQuantity(
+                sfIng.quantity * subRunRatio,
+                sfIng.unit || mat.unit,
+                mat.unit,
+                {
+                  density: mat.density,
+                  packWeightKg: mat.packagingSpec?.weightKg,
+                  rawMaterialName: mat.name,
+                  rawMaterialCategory: mat.category,
+                }
+              ).targetQuantity;
               subRunRawMaterialsMap[mat.id] = (subRunRawMaterialsMap[mat.id] || 0) + qtyNeeded;
               const currentAccumulated = subRunRawMaterialsMap[mat.id] + (directRawMaterialsMap[mat.id] || 0);
               const hasEnough = mat.currentStock >= currentAccumulated;
@@ -1070,7 +1123,17 @@ export function calculateProductionCascadePreview(
     } else if (ing.rawMaterialId) {
       const mat = rawMaterials.find((m) => m.id === ing.rawMaterialId);
       if (mat) {
-        const qtyNeeded = ing.quantity * ratio;
+        const qtyNeeded = convertQuantity(
+          ing.quantity * ratio,
+          ing.unit || mat.unit,
+          mat.unit,
+          {
+            density: mat.density,
+            packWeightKg: mat.packagingSpec?.weightKg,
+            rawMaterialName: mat.name,
+            rawMaterialCategory: mat.category,
+          }
+        ).targetQuantity;
         directRawMaterialsMap[mat.id] = (directRawMaterialsMap[mat.id] || 0) + qtyNeeded;
       }
     }

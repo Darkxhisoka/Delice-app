@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
+import { useTranslation } from 'react-i18next';
 import { subscribeToSupabaseRealtime } from '../../services/supabaseService';
 import { notifyToast } from '../../services/storage';
 import { RequisitionForm } from './RequisitionForm';
@@ -58,25 +59,26 @@ export type StoreTab =
 
 interface DesktopTabConfig {
   id: StoreTab;
-  label: string;
+  labelKey: string;
+  defaultLabel: string;
   icon: React.ComponentType<{ className?: string }>;
   variant?: 'amber-solid' | 'amber-outline' | 'pink' | 'purple' | 'emerald-solid' | 'emerald-outline' | 'indigo' | 'slate';
 }
 
-const DESKTOP_TABS: DesktopTabConfig[] = [
-  { id: 'POS_SALES', label: 'Caisse / Ventes', icon: ShoppingCart, variant: 'amber-solid' },
-  { id: 'CUSTOM_CAKES', label: '🎂 Gâteaux Sur-Mesure', icon: Cake, variant: 'pink' },
-  { id: 'LOYALTY_VIP', label: '👑 Club VIP & Fidélité', icon: Crown, variant: 'purple' },
-  { id: 'CASH_Z_REPORT', label: 'Clôture Caisse (Z)', icon: Receipt, variant: 'emerald-outline' },
-  { id: 'STORE_RETURNS', label: 'Bons de Retour', icon: RotateCcw, variant: 'amber-outline' },
-  { id: 'RECEIVING', label: '🚚 Réception Livraisons', icon: Truck, variant: 'indigo' },
-  { id: 'PACKAGING', label: '📦 Emballages & Colisage', icon: Package, variant: 'amber-outline' },
-  { id: 'RECONCILIATION', label: '⚡ Clôture Stock EOD', icon: Calculator, variant: 'amber-outline' },
-  { id: 'UNSOLD_LOGS', label: 'Invendus & Casse', icon: PackageX, variant: 'amber-solid' },
-  { id: 'SALES_ANALYTICS', label: 'Analytique Ventes', icon: BarChart3, variant: 'amber-solid' },
-  { id: 'NEW_REQ', label: 'Demande Approvisionnement', icon: ShoppingBag, variant: 'emerald-solid' },
-  { id: 'HISTORY', label: 'Historique Commandes', icon: History, variant: 'emerald-solid' },
-  { id: 'ACTIVITY_FEED', label: '⚡ Audit', icon: Activity, variant: 'amber-solid' },
+const DESKTOP_TABS_CONFIG: DesktopTabConfig[] = [
+  { id: 'POS_SALES', labelKey: 'tabs.posSales', defaultLabel: 'Caisse / Ventes', icon: ShoppingCart, variant: 'amber-solid' },
+  { id: 'CUSTOM_CAKES', labelKey: 'tabs.customCakes', defaultLabel: '🎂 Gâteaux Sur-Mesure', icon: Cake, variant: 'pink' },
+  { id: 'LOYALTY_VIP', labelKey: 'tabs.loyaltyVip', defaultLabel: '👑 Club VIP & Fidélité', icon: Crown, variant: 'purple' },
+  { id: 'CASH_Z_REPORT', labelKey: 'tabs.cashZReport', defaultLabel: 'Clôture Caisse (Z)', icon: Receipt, variant: 'emerald-outline' },
+  { id: 'STORE_RETURNS', labelKey: 'tabs.storeReturns', defaultLabel: 'Bons de Retour', icon: RotateCcw, variant: 'amber-outline' },
+  { id: 'RECEIVING', labelKey: 'tabs.receiving', defaultLabel: '🚚 Réception Livraisons', icon: Truck, variant: 'indigo' },
+  { id: 'PACKAGING', labelKey: 'tabs.packaging', defaultLabel: '📦 Emballages & Colisage', icon: Package, variant: 'amber-outline' },
+  { id: 'RECONCILIATION', labelKey: 'tabs.reconciliation', defaultLabel: '⚡ Clôture Stock EOD', icon: Calculator, variant: 'amber-outline' },
+  { id: 'UNSOLD_LOGS', labelKey: 'tabs.unsoldLogs', defaultLabel: 'Invendus & Casse', icon: PackageX, variant: 'amber-solid' },
+  { id: 'SALES_ANALYTICS', labelKey: 'tabs.salesAnalytics', defaultLabel: 'Analytique Ventes', icon: BarChart3, variant: 'amber-solid' },
+  { id: 'NEW_REQ', labelKey: 'tabs.newReq', defaultLabel: 'Demande Approvisionnement', icon: ShoppingBag, variant: 'emerald-solid' },
+  { id: 'HISTORY', labelKey: 'tabs.history', defaultLabel: 'Historique Commandes', icon: History, variant: 'emerald-solid' },
+  { id: 'ACTIVITY_FEED', labelKey: 'tabs.activityFeed', defaultLabel: '⚡ Audit', icon: Activity, variant: 'amber-solid' },
 ];
 
 /**
@@ -186,7 +188,7 @@ const StoreModuleCardItem = React.memo<{
     <button
       type="button"
       onClick={handleClick}
-      className={`${fullWidth ? 'col-span-2' : ''} p-3 rounded-2xl border text-left flex ${
+      className={`${fullWidth ? 'col-span-2' : ''} p-3 rounded-2xl border text-start flex ${
         fullWidth ? 'items-center justify-between gap-3' : 'flex-col justify-between gap-2'
       } transition-all active:scale-95 cursor-pointer ${
         isActive
@@ -212,25 +214,26 @@ const StoreModuleCardItem = React.memo<{
 StoreModuleCardItem.displayName = 'StoreModuleCardItem';
 
 export const StoreDashboard: React.FC = () => {
+  const { t, i18n } = useTranslation();
   const [activeTab, setActiveTab] = useState<StoreTab>('POS_SALES');
   const [isMoreSheetOpen, setIsMoreSheetOpen] = useState<boolean>(false);
   const [isEmergencyModalOpen, setIsEmergencyModalOpen] = useState<boolean>(false);
   const activeStore = getActiveStore();
-  const [lastSyncTime, setLastSyncTime] = useState<string>(new Date().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit', second: '2-digit' }));
+  const [lastSyncTime, setLastSyncTime] = useState<string>(new Date().toLocaleTimeString(i18n.language === 'ar' ? 'ar-DZ' : 'fr-FR', { hour: '2-digit', minute: '2-digit', second: '2-digit' }));
 
   useEffect(() => {
     const unsubscribe = subscribeToSupabaseRealtime((table) => {
-      setLastSyncTime(new Date().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit', second: '2-digit' }));
+      setLastSyncTime(new Date().toLocaleTimeString(i18n.language === 'ar' ? 'ar-DZ' : 'fr-FR', { hour: '2-digit', minute: '2-digit', second: '2-digit' }));
 
-      let tableLabel = 'Mise à jour en direct';
-      if (table === 'store_requisitions') tableLabel = 'Statut Réquisition Modifié';
-      if (table === 'raw_materials') tableLabel = 'Mise à jour Stock Labo';
-      if (table === 'packaging_materials') tableLabel = 'Stock Emballage Modifié';
+      let tableLabel = t('store.realtimeUpdate', 'Mise à jour en direct');
+      if (table === 'store_requisitions') tableLabel = t('store.realtimeReqModified', 'Statut Réquisition Modifié');
+      if (table === 'raw_materials') tableLabel = t('store.realtimeRawMatUpdate', 'Mise à jour Stock Labo');
+      if (table === 'packaging_materials') tableLabel = t('store.realtimePackagingUpdate', 'Stock Emballage Modifié');
 
       notifyToast({
         type: 'info',
-        title: `🔴 Realtime Supabase : ${tableLabel}`,
-        message: `Affichage mis à jour automatiquement.`
+        title: `🔴 ${t('store.realtimeSupabase', 'Realtime Supabase')} : ${tableLabel}`,
+        message: t('store.realtimeAutoUpdateMsg', 'Affichage mis à jour automatiquement.')
       });
     });
 
@@ -270,7 +273,7 @@ export const StoreDashboard: React.FC = () => {
               <div className="flex items-center gap-2 flex-wrap">
                 <h1 className="text-lg sm:text-xl font-black tracking-tight">{activeStore.name}</h1>
                 <span className="px-2.5 py-0.5 rounded-full text-[10px] sm:text-[11px] font-bold bg-amber-500/20 text-amber-300 border border-amber-500/30 flex items-center gap-1">
-                  <ShieldCheck className="w-3.5 h-3.5" /> Point de Vente
+                  <ShieldCheck className="w-3.5 h-3.5" /> {t('nav.retailStore')}
                 </span>
                 <span className="px-2 py-0.5 rounded-full text-[10px] sm:text-[11px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 flex items-center gap-1.5">
                   <span className="relative flex h-2 w-2">
@@ -286,26 +289,26 @@ export const StoreDashboard: React.FC = () => {
                   type="button"
                   onClick={() => setIsEmergencyModalOpen(true)}
                   className="px-2.5 py-0.5 rounded-full text-[10px] sm:text-[11px] font-bold bg-amber-400/20 hover:bg-amber-400/30 text-amber-300 border border-amber-400/40 flex items-center gap-1 transition-colors cursor-pointer"
-                  title="Exporter les bases IndexedDB sur le stockage local (Mesure de secours)"
+                  title={t('common.dumpBackupDesc', 'Exporter les bases IndexedDB sur le stockage local (Mesure de secours)')}
                 >
                   <HardDrive className="w-3 h-3 text-amber-400" />
-                  <span>Dump Secours</span>
+                  <span>{t('common.dumpBackup')}</span>
                 </button>
               </div>
               <p className="text-xs text-slate-300 mt-0.5 sm:mt-1">
-                {activeStore.address} • Gérant : {activeStore.managerName}
+                {activeStore.address} • {t('common.manager', 'Gérant')} : {activeStore.managerName}
               </p>
             </div>
           </div>
 
           {/* Desktop Module Tab Navigation (Horizontal Scrollable) */}
           <div className="hidden md:flex bg-slate-950/90 p-1.5 rounded-xl border border-slate-700/90 items-center gap-1 overflow-x-auto scrollbar-none self-start md:self-auto max-w-full">
-            {DESKTOP_TABS.map((tab) => (
+            {DESKTOP_TABS_CONFIG.map((tab) => (
               <StoreDesktopTabItem
                 key={tab.id}
                 id={tab.id}
                 isActive={activeTab === tab.id}
-                label={tab.label}
+                label={t(tab.labelKey, tab.defaultLabel)}
                 icon={tab.icon}
                 variant={tab.variant}
                 onSelect={handleTabSelect}
@@ -352,7 +355,7 @@ export const StoreDashboard: React.FC = () => {
         {/* 1. Caisse (POS) */}
         <StoreMobileBottomNavButton
           isActive={activeTab === 'POS_SALES'}
-          label="Caisse"
+          label={t('store.pos', 'Caisse')}
           icon={ShoppingCart}
           activeColorClass="text-amber-400 bg-amber-500/15"
           onClick={() => handleTabSelect('POS_SALES')}
@@ -361,7 +364,7 @@ export const StoreDashboard: React.FC = () => {
         {/* 2. Réception Livraisons */}
         <StoreMobileBottomNavButton
           isActive={activeTab === 'RECEIVING'}
-          label="Livraisons"
+          label={t('tabs.receiving', 'Livraisons')}
           icon={Truck}
           activeColorClass="text-indigo-400 bg-indigo-500/15"
           onClick={() => handleTabSelect('RECEIVING')}
@@ -370,7 +373,7 @@ export const StoreDashboard: React.FC = () => {
         {/* 3. Demandes Approvisionnement */}
         <StoreMobileBottomNavButton
           isActive={activeTab === 'NEW_REQ'}
-          label="Demandes"
+          label={t('tabs.newReq', 'Demandes')}
           icon={ShoppingBag}
           activeColorClass="text-emerald-400 bg-emerald-500/15"
           onClick={() => handleTabSelect('NEW_REQ')}
@@ -379,7 +382,7 @@ export const StoreDashboard: React.FC = () => {
         {/* 4. Colisage & Emballages */}
         <StoreMobileBottomNavButton
           isActive={activeTab === 'PACKAGING'}
-          label="Colisage"
+          label={t('tabs.packaging', 'Colisage')}
           icon={Package}
           activeColorClass="text-amber-400 bg-amber-500/15"
           onClick={() => handleTabSelect('PACKAGING')}
@@ -388,7 +391,7 @@ export const StoreDashboard: React.FC = () => {
         {/* 5. More Hub / Menu */}
         <StoreMobileBottomNavButton
           isActive={isMoreActive}
-          label={isMoreActive ? 'Actif' : 'Plus...'}
+          label={isMoreActive ? t('common.active', 'Actif') : t('tabs.moreModules', 'Plus...')}
           icon={LayoutGrid}
           activeColorClass="text-indigo-300 bg-indigo-500/20 border border-indigo-500/30"
           hasBadge={isMoreActive}
@@ -427,7 +430,7 @@ export const StoreDashboard: React.FC = () => {
                     <Store className="w-4 h-4" />
                   </div>
                   <div>
-                    <h3 className="font-extrabold text-sm text-white">Modules Point de Vente</h3>
+                    <h3 className="font-extrabold text-sm text-white">{t('nav.storeTitle')}</h3>
                     <p className="text-[11px] text-slate-400">{activeStore.name}</p>
                   </div>
                 </div>
@@ -445,8 +448,8 @@ export const StoreDashboard: React.FC = () => {
                 <StoreModuleCardItem
                   tab="CUSTOM_CAKES"
                   isActive={activeTab === 'CUSTOM_CAKES'}
-                  title="Gâteaux Sur-Mesure"
-                  subtitle="Commandes événements & labo"
+                  title={t('tabs.customCakes', 'Gâteaux Sur-Mesure')}
+                  subtitle={t('store.customCakesSub', 'Commandes événements & labo')}
                   icon={Cake}
                   iconColor="text-pink-400"
                   activeBgClass="bg-pink-600 text-white border-pink-400 font-bold"
@@ -456,8 +459,8 @@ export const StoreDashboard: React.FC = () => {
                 <StoreModuleCardItem
                   tab="LOYALTY_VIP"
                   isActive={activeTab === 'LOYALTY_VIP'}
-                  title="Club VIP & Fidélité"
-                  subtitle="Points & profils clients"
+                  title={t('tabs.loyaltyVip', 'Club VIP & Fidélité')}
+                  subtitle={t('store.loyaltyVipSub', 'Points & profils clients')}
                   icon={Crown}
                   iconColor="text-purple-400"
                   activeBgClass="bg-purple-600 text-white border-purple-400 font-bold"
@@ -467,8 +470,8 @@ export const StoreDashboard: React.FC = () => {
                 <StoreModuleCardItem
                   tab="CASH_Z_REPORT"
                   isActive={activeTab === 'CASH_Z_REPORT'}
-                  title="Clôture Caisse (Z)"
-                  subtitle="Comptage espèces & TPE"
+                  title={t('tabs.cashZReport', 'Clôture Caisse (Z)')}
+                  subtitle={t('store.cashZReportSub', 'Comptage espèces & TPE')}
                   icon={Receipt}
                   iconColor="text-emerald-400"
                   activeBgClass="bg-emerald-600 text-white border-emerald-400 font-bold"
@@ -478,8 +481,8 @@ export const StoreDashboard: React.FC = () => {
                 <StoreModuleCardItem
                   tab="STORE_RETURNS"
                   isActive={activeTab === 'STORE_RETURNS'}
-                  title="Bons de Retour"
-                  subtitle="Invendus & recyclage labo"
+                  title={t('tabs.storeReturns', 'Bons de Retour')}
+                  subtitle={t('store.storeReturnsSub', 'Invendus & recyclage labo')}
                   icon={RotateCcw}
                   iconColor="text-amber-400"
                   activeBgClass="bg-amber-500 text-slate-950 border-amber-400 font-bold"
@@ -489,8 +492,8 @@ export const StoreDashboard: React.FC = () => {
                 <StoreModuleCardItem
                   tab="RECONCILIATION"
                   isActive={activeTab === 'RECONCILIATION'}
-                  title="Clôture Stock EOD"
-                  subtitle="Inventaire de fin de journée"
+                  title={t('tabs.reconciliation', 'Clôture Stock EOD')}
+                  subtitle={t('store.reconciliationSub', 'Inventaire de fin de journée')}
                   icon={Calculator}
                   iconColor="text-amber-400"
                   activeBgClass="bg-amber-500 text-slate-950 border-amber-400 font-bold"
@@ -500,8 +503,8 @@ export const StoreDashboard: React.FC = () => {
                 <StoreModuleCardItem
                   tab="UNSOLD_LOGS"
                   isActive={activeTab === 'UNSOLD_LOGS'}
-                  title="Invendus & Casse"
-                  subtitle="Pertes et déclassements"
+                  title={t('tabs.unsoldLogs', 'Invendus & Casse')}
+                  subtitle={t('store.unsoldLogsSub', 'Pertes et déclassements')}
                   icon={PackageX}
                   iconColor="text-rose-400"
                   activeBgClass="bg-amber-500 text-slate-950 border-amber-400 font-bold"
@@ -511,8 +514,8 @@ export const StoreDashboard: React.FC = () => {
                 <StoreModuleCardItem
                   tab="SALES_ANALYTICS"
                   isActive={activeTab === 'SALES_ANALYTICS'}
-                  title="Analytique Ventes"
-                  subtitle="CA & meilleures ventes"
+                  title={t('tabs.salesAnalytics', 'Analytique Ventes')}
+                  subtitle={t('store.salesAnalyticsSub', 'CA & meilleures ventes')}
                   icon={BarChart3}
                   iconColor="text-indigo-400"
                   activeBgClass="bg-amber-500 text-slate-950 border-amber-400 font-bold"
@@ -522,8 +525,8 @@ export const StoreDashboard: React.FC = () => {
                 <StoreModuleCardItem
                   tab="HISTORY"
                   isActive={activeTab === 'HISTORY'}
-                  title="Historique Commandes"
-                  subtitle="Bons de réquisition passés"
+                  title={t('tabs.history', 'Historique Commandes')}
+                  subtitle={t('store.historySub', 'Bons de réquisition passés')}
                   icon={History}
                   iconColor="text-emerald-400"
                   activeBgClass="bg-emerald-600 text-white border-emerald-500 font-bold"
@@ -533,8 +536,8 @@ export const StoreDashboard: React.FC = () => {
                 <StoreModuleCardItem
                   tab="ACTIVITY_FEED"
                   isActive={activeTab === 'ACTIVITY_FEED'}
-                  title="Journal d'Audit & Activités"
-                  subtitle="Traçabilité des opérations de la boutique"
+                  title={t('tabs.activityFeed', 'Journal d\'Audit & Activités')}
+                  subtitle={t('store.activityFeedSub', 'Traçabilité des opérations de la boutique')}
                   icon={Activity}
                   iconColor="text-amber-400"
                   activeBgClass="bg-amber-500 text-slate-950 border-amber-400 font-bold"
@@ -550,17 +553,17 @@ export const StoreDashboard: React.FC = () => {
                     setIsMoreSheetOpen(false);
                     setIsEmergencyModalOpen(true);
                   }}
-                  className="col-span-2 p-3 rounded-2xl border border-amber-500/40 bg-gradient-to-r from-amber-500/20 to-amber-600/10 text-slate-100 hover:bg-amber-500/30 text-left flex items-center justify-between gap-3 transition-all cursor-pointer"
+                  className="col-span-2 p-3 rounded-2xl border border-amber-500/40 bg-gradient-to-r from-amber-500/20 to-amber-600/10 text-slate-100 hover:bg-amber-500/30 text-start flex items-center justify-between gap-3 transition-all cursor-pointer"
                 >
                   <div className="flex items-center gap-2.5 min-w-0">
                     <HardDrive className="w-5 h-5 text-amber-400 shrink-0" />
                     <div className="min-w-0">
-                      <div className="text-xs font-extrabold text-white">Dump d'Urgence Filesystem (JSON)</div>
-                      <div className="text-[10px] text-amber-300/90">Sauvegarde locale instantanée IndexedDB</div>
+                      <div className="text-xs font-extrabold text-white">{t('common.dumpBackup')}</div>
+                      <div className="text-[10px] text-amber-300/90">{t('store.dumpSub', 'Sauvegarde locale instantanée IndexedDB')}</div>
                     </div>
                   </div>
                   <span className="text-[10px] uppercase font-black bg-amber-400 text-slate-950 px-2 py-0.5 rounded-full shrink-0">
-                    Secours
+                    {t('common.emergencyExport', 'Secours')}
                   </span>
                 </button>
               </div>

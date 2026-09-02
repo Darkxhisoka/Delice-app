@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { RawMaterial, MaterialUnit } from '../../types';
 import { getRawMaterials, saveRawMaterials, addActivityLog, notifyToast } from '../../services/storage';
 import { upsertRawMaterialToSupabase } from '../../services/supabaseService';
@@ -7,7 +8,6 @@ import {
   Plus,
   X,
   AlertCircle,
-  CheckCircle2,
   Tag,
   Scale,
   DollarSign,
@@ -49,6 +49,7 @@ export const AddRawMaterialModal: React.FC<AddRawMaterialModalProps> = ({
   onClose,
   onSuccess,
 }) => {
+  const { t } = useTranslation();
   const [name, setName] = useState<string>('');
   const [category, setCategory] = useState<RawMaterial['category']>('Flour & Grains');
   const [unit, setUnit] = useState<MaterialUnit>('kg');
@@ -83,7 +84,7 @@ export const AddRawMaterialModal: React.FC<AddRawMaterialModalProps> = ({
 
     const trimmedName = name.trim();
     if (!trimmedName) {
-      errs.name = 'Le nom de la matière première est obligatoire.';
+      errs.name = t('inventory.rawMaterials') + ' ' + t('common.required');
     } else {
       // Check duplicate
       const existing = getRawMaterials();
@@ -91,23 +92,23 @@ export const AddRawMaterialModal: React.FC<AddRawMaterialModalProps> = ({
         (m) => m.name.toLowerCase().trim() === trimmedName.toLowerCase()
       );
       if (duplicate) {
-        errs.name = `Une matière première nommée "${duplicate.name}" existe déjà en stock.`;
+        errs.name = `${duplicate.name} (${t('inventory.inStock')})`;
       }
     }
 
     const stockNum = parseFloat(currentStock);
     if (isNaN(stockNum) || stockNum < 0) {
-      errs.currentStock = 'Le stock initial doit être un nombre positif ou nul (≥ 0).';
+      errs.currentStock = '≥ 0';
     }
 
     const costNum = parseFloat(currentAvgCost);
     if (isNaN(costNum) || costNum < 0) {
-      errs.currentAvgCost = 'Le coût unitaire doit être un nombre positif ou nul (≥ 0).';
+      errs.currentAvgCost = '≥ 0';
     }
 
     const reorderNum = parseFloat(reorderLevel);
     if (isNaN(reorderNum) || reorderNum < 0) {
-      errs.reorderLevel = 'Le seuil d\'alerte doit être un nombre positif ou nul (≥ 0).';
+      errs.reorderLevel = '≥ 0';
     }
 
     setErrors(errs);
@@ -161,9 +162,9 @@ export const AddRawMaterialModal: React.FC<AddRawMaterialModalProps> = ({
       // Add activity log entry
       addActivityLog({
         type: 'STOCK_ADJUSTED',
-        title: 'Matière Première Ajoutée (Supabase)',
-        description: `Création de "${trimmedName}" (${stockVal} ${unit} @ ${costVal} DA/${unit}) enregistrée dans Supabase.`,
-        actor: 'Laboratoire Central',
+        title: `${t('inventory.addMaterial')} (Supabase)`,
+        description: `"${trimmedName}" (${stockVal} ${unit} @ ${costVal} ${t('common.currencyDa')}/${unit})`,
+        actor: t('nav.labTitle'),
         badgeText: 'SUPABASE',
         severity: 'info',
       });
@@ -171,8 +172,8 @@ export const AddRawMaterialModal: React.FC<AddRawMaterialModalProps> = ({
       // Notify success toast
       notifyToast({
         type: 'success',
-        title: 'Ajouté sur Supabase',
-        message: `"${trimmedName}" a été enregistrée avec succès dans la base de données Supabase.`,
+        title: t('toast.savedSuccess'),
+        message: `"${trimmedName}"`,
       });
 
       resetForm();
@@ -184,8 +185,8 @@ export const AddRawMaterialModal: React.FC<AddRawMaterialModalProps> = ({
       console.error('Error adding raw material to Supabase:', err);
       notifyToast({
         type: 'error',
-        title: 'Erreur Supabase',
-        message: err.message || 'Impossible d\'enregistrer la nouvelle matière première sur Supabase.',
+        title: t('common.error'),
+        message: err.message || t('toast.errorOccurred'),
       });
     } finally {
       setIsSubmitting(false);
@@ -204,10 +205,10 @@ export const AddRawMaterialModal: React.FC<AddRawMaterialModalProps> = ({
             </div>
             <div>
               <h3 className="text-lg font-extrabold text-slate-900">
-                Ajouter une Matière Première
+                {t('inventory.addMaterial')}
               </h3>
               <p className="text-xs text-slate-500 font-medium">
-                Saisie manuelle d'un nouvel article dans le Laboratoire Central.
+                {t('inventory.rawStockDesc')}
               </p>
             </div>
           </div>
@@ -226,7 +227,7 @@ export const AddRawMaterialModal: React.FC<AddRawMaterialModalProps> = ({
           <div className="space-y-1.5">
             <label className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
               <Tag className="w-3.5 h-3.5 text-emerald-600" />
-              <span>Nom de la Matière Première</span>
+              <span>{t('inventory.colRawSku')}</span>
               <span className="text-rose-500 font-black">*</span>
             </label>
             <input
@@ -237,7 +238,7 @@ export const AddRawMaterialModal: React.FC<AddRawMaterialModalProps> = ({
                 setName(e.target.value);
                 if (errors.name) setErrors((prev) => ({ ...prev, name: '' }));
               }}
-              placeholder="Ex: Beurre 82% MG Extra, Farine T55..."
+              placeholder={t('inventory.searchRawPlaceholder')}
               className={`w-full px-3.5 py-2 text-xs bg-slate-50 border rounded-xl font-bold text-slate-900 focus:outline-none focus:ring-2 ${
                 errors.name
                   ? 'border-rose-400 bg-rose-50 text-rose-900 focus:ring-rose-500'
@@ -258,7 +259,7 @@ export const AddRawMaterialModal: React.FC<AddRawMaterialModalProps> = ({
             <div className="space-y-1.5">
               <label className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
                 <Boxes className="w-3.5 h-3.5 text-indigo-600" />
-                <span>Catégorie</span>
+                <span>{t('inventory.colCategory')}</span>
                 <span className="text-rose-500 font-black">*</span>
               </label>
               <select
@@ -278,7 +279,7 @@ export const AddRawMaterialModal: React.FC<AddRawMaterialModalProps> = ({
             <div className="space-y-1.5">
               <label className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
                 <Scale className="w-3.5 h-3.5 text-amber-600" />
-                <span>Unité de Mesure</span>
+                <span>{t('common.unit')}</span>
                 <span className="text-rose-500 font-black">*</span>
               </label>
               <select
@@ -301,7 +302,7 @@ export const AddRawMaterialModal: React.FC<AddRawMaterialModalProps> = ({
             <div className="space-y-1.5">
               <label className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
                 <PackageCheck className="w-3.5 h-3.5 text-emerald-600" />
-                <span>Stock Initial ({unit})</span>
+                <span>{t('inventory.colCurrentStock')} ({unit})</span>
               </label>
               <input
                 type="number"
@@ -327,7 +328,7 @@ export const AddRawMaterialModal: React.FC<AddRawMaterialModalProps> = ({
             <div className="space-y-1.5">
               <label className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
                 <DollarSign className="w-3.5 h-3.5 text-teal-600" />
-                <span>Coût Unitaire (DA / {unit})</span>
+                <span>{t('inventory.colUnitCost')} ({t('common.currencyDa')} / {unit})</span>
               </label>
               <input
                 type="number"
@@ -356,7 +357,7 @@ export const AddRawMaterialModal: React.FC<AddRawMaterialModalProps> = ({
             <div className="space-y-1.5">
               <label className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
                 <ShieldAlert className="w-3.5 h-3.5 text-amber-600" />
-                <span>Seuil Alerte Réappro ({unit})</span>
+                <span>{t('inventory.colReorderThreshold')} ({unit})</span>
               </label>
               <input
                 type="number"
@@ -382,7 +383,7 @@ export const AddRawMaterialModal: React.FC<AddRawMaterialModalProps> = ({
             <div className="space-y-1.5">
               <label className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
                 <Barcode className="w-3.5 h-3.5 text-slate-600" />
-                <span>Code-Barres (Optionnel)</span>
+                <span>{t('inventory.barcode')} ({t('common.optional')})</span>
               </label>
               <input
                 type="text"
@@ -401,7 +402,7 @@ export const AddRawMaterialModal: React.FC<AddRawMaterialModalProps> = ({
               onClick={handleClose}
               className="px-4 py-2 text-xs font-bold text-slate-600 hover:text-slate-900 transition-colors"
             >
-              Annuler
+              {t('common.cancel')}
             </button>
             <button
               type="submit"
@@ -409,7 +410,7 @@ export const AddRawMaterialModal: React.FC<AddRawMaterialModalProps> = ({
               className="inline-flex items-center gap-2 px-5 py-2.5 text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 rounded-xl shadow-md transition-colors disabled:opacity-50"
             >
               <Plus className="w-4 h-4" />
-              <span>Enregistrer la Matière Première</span>
+              <span>{t('inventory.addMaterial')}</span>
             </button>
           </div>
         </form>
