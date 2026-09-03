@@ -28,6 +28,11 @@ android/local.properties
 src-tauri/target/
 android/src-tauri/target/
 
+# Binaries
+*.exe
+*.dll
+*.so
+
 # Signing keys / secrets - never commit
 *.jks
 *.keystore

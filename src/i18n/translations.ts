@@ -1,4 +1,4 @@
-import { AppLanguage } from '../services/storage';
+import { AppLanguage } from './index';
 
 export const translations: Record<AppLanguage, any> = {
   fr: {
@@ -24,31 +24,6 @@ export const translations: Record<AppLanguage, any> = {
       audio_haptics_desc: 'Retours tactiles natifs et audio synthétique',
       printer: 'Imprimante Thermique POS',
       printer_desc: 'Impression directe silencieuse pour tickets',
-    }
-  },
-  en: {
-    common: {
-      settings: 'Settings',
-      sync: 'Sync',
-      language: 'Language',
-      logout: 'Logout',
-      search: 'Search...',
-      close: 'Close',
-      save: 'Save',
-      cancel: 'Cancel',
-    },
-    nav: {
-      lab_central: 'Central Lab',
-      retail_store: 'Store',
-      admin_context: 'Admin Context',
-    },
-    settings: {
-      display_prefs: 'Language & Localization',
-      display_prefs_desc: 'Choose interface language (RTL support included)',
-      audio_haptics: 'Sound Effects & Haptic Feedback',
-      audio_haptics_desc: 'Native tactile feedback and synthetic audio',
-      printer: 'Thermal POS Printer',
-      printer_desc: 'Silent direct printing for tickets',
     }
   },
   ar: {

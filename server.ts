@@ -1,3 +1,4 @@
+import "dotenv/config";
 import express from "express";
 import path from "path";
 import { GoogleGenAI } from "@google/genai";
@@ -122,7 +123,7 @@ Contexte actuel fourni par l'utilisateur: ${context || 'Utilisateur dans l\'inte
       });
 
       const response = await ai.models.generateContent({
-        model: "gemini-3.6-flash",
+        model: "gemini-1.5-flash",
         contents: contents,
         config: {
           systemInstruction: systemInstruction,

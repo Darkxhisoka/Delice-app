@@ -134,7 +134,7 @@ export const LabProduction: React.FC = () => {
       targetDate: targetDate === 'ALL' ? undefined : targetDate,
       storeId: selectedStoreId === 'ALL' ? undefined : selectedStoreId,
     });
-    console.debug(`[LabProduction] Aggregation complete: ${result.summary.activeRoomsCount} active rooms, ${result.summary.totalUnitsToProduce} total units`);
+    console.debug(`[LabProduction] Aggregation complete: ${result.summary.activeRoomsCount} active rooms, ${result.summary.totalUnitsAcrossAllRooms} total units`);
     return result;
   }, [requisitions, targetDate, selectedStoreId, refreshKey]);
 

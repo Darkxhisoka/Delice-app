@@ -2,7 +2,7 @@ apply plugin: 'com.android.application'
 
 android {
     namespace = "com.delice.patisserie"
-    compileSdk = rootProject.ext.compileSdkVersion
+    compileSdk 36
     defaultConfig {
         applicationId "com.delice.patisserie"
         minSdkVersion rootProject.ext.minSdkVersion
@@ -49,6 +49,6 @@ try {
     if (servicesJSON.text) {
         apply plugin: 'com.google.gms.google-services'
     }
-} catch(Exception e) {
+} catch(e) {
     logger.info("google-services.json not found, google-services plugin not applied. Push Notifications won't work")
 }

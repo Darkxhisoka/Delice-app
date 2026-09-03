@@ -1,6 +1,6 @@
 import { useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
-import { AppLanguage } from '../services/storage';
+import { AppLanguage } from '../i18n';
 
 export interface UseI18nReturn {
   language: AppLanguage;

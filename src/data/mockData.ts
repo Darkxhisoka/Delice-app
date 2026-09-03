@@ -362,6 +362,9 @@ export const INITIAL_REQUISITIONS: Requisition[] = [
     items: [
       {
         id: 'rqi-1',
+        itemId: 'butter-croissants-raw-laminated-frozen-batches',
+        itemType: 'finished',
+        itemTitle: 'Butter Croissants (Raw Laminated Frozen Batches)',
         productName: 'Butter Croissants (Raw Laminated Frozen Batches)',
         category: 'Viennoiserie & Briocherie',
         quantityRequested: 150,
@@ -370,6 +373,9 @@ export const INITIAL_REQUISITIONS: Requisition[] = [
       },
       {
         id: 'rqi-2',
+        itemId: 'pain-au-chocolat-frozen-ready-to-bake',
+        itemType: 'finished',
+        itemTitle: 'Pain au Chocolat (Frozen Ready-to-Bake)',
         productName: 'Pain au Chocolat (Frozen Ready-to-Bake)',
         category: 'Viennoiserie & Briocherie',
         quantityRequested: 100,
@@ -378,6 +384,9 @@ export const INITIAL_REQUISITIONS: Requisition[] = [
       },
       {
         id: 'rqi-3',
+        itemId: 'valrhona-dark-chocolate-ganache-base',
+        itemType: 'finished',
+        itemTitle: 'Valrhona Dark Chocolate Ganache Base',
         productName: 'Valrhona Dark Chocolate Ganache Base',
         category: 'Fillings & Creams',
         quantityRequested: 10,
@@ -400,6 +409,9 @@ export const INITIAL_REQUISITIONS: Requisition[] = [
     items: [
       {
         id: 'rqi-4',
+        itemId: 'raspberry-almond-tart-shells-pre-baked-8',
+        itemType: 'finished',
+        itemTitle: 'Raspberry Almond Tart Shells (Pre-baked 8")',
         productName: 'Raspberry Almond Tart Shells (Pre-baked 8")',
         category: 'Tart Shells & Bases',
         quantityRequested: 24,
@@ -408,6 +420,9 @@ export const INITIAL_REQUISITIONS: Requisition[] = [
       },
       {
         id: 'rqi-5',
+        itemId: 'vanilla-bean-diplomat-pastry-cream',
+        itemType: 'finished',
+        itemTitle: 'Vanilla Bean Diplomat Pastry Cream',
         productName: 'Vanilla Bean Diplomat Pastry Cream',
         category: 'Fillings & Creams',
         quantityRequested: 15,
@@ -431,6 +446,9 @@ export const INITIAL_REQUISITIONS: Requisition[] = [
     items: [
       {
         id: 'rqi-6',
+        itemId: 'butter-croissants-raw-laminated-frozen-batches',
+        itemType: 'finished',
+        itemTitle: 'Butter Croissants (Raw Laminated Frozen Batches)',
         productName: 'Butter Croissants (Raw Laminated Frozen Batches)',
         category: 'Viennoiserie & Briocherie',
         quantityRequested: 200,
@@ -440,6 +458,9 @@ export const INITIAL_REQUISITIONS: Requisition[] = [
       },
       {
         id: 'rqi-7',
+        itemId: 'pistachio-paris-brest-choux-shells',
+        itemType: 'finished',
+        itemTitle: 'Pistachio Paris-Brest Choux Shells',
         productName: 'Pistachio Paris-Brest Choux Shells',
         category: 'Finished Desserts',
         quantityRequested: 40,
@@ -463,6 +484,9 @@ export const INITIAL_REQUISITIONS: Requisition[] = [
     items: [
       {
         id: 'rqi-8',
+        itemId: 'pain-au-chocolat-frozen-ready-to-bake',
+        itemType: 'finished',
+        itemTitle: 'Pain au Chocolat (Frozen Ready-to-Bake)',
         productName: 'Pain au Chocolat (Frozen Ready-to-Bake)',
         category: 'Viennoiserie & Briocherie',
         quantityRequested: 120,
@@ -471,6 +495,9 @@ export const INITIAL_REQUISITIONS: Requisition[] = [
       },
       {
         id: 'rqi-9',
+        itemId: 'eco-pastry-boxes-window-6x6',
+        itemType: 'finished',
+        itemTitle: 'Eco Pastry Boxes (Window 6x6")',
         productName: 'Eco Pastry Boxes (Window 6x6")',
         category: 'Finished Desserts',
         quantityRequested: 150,
@@ -493,6 +520,9 @@ export const INITIAL_REQUISITIONS: Requisition[] = [
     items: [
       {
         id: 'rqi-10',
+        itemId: 'artisan-butter-croissant-pur-beurre',
+        itemType: 'finished',
+        itemTitle: 'Artisan Butter Croissant (Pur Beurre)',
         productName: 'Artisan Butter Croissant (Pur Beurre)',
         category: 'Viennoiserie & Briocherie',
         quantityRequested: 180,
@@ -501,6 +531,9 @@ export const INITIAL_REQUISITIONS: Requisition[] = [
       },
       {
         id: 'rqi-11',
+        itemId: 'mille-feuille-classique-vanille-bourbon',
+        itemType: 'finished',
+        itemTitle: 'Mille-Feuille Classique Vanille Bourbon',
         productName: 'Mille-Feuille Classique Vanille Bourbon',
         category: 'Mille-Feuille',
         quantityRequested: 60,
@@ -509,6 +542,9 @@ export const INITIAL_REQUISITIONS: Requisition[] = [
       },
       {
         id: 'rqi-11b',
+        itemId: 'baklawa-royale-aux-amandes-miel-pur',
+        itemType: 'finished',
+        itemTitle: 'Baklawa Royale aux Amandes & Miel Pur',
         productName: 'Baklawa Royale aux Amandes & Miel Pur',
         category: 'Gâteaux Orientaux',
         quantityRequested: 80,
@@ -531,6 +567,9 @@ export const INITIAL_REQUISITIONS: Requisition[] = [
     items: [
       {
         id: 'rqi-12',
+        itemId: 'pistachio-paris-brest-choux-shells',
+        itemType: 'finished',
+        itemTitle: 'Pistachio Paris-Brest Choux Shells',
         productName: 'Pistachio Paris-Brest Choux Shells',
         category: 'Finished Desserts',
         quantityRequested: 60,
@@ -539,6 +578,9 @@ export const INITIAL_REQUISITIONS: Requisition[] = [
       },
       {
         id: 'rqi-12b',
+        itemId: 'sable-traditionnel-confiture-fraise-abricot',
+        itemType: 'finished',
+        itemTitle: 'Sablé Traditionnel Confiture Fraise / Abricot',
         productName: 'Sablé Traditionnel Confiture Fraise / Abricot',
         category: 'Gâteaux Secs',
         quantityRequested: 100,
@@ -547,6 +589,9 @@ export const INITIAL_REQUISITIONS: Requisition[] = [
       },
       {
         id: 'rqi-12c',
+        itemId: 'trompe-loeil-citron-cedrat-menthe-fraiche',
+        itemType: 'finished',
+        itemTitle: 'Trompe-l’œil Citron Cédrat & Menthe Fraîche',
         productName: 'Trompe-l’œil Citron Cédrat & Menthe Fraîche',
         category: 'Trompe-l’œil',
         quantityRequested: 25,
@@ -569,6 +614,9 @@ export const INITIAL_REQUISITIONS: Requisition[] = [
     items: [
       {
         id: 'rqi-13',
+        itemId: 'artisan-butter-croissant-pur-beurre',
+        itemType: 'finished',
+        itemTitle: 'Artisan Butter Croissant (Pur Beurre)',
         productName: 'Artisan Butter Croissant (Pur Beurre)',
         category: 'Viennoiserie & Briocherie',
         quantityRequested: 120,
@@ -577,6 +625,9 @@ export const INITIAL_REQUISITIONS: Requisition[] = [
       },
       {
         id: 'rqi-14',
+        itemId: 'valrhona-pain-au-chocolat-chocolatine',
+        itemType: 'finished',
+        itemTitle: 'Valrhona Pain au Chocolat (Chocolatine)',
         productName: 'Valrhona Pain au Chocolat (Chocolatine)',
         category: 'Viennoiserie & Briocherie',
         quantityRequested: 90,
@@ -585,6 +636,9 @@ export const INITIAL_REQUISITIONS: Requisition[] = [
       },
       {
         id: 'rqi-15',
+        itemId: 'mille-feuille-classique-vanille-bourbon',
+        itemType: 'finished',
+        itemTitle: 'Mille-Feuille Classique Vanille Bourbon',
         productName: 'Mille-Feuille Classique Vanille Bourbon',
         category: 'Mille-Feuille',
         quantityRequested: 50,
@@ -593,6 +647,9 @@ export const INITIAL_REQUISITIONS: Requisition[] = [
       },
       {
         id: 'rqi-16',
+        itemId: 'baklawa-royale-aux-amandes-miel-pur',
+        itemType: 'finished',
+        itemTitle: 'Baklawa Royale aux Amandes & Miel Pur',
         productName: 'Baklawa Royale aux Amandes & Miel Pur',
         category: 'Gâteaux Orientaux',
         quantityRequested: 50,
@@ -601,6 +658,9 @@ export const INITIAL_REQUISITIONS: Requisition[] = [
       },
       {
         id: 'rqi-17',
+        itemId: 'sable-traditionnel-confiture-fraise-abricot',
+        itemType: 'finished',
+        itemTitle: 'Sablé Traditionnel Confiture Fraise / Abricot',
         productName: 'Sablé Traditionnel Confiture Fraise / Abricot',
         category: 'Gâteaux Secs',
         quantityRequested: 80,
@@ -609,6 +669,9 @@ export const INITIAL_REQUISITIONS: Requisition[] = [
       },
       {
         id: 'rqi-18',
+        itemId: 'trompe-loeil-noisette-coeur-praline-coulant',
+        itemType: 'finished',
+        itemTitle: 'Trompe-l’œil Noisette Cœur Praliné Coulant',
         productName: 'Trompe-l’œil Noisette Cœur Praliné Coulant',
         category: 'Trompe-l’œil',
         quantityRequested: 20,
@@ -631,6 +694,9 @@ export const INITIAL_REQUISITIONS: Requisition[] = [
     items: [
       {
         id: 'rqi-19',
+        itemId: 'artisan-butter-croissant-pur-beurre',
+        itemType: 'finished',
+        itemTitle: 'Artisan Butter Croissant (Pur Beurre)',
         productName: 'Artisan Butter Croissant (Pur Beurre)',
         category: 'Viennoiserie & Briocherie',
         quantityRequested: 80,
@@ -639,6 +705,9 @@ export const INITIAL_REQUISITIONS: Requisition[] = [
       },
       {
         id: 'rqi-20',
+        itemId: 'mille-feuille-classique-vanille-bourbon',
+        itemType: 'finished',
+        itemTitle: 'Mille-Feuille Classique Vanille Bourbon',
         productName: 'Mille-Feuille Classique Vanille Bourbon',
         category: 'Mille-Feuille',
         quantityRequested: 40,
@@ -647,6 +716,9 @@ export const INITIAL_REQUISITIONS: Requisition[] = [
       },
       {
         id: 'rqi-21',
+        itemId: 'madagascar-vanilla-bean-eclair',
+        itemType: 'finished',
+        itemTitle: 'Madagascar Vanilla Bean Éclair',
         productName: 'Madagascar Vanilla Bean Éclair',
         category: 'Pâtisseries Fines',
         quantityRequested: 35,
@@ -655,6 +727,9 @@ export const INITIAL_REQUISITIONS: Requisition[] = [
       },
       {
         id: 'rqi-22',
+        itemId: 'piece-montee-pyramide-choux-nougatine-caramel',
+        itemType: 'finished',
+        itemTitle: 'Pièce Montée Pyramide Choux & Nougatine Caramel',
         productName: 'Pièce Montée Pyramide Choux & Nougatine Caramel',
         category: 'Pièce Montée',
         quantityRequested: 1,
@@ -677,6 +752,9 @@ export const INITIAL_REQUISITIONS: Requisition[] = [
     items: [
       {
         id: 'rqi-23',
+        itemId: 'makroud-el-louz-coeur-moelleux-citron',
+        itemType: 'finished',
+        itemTitle: 'Makroud El Louz Cœur Moelleux Citron',
         productName: 'Makroud El Louz Cœur Moelleux Citron',
         category: 'Gâteaux Orientaux',
         quantityRequested: 60,
@@ -685,6 +763,9 @@ export const INITIAL_REQUISITIONS: Requisition[] = [
       },
       {
         id: 'rqi-24',
+        itemId: 'baklawa-royale-aux-amandes-miel-pur',
+        itemType: 'finished',
+        itemTitle: 'Baklawa Royale aux Amandes & Miel Pur',
         productName: 'Baklawa Royale aux Amandes & Miel Pur',
         category: 'Gâteaux Orientaux',
         quantityRequested: 40,
@@ -693,6 +774,9 @@ export const INITIAL_REQUISITIONS: Requisition[] = [
       },
       {
         id: 'rqi-25',
+        itemId: 'valrhona-pain-au-chocolat-chocolatine',
+        itemType: 'finished',
+        itemTitle: 'Valrhona Pain au Chocolat (Chocolatine)',
         productName: 'Valrhona Pain au Chocolat (Chocolatine)',
         category: 'Viennoiserie & Briocherie',
         quantityRequested: 70,
@@ -701,6 +785,9 @@ export const INITIAL_REQUISITIONS: Requisition[] = [
       },
       {
         id: 'rqi-26',
+        itemId: 'mille-feuille-praline-noisette-croustillant',
+        itemType: 'finished',
+        itemTitle: 'Mille-Feuille Praliné Noisette Croustillant',
         productName: 'Mille-Feuille Praliné Noisette Croustillant',
         category: 'Mille-Feuille',
         quantityRequested: 30,

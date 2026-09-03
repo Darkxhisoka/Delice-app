@@ -795,7 +795,7 @@
   "labAssistant": {
     "launcherBadge": "مساعد الذكاء الاصطناعي",
     "chefName": "الشيف إميل",
-    "modelBadge": "Gemini 3.6 Flash",
+    "modelBadge": "Gemini 1.5 Flash",
     "chefSubtitle": "مساعد التدريب وحل المشكلات الفنية في صناعة الحلويات",
     "resetHistory": "إعادة تعيين المحادثة",
     "minimize": "تصغير النافذة",

@@ -795,7 +795,7 @@
   "labAssistant": {
     "launcherBadge": "Assistant IA Lab",
     "chefName": "Chef Émile",
-    "modelBadge": "Gemini 3.6 Flash",
+    "modelBadge": "Gemini 1.5 Flash",
     "chefSubtitle": "Assistant Formateur & Dépannage Pâtisserie",
     "resetHistory": "Réinitialiser la discussion",
     "minimize": "Réduire la fenêtre",

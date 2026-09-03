@@ -453,7 +453,7 @@ export const LabAssistantChatbot: React.FC = () => {
                     {t('labAssistant.chefName', 'Chef Émile')}
                   </h3>
                   <span className="px-2 py-0.5 rounded-full text-[9px] font-black bg-amber-400/20 text-amber-300 border border-amber-400/30">
-                    {t('labAssistant.modelBadge', 'Gemini 3.6 Flash')}
+                    {t('labAssistant.modelBadge', 'Gemini 1.5 Flash')}
                   </span>
                 </div>
                 <p className="text-[11px] text-slate-300">{t('labAssistant.chefSubtitle', 'Assistant Formateur & Dépannage Pâtisserie')}</p>
