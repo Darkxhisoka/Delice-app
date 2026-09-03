@@ -22,7 +22,7 @@ import {
 } from './services/versionService';
 import { useDesktopShortcuts } from './hooks/useDesktopShortcuts';
 import { useAndroidBackButton } from './hooks/useAndroidBackButton';
-import { initPersistentStorage } from './db/database';
+import { initPersistentStorage, migrateProductRoomIds } from './db/database';
 import { supabase } from './lib/supabaseClient';
 import { subscribeToSupabaseRealtime } from './services/supabaseService';
 import { 
@@ -76,6 +76,7 @@ export default function App() {
     // 0. Initialize persistent storage, language direction & background sync
     applyDirection(getStoredLanguage());
     initPersistentStorage().catch((err) => console.warn('Persistent storage init note:', err));
+    migrateProductRoomIds().catch((err) => console.warn('Product roomId migration note:', err));
     initBackgroundSync();
 
     const handleLanguageChange = (e: Event) => {

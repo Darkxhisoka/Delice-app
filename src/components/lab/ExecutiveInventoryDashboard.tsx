@@ -278,6 +278,8 @@ export const ExecutiveInventoryDashboard: React.FC = () => {
 
   // --- HANDLER: Approve & Dispatch Requisition ---
   const handleApproveAndDispatch = async (req: Requisition) => {
+    console.debug(`[ExecutiveDashboard] Approving & dispatching requisition ${req.requisitionNumber} (id=${req.id})`);
+    console.debug(`[ExecutiveDashboard] Items count: ${req.items.length}, Store: ${req.storeName}`);
     try {
       // 1. Deduct requested quantities from Central stock and Add to Store local stock
       for (const item of req.items) {
@@ -333,7 +335,9 @@ export const ExecutiveInventoryDashboard: React.FC = () => {
       }
 
       // 2. Update requisition status to 'DISPATCHED'
+      console.debug(`[ExecutiveDashboard] Setting status DISPATCHED for requisition ${req.id}`);
       await updateRequisitionStatusInSupabase(req.id, 'DISPATCHED');
+      console.debug(`[ExecutiveDashboard] Status updated & localStorage synced (notifyListeners called)`);
 
       // 3. Add activity log
       addActivityLog({

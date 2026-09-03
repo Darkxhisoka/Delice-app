@@ -184,8 +184,13 @@ export type RequisitionStatus =
   | 'PROCESSING'
   | 'DISPATCHED';
 
+export type RequisitionItemType = 'finished' | 'raw';
+
 export interface RequisitionItem {
   id: string;
+  itemId: string;
+  itemType: RequisitionItemType;
+  itemTitle: string;
   productName: string;
   category:
     | 'Croissants & Pastries'
@@ -200,8 +205,17 @@ export interface RequisitionItem {
     | 'Viennoiserie & Briocherie'
     | 'Pâtisseries Fines'
     | 'Pièce Montée'
-    | 'Trompe-l’œil'
+    | "Trompe-l'œil"
     | 'Tart Shells & Desserts'
+    | 'Flour & Grains'
+    | 'Dairy & Eggs'
+    | 'Sugars & Sweeteners'
+    | 'Fats & Oils'
+    | 'Chocolate & Cocoa'
+    | 'Fruits & Nuts'
+    | 'Flavorings & Vanilla'
+    | 'Packaging'
+    | 'Other'
     | string;
   quantityRequested: number;
   fulfilledQuantity?: number;
@@ -389,13 +403,16 @@ export interface ActivityLogItem {
   };
 }
 
-export type RetailCategory = 
-  | 'Croissants & Pastries'
-  | 'Cakes & Tortes'
-  | 'Tart Shells & Desserts'
-  | 'Macarons & Sweets'
-  | 'Beverages & Coffee'
-  | 'Savory & Bread';
+export type FinishedProductCategory =
+  | 'G\u00e2teaux Secs'
+  | 'G\u00e2teaux Orientaux'
+  | 'Mille-Feuille & Feuilletage'
+  | 'Viennoiserie & Briocherie'
+  | 'P\u00e2tisseries Fines'
+  | 'Pi\u00e8ces Mont\u00e9es'
+  | 'Trompe-l\u2019\u0153il';
+
+export type RetailCategory = FinishedProductCategory;
 
 export interface RetailProduct {
   id: string;

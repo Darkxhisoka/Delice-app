@@ -363,7 +363,7 @@ export const INITIAL_REQUISITIONS: Requisition[] = [
       {
         id: 'rqi-1',
         productName: 'Butter Croissants (Raw Laminated Frozen Batches)',
-        category: 'Croissants & Pastries',
+        category: 'Viennoiserie & Briocherie',
         quantityRequested: 150,
         unit: 'units',
         unitEstimatedCost: 0.95,
@@ -371,7 +371,7 @@ export const INITIAL_REQUISITIONS: Requisition[] = [
       {
         id: 'rqi-2',
         productName: 'Pain au Chocolat (Frozen Ready-to-Bake)',
-        category: 'Croissants & Pastries',
+        category: 'Viennoiserie & Briocherie',
         quantityRequested: 100,
         unit: 'units',
         unitEstimatedCost: 1.15,
@@ -432,7 +432,7 @@ export const INITIAL_REQUISITIONS: Requisition[] = [
       {
         id: 'rqi-6',
         productName: 'Butter Croissants (Raw Laminated Frozen Batches)',
-        category: 'Croissants & Pastries',
+        category: 'Viennoiserie & Briocherie',
         quantityRequested: 200,
         fulfilledQuantity: 200,
         unit: 'units',
@@ -464,7 +464,7 @@ export const INITIAL_REQUISITIONS: Requisition[] = [
       {
         id: 'rqi-8',
         productName: 'Pain au Chocolat (Frozen Ready-to-Bake)',
-        category: 'Croissants & Pastries',
+        category: 'Viennoiserie & Briocherie',
         quantityRequested: 120,
         unit: 'units',
         unitEstimatedCost: 1.15,
@@ -494,7 +494,7 @@ export const INITIAL_REQUISITIONS: Requisition[] = [
       {
         id: 'rqi-10',
         productName: 'Artisan Butter Croissant (Pur Beurre)',
-        category: 'Croissants & Pastries',
+        category: 'Viennoiserie & Briocherie',
         quantityRequested: 180,
         unit: 'units',
         unitEstimatedCost: 0.95,
@@ -570,7 +570,7 @@ export const INITIAL_REQUISITIONS: Requisition[] = [
       {
         id: 'rqi-13',
         productName: 'Artisan Butter Croissant (Pur Beurre)',
-        category: 'Croissants & Pastries',
+        category: 'Viennoiserie & Briocherie',
         quantityRequested: 120,
         unit: 'units',
         unitEstimatedCost: 0.95,
@@ -578,7 +578,7 @@ export const INITIAL_REQUISITIONS: Requisition[] = [
       {
         id: 'rqi-14',
         productName: 'Valrhona Pain au Chocolat (Chocolatine)',
-        category: 'Croissants & Pastries',
+        category: 'Viennoiserie & Briocherie',
         quantityRequested: 90,
         unit: 'units',
         unitEstimatedCost: 1.15,
@@ -632,7 +632,7 @@ export const INITIAL_REQUISITIONS: Requisition[] = [
       {
         id: 'rqi-19',
         productName: 'Artisan Butter Croissant (Pur Beurre)',
-        category: 'Croissants & Pastries',
+        category: 'Viennoiserie & Briocherie',
         quantityRequested: 80,
         unit: 'units',
         unitEstimatedCost: 0.95,
@@ -648,7 +648,7 @@ export const INITIAL_REQUISITIONS: Requisition[] = [
       {
         id: 'rqi-21',
         productName: 'Madagascar Vanilla Bean Éclair',
-        category: 'Tart Shells & Desserts',
+        category: 'Pâtisseries Fines',
         quantityRequested: 35,
         unit: 'units',
         unitEstimatedCost: 1.60,
@@ -694,7 +694,7 @@ export const INITIAL_REQUISITIONS: Requisition[] = [
       {
         id: 'rqi-25',
         productName: 'Valrhona Pain au Chocolat (Chocolatine)',
-        category: 'Croissants & Pastries',
+        category: 'Viennoiserie & Briocherie',
         quantityRequested: 70,
         unit: 'units',
         unitEstimatedCost: 1.15,
@@ -900,9 +900,9 @@ export const INITIAL_SEMI_FINISHED_STOCK: SemiFinishedStockItem[] = [
 ];
 
 export const CATALOG_PRODUCTS = [
-  { name: 'Butter Croissants (Raw Laminated Frozen Batches)', category: 'Croissants & Pastries' as const, unit: 'units', unitEstimatedCost: 0.95 },
-  { name: 'Pain au Chocolat (Frozen Ready-to-Bake)', category: 'Croissants & Pastries' as const, unit: 'units', unitEstimatedCost: 1.15 },
-  { name: 'Almond Twice-Baked Croissant Base', category: 'Croissants & Pastries' as const, unit: 'units', unitEstimatedCost: 1.40 },
+  { name: 'Butter Croissants (Raw Laminated Frozen Batches)', category: 'Viennoiserie & Briocherie' as const, unit: 'units', unitEstimatedCost: 0.95 },
+  { name: 'Pain au Chocolat (Frozen Ready-to-Bake)', category: 'Viennoiserie & Briocherie' as const, unit: 'units', unitEstimatedCost: 1.15 },
+  { name: 'Almond Twice-Baked Croissant Base', category: 'Viennoiserie & Briocherie' as const, unit: 'units', unitEstimatedCost: 1.40 },
   { name: 'Raspberry Almond Tart Shells (Pre-baked 8")', category: 'Tart Shells & Bases' as const, unit: 'units', unitEstimatedCost: 3.40 },
   { name: 'Valrhona Dark Chocolate Tart Shells (Pre-baked 8")', category: 'Tart Shells & Bases' as const, unit: 'units', unitEstimatedCost: 3.80 },
   { name: 'Vanilla Bean Diplomat Pastry Cream', category: 'Fillings & Creams' as const, unit: 'kg', unitEstimatedCost: 6.80 },
@@ -1012,7 +1012,7 @@ export const INITIAL_RETAIL_PRODUCTS: RetailProduct[] = [
   {
     id: 'prod-1',
     name: 'Artisan Butter Croissant',
-    category: 'Croissants & Pastries',
+    category: 'Viennoiserie & Briocherie',
     price: 3.80,
     costPrice: 0.95,
     unit: 'units',
@@ -1022,7 +1022,7 @@ export const INITIAL_RETAIL_PRODUCTS: RetailProduct[] = [
   {
     id: 'prod-2',
     name: 'Valrhona Pain au Chocolat',
-    category: 'Croissants & Pastries',
+    category: 'Viennoiserie & Briocherie',
     price: 4.40,
     costPrice: 1.15,
     unit: 'units',
@@ -1032,7 +1032,7 @@ export const INITIAL_RETAIL_PRODUCTS: RetailProduct[] = [
   {
     id: 'prod-3',
     name: 'Double Almond Cream Croissant',
-    category: 'Croissants & Pastries',
+    category: 'Viennoiserie & Briocherie',
     price: 4.90,
     costPrice: 1.40,
     unit: 'units',
@@ -1042,7 +1042,7 @@ export const INITIAL_RETAIL_PRODUCTS: RetailProduct[] = [
   {
     id: 'prod-4',
     name: 'Fresh Raspberry Almond Tartlet 4"',
-    category: 'Tart Shells & Desserts',
+    category: 'Pâtisseries Fines',
     price: 6.80,
     costPrice: 2.20,
     unit: 'units',
@@ -1052,7 +1052,7 @@ export const INITIAL_RETAIL_PRODUCTS: RetailProduct[] = [
   {
     id: 'prod-5',
     name: 'Madagascar Vanilla Bean Éclair',
-    category: 'Tart Shells & Desserts',
+    category: 'Pâtisseries Fines',
     price: 5.50,
     costPrice: 1.60,
     unit: 'units',
@@ -1062,7 +1062,7 @@ export const INITIAL_RETAIL_PRODUCTS: RetailProduct[] = [
   {
     id: 'prod-6',
     name: 'Pistachio Paris-Brest',
-    category: 'Tart Shells & Desserts',
+    category: 'Pâtisseries Fines',
     price: 7.50,
     costPrice: 2.80,
     unit: 'units',
@@ -1072,7 +1072,7 @@ export const INITIAL_RETAIL_PRODUCTS: RetailProduct[] = [
   {
     id: 'prod-7',
     name: 'Opera Cake Slice',
-    category: 'Cakes & Tortes',
+    category: 'Pâtisseries Fines',
     price: 7.20,
     costPrice: 2.30,
     unit: 'slices',
@@ -1082,7 +1082,7 @@ export const INITIAL_RETAIL_PRODUCTS: RetailProduct[] = [
   {
     id: 'prod-8',
     name: 'Signature Macaron Gift Box (6 pcs)',
-    category: 'Macarons & Sweets',
+    category: 'Gâteaux Orientaux',
     price: 15.00,
     costPrice: 4.50,
     unit: 'boxes',
@@ -1092,7 +1092,7 @@ export const INITIAL_RETAIL_PRODUCTS: RetailProduct[] = [
   {
     id: 'prod-9',
     name: 'French Sourdough Country Loaf',
-    category: 'Savory & Bread',
+    category: 'Viennoiserie & Briocherie',
     price: 6.50,
     costPrice: 1.80,
     unit: 'units',
@@ -1102,7 +1102,7 @@ export const INITIAL_RETAIL_PRODUCTS: RetailProduct[] = [
   {
     id: 'prod-10',
     name: 'Spinach & Goat Cheese Quiche Slice',
-    category: 'Savory & Bread',
+    category: 'Viennoiserie & Briocherie',
     price: 6.90,
     costPrice: 2.10,
     unit: 'slices',
@@ -1112,7 +1112,7 @@ export const INITIAL_RETAIL_PRODUCTS: RetailProduct[] = [
   {
     id: 'prod-11',
     name: 'Double Shot Espresso / Americano',
-    category: 'Beverages & Coffee',
+    category: 'Gâteaux Secs',
     price: 3.80,
     costPrice: 0.60,
     unit: 'cups',
@@ -1122,7 +1122,7 @@ export const INITIAL_RETAIL_PRODUCTS: RetailProduct[] = [
   {
     id: 'prod-12',
     name: 'Iced Matcha Oat Latte',
-    category: 'Beverages & Coffee',
+    category: 'Gâteaux Secs',
     price: 5.80,
     costPrice: 1.10,
     unit: 'cups',
@@ -1133,28 +1133,28 @@ export const INITIAL_RETAIL_PRODUCTS: RetailProduct[] = [
 
 export const INITIAL_RETAIL_STORE_STOCK: RetailStoreStock[] = [
   // Store 1 (Downtown Flagship)
-  { id: 'stk-1-1', storeId: 'store-1', productId: 'prod-1', productName: 'Artisan Butter Croissant', category: 'Croissants & Pastries', currentStock: 48, unit: 'units', price: 3.80, costPrice: 0.95, lastUpdated: '2026-08-02' },
-  { id: 'stk-1-2', storeId: 'store-1', productId: 'prod-2', productName: 'Valrhona Pain au Chocolat', category: 'Croissants & Pastries', currentStock: 35, unit: 'units', price: 4.40, costPrice: 1.15, lastUpdated: '2026-08-02' },
-  { id: 'stk-1-3', storeId: 'store-1', productId: 'prod-3', productName: 'Double Almond Cream Croissant', category: 'Croissants & Pastries', currentStock: 18, unit: 'units', price: 4.90, costPrice: 1.40, lastUpdated: '2026-08-02' },
-  { id: 'stk-1-4', storeId: 'store-1', productId: 'prod-4', productName: 'Fresh Raspberry Almond Tartlet 4"', category: 'Tart Shells & Desserts', currentStock: 12, unit: 'units', price: 6.80, costPrice: 2.20, lastUpdated: '2026-08-02' },
-  { id: 'stk-1-5', storeId: 'store-1', productId: 'prod-5', productName: 'Madagascar Vanilla Bean Éclair', category: 'Tart Shells & Desserts', currentStock: 15, unit: 'units', price: 5.50, costPrice: 1.60, lastUpdated: '2026-08-02' },
-  { id: 'stk-1-6', storeId: 'store-1', productId: 'prod-6', productName: 'Pistachio Paris-Brest', category: 'Tart Shells & Desserts', currentStock: 8, unit: 'units', price: 7.50, costPrice: 2.80, lastUpdated: '2026-08-02' },
-  { id: 'stk-1-7', storeId: 'store-1', productId: 'prod-7', productName: 'Opera Cake Slice', category: 'Cakes & Tortes', currentStock: 10, unit: 'slices', price: 7.20, costPrice: 2.30, lastUpdated: '2026-08-02' },
-  { id: 'stk-1-8', storeId: 'store-1', productId: 'prod-8', productName: 'Signature Macaron Gift Box (6 pcs)', category: 'Macarons & Sweets', currentStock: 22, unit: 'boxes', price: 15.00, costPrice: 4.50, lastUpdated: '2026-08-02' },
-  { id: 'stk-1-9', storeId: 'store-1', productId: 'prod-9', productName: 'French Sourdough Country Loaf', category: 'Savory & Bread', currentStock: 14, unit: 'units', price: 6.50, costPrice: 1.80, lastUpdated: '2026-08-02' },
-  { id: 'stk-1-10', storeId: 'store-1', productId: 'prod-10', productName: 'Spinach & Goat Cheese Quiche Slice', category: 'Savory & Bread', currentStock: 9, unit: 'slices', price: 6.90, costPrice: 2.10, lastUpdated: '2026-08-02' },
-  { id: 'stk-1-11', storeId: 'store-1', productId: 'prod-11', productName: 'Double Shot Espresso / Americano', category: 'Beverages & Coffee', currentStock: 200, unit: 'cups', price: 3.80, costPrice: 0.60, lastUpdated: '2026-08-02' },
-  { id: 'stk-1-12', storeId: 'store-1', productId: 'prod-12', productName: 'Iced Matcha Oat Latte', category: 'Beverages & Coffee', currentStock: 150, unit: 'cups', price: 5.80, costPrice: 1.10, lastUpdated: '2026-08-02' },
+  { id: 'stk-1-1', storeId: 'store-1', productId: 'prod-1', productName: 'Artisan Butter Croissant', category: 'Viennoiserie & Briocherie', currentStock: 48, unit: 'units', price: 3.80, costPrice: 0.95, lastUpdated: '2026-08-02' },
+  { id: 'stk-1-2', storeId: 'store-1', productId: 'prod-2', productName: 'Valrhona Pain au Chocolat', category: 'Viennoiserie & Briocherie', currentStock: 35, unit: 'units', price: 4.40, costPrice: 1.15, lastUpdated: '2026-08-02' },
+  { id: 'stk-1-3', storeId: 'store-1', productId: 'prod-3', productName: 'Double Almond Cream Croissant', category: 'Viennoiserie & Briocherie', currentStock: 18, unit: 'units', price: 4.90, costPrice: 1.40, lastUpdated: '2026-08-02' },
+  { id: 'stk-1-4', storeId: 'store-1', productId: 'prod-4', productName: 'Fresh Raspberry Almond Tartlet 4"', category: 'Pâtisseries Fines', currentStock: 12, unit: 'units', price: 6.80, costPrice: 2.20, lastUpdated: '2026-08-02' },
+  { id: 'stk-1-5', storeId: 'store-1', productId: 'prod-5', productName: 'Madagascar Vanilla Bean Éclair', category: 'Pâtisseries Fines', currentStock: 15, unit: 'units', price: 5.50, costPrice: 1.60, lastUpdated: '2026-08-02' },
+  { id: 'stk-1-6', storeId: 'store-1', productId: 'prod-6', productName: 'Pistachio Paris-Brest', category: 'Pâtisseries Fines', currentStock: 8, unit: 'units', price: 7.50, costPrice: 2.80, lastUpdated: '2026-08-02' },
+  { id: 'stk-1-7', storeId: 'store-1', productId: 'prod-7', productName: 'Opera Cake Slice', category: 'Pâtisseries Fines', currentStock: 10, unit: 'slices', price: 7.20, costPrice: 2.30, lastUpdated: '2026-08-02' },
+  { id: 'stk-1-8', storeId: 'store-1', productId: 'prod-8', productName: 'Signature Macaron Gift Box (6 pcs)', category: 'Gâteaux Orientaux', currentStock: 22, unit: 'boxes', price: 15.00, costPrice: 4.50, lastUpdated: '2026-08-02' },
+  { id: 'stk-1-9', storeId: 'store-1', productId: 'prod-9', productName: 'French Sourdough Country Loaf', category: 'Viennoiserie & Briocherie', currentStock: 14, unit: 'units', price: 6.50, costPrice: 1.80, lastUpdated: '2026-08-02' },
+  { id: 'stk-1-10', storeId: 'store-1', productId: 'prod-10', productName: 'Spinach & Goat Cheese Quiche Slice', category: 'Viennoiserie & Briocherie', currentStock: 9, unit: 'slices', price: 6.90, costPrice: 2.10, lastUpdated: '2026-08-02' },
+  { id: 'stk-1-11', storeId: 'store-1', productId: 'prod-11', productName: 'Double Shot Espresso / Americano', category: 'Gâteaux Secs', currentStock: 200, unit: 'cups', price: 3.80, costPrice: 0.60, lastUpdated: '2026-08-02' },
+  { id: 'stk-1-12', storeId: 'store-1', productId: 'prod-12', productName: 'Iced Matcha Oat Latte', category: 'Gâteaux Secs', currentStock: 150, unit: 'cups', price: 5.80, costPrice: 1.10, lastUpdated: '2026-08-02' },
 
   // Store 2 (Uptown Mall)
-  { id: 'stk-2-1', storeId: 'store-2', productId: 'prod-1', productName: 'Artisan Butter Croissant', category: 'Croissants & Pastries', currentStock: 30, unit: 'units', price: 3.80, costPrice: 0.95, lastUpdated: '2026-08-02' },
-  { id: 'stk-2-2', storeId: 'store-2', productId: 'prod-2', productName: 'Valrhona Pain au Chocolat', category: 'Croissants & Pastries', currentStock: 25, unit: 'units', price: 4.40, costPrice: 1.15, lastUpdated: '2026-08-02' },
-  { id: 'stk-2-4', storeId: 'store-2', productId: 'prod-4', productName: 'Fresh Raspberry Almond Tartlet 4"', category: 'Tart Shells & Desserts', currentStock: 16, unit: 'units', price: 6.80, costPrice: 2.20, lastUpdated: '2026-08-02' },
-  { id: 'stk-2-8', storeId: 'store-2', productId: 'prod-8', productName: 'Signature Macaron Gift Box (6 pcs)', category: 'Macarons & Sweets', currentStock: 15, unit: 'boxes', price: 15.00, costPrice: 4.50, lastUpdated: '2026-08-02' },
+  { id: 'stk-2-1', storeId: 'store-2', productId: 'prod-1', productName: 'Artisan Butter Croissant', category: 'Viennoiserie & Briocherie', currentStock: 30, unit: 'units', price: 3.80, costPrice: 0.95, lastUpdated: '2026-08-02' },
+  { id: 'stk-2-2', storeId: 'store-2', productId: 'prod-2', productName: 'Valrhona Pain au Chocolat', category: 'Viennoiserie & Briocherie', currentStock: 25, unit: 'units', price: 4.40, costPrice: 1.15, lastUpdated: '2026-08-02' },
+  { id: 'stk-2-4', storeId: 'store-2', productId: 'prod-4', productName: 'Fresh Raspberry Almond Tartlet 4"', category: 'Pâtisseries Fines', currentStock: 16, unit: 'units', price: 6.80, costPrice: 2.20, lastUpdated: '2026-08-02' },
+  { id: 'stk-2-8', storeId: 'store-2', productId: 'prod-8', productName: 'Signature Macaron Gift Box (6 pcs)', category: 'Gâteaux Orientaux', currentStock: 15, unit: 'boxes', price: 15.00, costPrice: 4.50, lastUpdated: '2026-08-02' },
 
   // Store 3 (Westside)
-  { id: 'stk-3-1', storeId: 'store-3', productId: 'prod-1', productName: 'Artisan Butter Croissant', category: 'Croissants & Pastries', currentStock: 60, unit: 'units', price: 3.80, costPrice: 0.95, lastUpdated: '2026-08-02' },
-  { id: 'stk-3-6', storeId: 'store-3', productId: 'prod-6', productName: 'Pistachio Paris-Brest', category: 'Tart Shells & Desserts', currentStock: 20, unit: 'units', price: 7.50, costPrice: 2.80, lastUpdated: '2026-08-02' },
+  { id: 'stk-3-1', storeId: 'store-3', productId: 'prod-1', productName: 'Artisan Butter Croissant', category: 'Viennoiserie & Briocherie', currentStock: 60, unit: 'units', price: 3.80, costPrice: 0.95, lastUpdated: '2026-08-02' },
+  { id: 'stk-3-6', storeId: 'store-3', productId: 'prod-6', productName: 'Pistachio Paris-Brest', category: 'Pâtisseries Fines', currentStock: 20, unit: 'units', price: 7.50, costPrice: 2.80, lastUpdated: '2026-08-02' },
 ];
 
 export const INITIAL_SALE_TRANSACTIONS: SaleTransaction[] = [
@@ -1167,8 +1167,8 @@ export const INITIAL_SALE_TRANSACTIONS: SaleTransaction[] = [
     timestamp: '2026-08-02T08:14:22Z',
     paymentMethod: 'CONTACTLESS',
     items: [
-      { productId: 'prod-1', productName: 'Artisan Butter Croissant', category: 'Croissants & Pastries', quantity: 2, unitPrice: 3.80, totalPrice: 7.60, costPrice: 0.95 },
-      { productId: 'prod-11', productName: 'Double Shot Espresso / Americano', category: 'Beverages & Coffee', quantity: 2, unitPrice: 3.80, totalPrice: 7.60, costPrice: 0.60 }
+      { productId: 'prod-1', productName: 'Artisan Butter Croissant', category: 'Viennoiserie & Briocherie', quantity: 2, unitPrice: 3.80, totalPrice: 7.60, costPrice: 0.95 },
+      { productId: 'prod-11', productName: 'Double Shot Espresso / Americano', category: 'Gâteaux Secs', quantity: 2, unitPrice: 3.80, totalPrice: 7.60, costPrice: 0.60 }
     ],
     subtotal: 15.20,
     discount: 0,
@@ -1185,9 +1185,9 @@ export const INITIAL_SALE_TRANSACTIONS: SaleTransaction[] = [
     timestamp: '2026-08-02T09:45:10Z',
     paymentMethod: 'CARD',
     items: [
-      { productId: 'prod-2', productName: 'Valrhona Pain au Chocolat', category: 'Croissants & Pastries', quantity: 3, unitPrice: 4.40, totalPrice: 13.20, costPrice: 1.15 },
-      { productId: 'prod-4', productName: 'Fresh Raspberry Almond Tartlet 4"', category: 'Tart Shells & Desserts', quantity: 2, unitPrice: 6.80, totalPrice: 13.60, costPrice: 2.20 },
-      { productId: 'prod-12', productName: 'Iced Matcha Oat Latte', category: 'Beverages & Coffee', quantity: 2, unitPrice: 5.80, totalPrice: 11.60, costPrice: 1.10 }
+      { productId: 'prod-2', productName: 'Valrhona Pain au Chocolat', category: 'Viennoiserie & Briocherie', quantity: 3, unitPrice: 4.40, totalPrice: 13.20, costPrice: 1.15 },
+      { productId: 'prod-4', productName: 'Fresh Raspberry Almond Tartlet 4"', category: 'Pâtisseries Fines', quantity: 2, unitPrice: 6.80, totalPrice: 13.60, costPrice: 2.20 },
+      { productId: 'prod-12', productName: 'Iced Matcha Oat Latte', category: 'Gâteaux Secs', quantity: 2, unitPrice: 5.80, totalPrice: 11.60, costPrice: 1.10 }
     ],
     subtotal: 38.40,
     discount: 0,
@@ -1205,9 +1205,9 @@ export const INITIAL_SALE_TRANSACTIONS: SaleTransaction[] = [
     cashTendered: 30.00,
     changeGiven: 7.20,
     items: [
-      { productId: 'prod-8', productName: 'Signature Macaron Gift Box (6 pcs)', category: 'Macarons & Sweets', quantity: 1, unitPrice: 15.00, totalPrice: 15.00, costPrice: 4.50 },
-      { productId: 'prod-3', productName: 'Double Almond Cream Croissant', category: 'Croissants & Pastries', quantity: 1, unitPrice: 4.90, totalPrice: 4.90, costPrice: 1.40 },
-      { productId: 'prod-11', productName: 'Double Shot Espresso / Americano', category: 'Beverages & Coffee', quantity: 1, unitPrice: 3.80, totalPrice: 3.80, costPrice: 0.60 }
+      { productId: 'prod-8', productName: 'Signature Macaron Gift Box (6 pcs)', category: 'Gâteaux Orientaux', quantity: 1, unitPrice: 15.00, totalPrice: 15.00, costPrice: 4.50 },
+      { productId: 'prod-3', productName: 'Double Almond Cream Croissant', category: 'Viennoiserie & Briocherie', quantity: 1, unitPrice: 4.90, totalPrice: 4.90, costPrice: 1.40 },
+      { productId: 'prod-11', productName: 'Double Shot Espresso / Americano', category: 'Gâteaux Secs', quantity: 1, unitPrice: 3.80, totalPrice: 3.80, costPrice: 0.60 }
     ],
     subtotal: 23.70,
     discount: 2.37, // 10% discount
@@ -1223,7 +1223,7 @@ export const INITIAL_SALE_TRANSACTIONS: SaleTransaction[] = [
     timestamp: '2026-08-02T10:05:00Z',
     paymentMethod: 'MOBILE_PAY',
     items: [
-      { productId: 'prod-8', productName: 'Signature Macaron Gift Box (6 pcs)', category: 'Macarons & Sweets', quantity: 2, unitPrice: 15.00, totalPrice: 30.00, costPrice: 4.50 }
+      { productId: 'prod-8', productName: 'Signature Macaron Gift Box (6 pcs)', category: 'Gâteaux Orientaux', quantity: 2, unitPrice: 15.00, totalPrice: 30.00, costPrice: 4.50 }
     ],
     subtotal: 30.00,
     discount: 0,
@@ -1242,7 +1242,7 @@ export const INITIAL_UNSOLD_LOGS: UnsoldProductLog[] = [
     recordedAt: '2026-08-01T19:30:00Z',
     productId: 'prod-1',
     productName: 'Artisan Butter Croissant',
-    category: 'Croissants & Pastries',
+    category: 'Viennoiserie & Briocherie',
     quantity: 4,
     unit: 'units',
     unitCost: 0.95,
@@ -1260,7 +1260,7 @@ export const INITIAL_UNSOLD_LOGS: UnsoldProductLog[] = [
     recordedAt: '2026-08-01T15:10:00Z',
     productId: 'prod-5',
     productName: 'Madagascar Vanilla Bean Éclair',
-    category: 'Tart Shells & Desserts',
+    category: 'Pâtisseries Fines',
     quantity: 2,
     unit: 'units',
     unitCost: 1.60,
@@ -1278,7 +1278,7 @@ export const INITIAL_UNSOLD_LOGS: UnsoldProductLog[] = [
     recordedAt: '2026-08-01T19:45:00Z',
     productId: 'prod-10',
     productName: 'Spinach & Goat Cheese Quiche Slice',
-    category: 'Savory & Bread',
+    category: 'Viennoiserie & Briocherie',
     quantity: 3,
     unit: 'slices',
     unitCost: 2.10,
@@ -1352,7 +1352,7 @@ export const INITIAL_DAILY_STORE_INVENTORY: DailyStoreInventory[] = [
     date: '2026-08-03',
     pastryId: 'prod-1',
     pastryName: 'Artisan Butter Croissant',
-    category: 'Croissants & Pastries',
+    category: 'Viennoiserie & Briocherie',
     unit: 'units',
     unitPrice: 3.80,
     unitCostPrice: 0.95,
@@ -1374,7 +1374,7 @@ export const INITIAL_DAILY_STORE_INVENTORY: DailyStoreInventory[] = [
     date: '2026-08-03',
     pastryId: 'prod-2',
     pastryName: 'Valrhona Pain au Chocolat',
-    category: 'Croissants & Pastries',
+    category: 'Viennoiserie & Briocherie',
     unit: 'units',
     unitPrice: 4.40,
     unitCostPrice: 1.15,
@@ -1396,7 +1396,7 @@ export const INITIAL_DAILY_STORE_INVENTORY: DailyStoreInventory[] = [
     date: '2026-08-03',
     pastryId: 'prod-4',
     pastryName: 'Fresh Raspberry Almond Tartlet 4"',
-    category: 'Tart Shells & Desserts',
+    category: 'Pâtisseries Fines',
     unit: 'units',
     unitPrice: 6.80,
     unitCostPrice: 2.20,
@@ -1418,7 +1418,7 @@ export const INITIAL_DAILY_STORE_INVENTORY: DailyStoreInventory[] = [
     date: '2026-08-03',
     pastryId: 'prod-1',
     pastryName: 'Artisan Butter Croissant',
-    category: 'Croissants & Pastries',
+    category: 'Viennoiserie & Briocherie',
     unit: 'units',
     unitPrice: 3.80,
     unitCostPrice: 0.95,
@@ -1439,7 +1439,7 @@ export const INITIAL_DAILY_STORE_INVENTORY: DailyStoreInventory[] = [
     date: '2026-08-03',
     pastryId: 'prod-8',
     pastryName: 'Signature Macaron Gift Box (6 pcs)',
-    category: 'Macarons & Sweets',
+    category: 'Gâteaux Orientaux',
     unit: 'boxes',
     unitPrice: 15.00,
     unitCostPrice: 4.50,
@@ -1477,7 +1477,7 @@ export const INITIAL_DELIVERY_MANIFESTS: DeliveryManifest[] = [
         storeName: 'Douera 01',
         productId: 'prod-1',
         productName: 'Artisan Butter Croissant',
-        category: 'Croissants & Pastries',
+        category: 'Viennoiserie & Briocherie',
         quantityRequested: 150,
         quantityDispatched: 150,
         unit: 'units',
@@ -1492,7 +1492,7 @@ export const INITIAL_DELIVERY_MANIFESTS: DeliveryManifest[] = [
         storeName: 'Douera 01',
         productId: 'prod-2',
         productName: 'Valrhona Pain au Chocolat',
-        category: 'Croissants & Pastries',
+        category: 'Viennoiserie & Briocherie',
         quantityRequested: 80,
         quantityDispatched: 80,
         unit: 'units',
@@ -1507,7 +1507,7 @@ export const INITIAL_DELIVERY_MANIFESTS: DeliveryManifest[] = [
         storeName: 'Douera 02',
         productId: 'prod-4',
         productName: 'Raspberry Almond Tartlet 4"',
-        category: 'Tart Shells & Desserts',
+        category: 'Pâtisseries Fines',
         quantityRequested: 24,
         quantityDispatched: 24,
         unit: 'units',
@@ -1534,7 +1534,7 @@ export const INITIAL_TRANSIT_WASTE_LOGS: TransitWasteLog[] = [
     storeName: 'Oued Terfa',
     productId: 'prod-4',
     productName: 'Fresh Raspberry Almond Tartlet 4"',
-    category: 'Tart Shells & Desserts',
+    category: 'Pâtisseries Fines',
     unit: 'units',
     dispatchedQty: 20,
     receivedQty: 18,

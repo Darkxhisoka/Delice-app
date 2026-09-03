@@ -1,4 +1,18 @@
 import Dexie, { Table } from 'dexie';
+import type { ProductionRoomId, FinishedProductCategory } from '../types';
+
+/**
+ * Maps each finished-product category to its production room ID.
+ */
+export const CATEGORY_TO_ROOM_MAP: Record<FinishedProductCategory, ProductionRoomId> = {
+  'G\u00e2teaux Secs': 'gateaux_secs',
+  'G\u00e2teaux Orientaux': 'gateaux_orientaux',
+  'Mille-Feuille & Feuilletage': 'mille_feuille',
+  'Viennoiserie & Briocherie': 'viennoiserie',
+  'P\u00e2tisseries Fines': 'patisserie_fine',
+  'Pi\u00e8ces Mont\u00e9es': 'piece_montee',
+  'Trompe-l\u2019\u0153il': 'trompe_oeil',
+};
 
 /**
  * Interface definitions for Dexie IndexedDB tables
@@ -8,6 +22,7 @@ export interface DexieProduct {
   code: string;
   name: string;
   category: string;
+  roomId?: ProductionRoomId;
   unit: string;
   price: number;
   costPrice?: number;
@@ -97,6 +112,20 @@ export class DeliceDatabase extends Dexie {
       sales: 'id, transactionNumber, storeId, paymentMethod, syncStatus, timestamp',
       settings: 'key, updatedAt'
     });
+
+    // Schema Version 2 — add roomId index to products
+    this.version(2).stores({
+      products: 'id, code, name, category, roomId, storeId, barcode, isActive, updatedAt',
+    }).upgrade(async (tx) => {
+      return tx.table('products').toCollection().modify((product) => {
+        if (!product.roomId && product.category) {
+          const mapped = CATEGORY_TO_ROOM_MAP[product.category as FinishedProductCategory];
+          if (mapped) {
+            product.roomId = mapped;
+          }
+        }
+      });
+    });
   }
 }
 
@@ -170,6 +199,35 @@ export async function dbUpsertProduct(product: DexieProduct): Promise<string> {
 
 export async function dbBulkUpsertProducts(products: DexieProduct[]): Promise<void> {
   await db.products.bulkPut(products);
+}
+
+/**
+ * Scans all products in IndexedDB and fills missing roomId values
+ * using CATEGORY_TO_ROOM_MAP, falling back to keyword-based getProductRoomId().
+ */
+export async function migrateProductRoomIds(): Promise<{ updated: number }> {
+  let updatedCount = 0;
+
+  const allProducts = await db.products.toArray();
+  const { getProductRoomId } = await import('../utils/orderAggregator');
+
+  for (const product of allProducts) {
+    if (product.roomId || !product.category) continue;
+
+    const mapped = CATEGORY_TO_ROOM_MAP[product.category as FinishedProductCategory];
+    const resolved = mapped || getProductRoomId(product.name, product.category);
+
+    if (resolved) {
+      await db.products.update(product.id, { roomId: resolved });
+      updatedCount++;
+    }
+  }
+
+  if (updatedCount > 0) {
+    console.log(`[DB Migration] Assigned roomId to ${updatedCount} product(s).`);
+  }
+
+  return { updated: updatedCount };
 }
 
 // Cart Items

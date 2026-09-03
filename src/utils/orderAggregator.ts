@@ -534,7 +534,7 @@ export const MASTER_PRODUCT_CATALOG: Product[] = [
     sku: 'PM-WEDD-02',
     standardBatchSize: 50,
     prepTimeMinutes: 240,
-    description: 'Gâteau d’apparat aux finitions soignées et fleurs en sucre.',
+    description: 'G\u00e2teau d\u2019apparat aux finitions soign\u00e9es et fleurs en sucre.',
   },
   {
     id: 'prod-pm-3',
@@ -606,6 +606,18 @@ export const MASTER_PRODUCT_CATALOG: Product[] = [
 ];
 
 /**
+ * Normalize any date string to clean YYYY-MM-DD format.
+ * Handles ISO timestamps (2026-09-02T14:30:00Z), date-time (2026-09-02 14:30),
+ * and already-clean dates (2026-09-02).
+ */
+export function normalizeDateString(dateStr: string | undefined | null): string {
+  if (!dateStr) return '';
+  const trimmed = dateStr.trim();
+  const match = trimmed.match(/^(\d{4}-\d{2}-\d{2})/);
+  return match ? match[1] : '';
+}
+
+/**
  * Intelligent Room Resolver
  * Resolves the assigned ProductionRoomId for any product name or category.
  */
@@ -621,7 +633,7 @@ export function getProductRoomId(productName: string, category?: string): Produc
     return matched.roomId;
   }
 
-  // 2. Keyword heuristics for Trompe-l'œil
+  // 2. Keyword heuristics for Trompe-l’œil
   if (
     normName.includes('trompe') ||
     normCat.includes('trompe') ||
@@ -657,7 +669,7 @@ export function getProductRoomId(productName: string, category?: string): Produc
     normName.includes('tcharek') ||
     normName.includes('corne de gazelle') ||
     normName.includes('cornes de gazelle') ||
-    normName.includes('m’chewek') ||
+    normName.includes('m\u2019chewek') ||
     normName.includes('mchewek') ||
     normName.includes('knidlette') ||
     normName.includes('griwech') ||
@@ -764,6 +776,7 @@ export interface AggregatedLabProductionResult {
   reports: Record<ProductionRoomId, RoomProductionReport>;
   orderedReports: RoomProductionReport[];
   summary: GlobalLabProductionSummary;
+  itemsWithMissingRoomId: Array<{ productName: string; category: string; storeName: string; resolvedTo: string }>;
 }
 
 /**
@@ -776,22 +789,52 @@ export function aggregateStoreOrders(
 ): AggregatedLabProductionResult {
   const targetDate = options.targetDate || 'ALL';
   const selectedStoreId = options.storeId || 'ALL';
-  const statusFilter = options.statusFilter || ['PENDING', 'APPROVED', 'PROCESSING', 'IN_PRODUCTION', 'READY_FOR_DISPATCH'];
+  const statusFilter = options.statusFilter || ['PENDING', 'APPROVED', 'PROCESSING', 'IN_PRODUCTION', 'READY_FOR_DISPATCH', 'DISPATCHED', 'IN_TRANSIT'];
+
+  // Normalize status filter to uppercase for case-insensitive comparison
+  const normalizedStatusFilter = statusFilter.map(s => s.toUpperCase());
+
+  // Map French/alternate status values to canonical English equivalents
+  const STATUS_ALIASES: Record<string, string> = {
+    'APPROUVÉ': 'APPROVED',
+    'APPROUVE': 'APPROVED',
+    'VALIDÉ': 'APPROVED',
+    'VALIDE': 'APPROVED',
+    'EN_COURS': 'PROCESSING',
+    'EN PRODUCTION': 'IN_PRODUCTION',
+    'PRÊT': 'READY_FOR_DISPATCH',
+    'PRET': 'READY_FOR_DISPATCH',
+    'EN_TRANSIT': 'IN_TRANSIT',
+    'LIVRÉ': 'DELIVERED',
+    'LIVRE': 'DELIVERED',
+    'REJETÉ': 'REJECTED',
+    'REJETE': 'REJECTED',
+    'EXPÉDIÉ': 'DISPATCHED',
+    'EXPEDIE': 'DISPATCHED',
+  };
 
   // 1. Filter Orders
   const filteredOrders = orders.filter((order) => {
-    // Status filter
-    if (order.status && statusFilter.length > 0 && !statusFilter.includes(order.status)) {
-      return false;
+    // Status filter — case-insensitive with French alias support
+    if (order.status && normalizedStatusFilter.length > 0) {
+      const rawStatus = order.status.toUpperCase();
+      const canonicalStatus = STATUS_ALIASES[rawStatus] || rawStatus;
+      if (!normalizedStatusFilter.includes(canonicalStatus)) {
+        return false;
+      }
     }
     // Store filter
     if (selectedStoreId !== 'ALL' && order.storeId !== selectedStoreId) {
       return false;
     }
-    // Date filter
+    // Date filter — normalize both sides to YYYY-MM-DD for reliable comparison
     if (targetDate !== 'ALL') {
-      const orderDate = order.dateNeeded || order.dateRequested || '';
-      if (orderDate !== targetDate) {
+      const orderDate = normalizeDateString(order.dateNeeded || order.dateRequested);
+      const normalizedTarget = normalizeDateString(targetDate);
+      if (orderDate && normalizedTarget && orderDate !== normalizedTarget) {
+        return false;
+      }
+      if (!orderDate) {
         return false;
       }
     }
@@ -833,6 +876,14 @@ export function aggregateStoreOrders(
   // Track stores across the aggregation
   const storesMap = new Map<string, { id: string; name: string; totalRequested: number }>();
 
+  // Debug: log filtering results
+  const itemsWithMissingRoomId: Array<{ productName: string; category: string; storeName: string; resolvedTo: string }> = [];
+  console.debug(`[orderAggregator] Total requisitions received: ${orders.length}`);
+  console.debug(`[orderAggregator] After filtering (date=${targetDate}, store=${selectedStoreId}): ${filteredOrders.length} orders`);
+  if (filteredOrders.length === 0 && orders.length > 0) {
+    console.debug(`[orderAggregator] Sample order statuses:`, orders.slice(0, 3).map(o => ({ id: o.id, status: o.status, dateNeeded: o.dateNeeded, dateRequested: o.dateRequested })));
+  }
+
   // 3. Process every order line
   filteredOrders.forEach((order) => {
     const storeId = order.storeId || 'unknown-store';
@@ -847,7 +898,11 @@ export function aggregateStoreOrders(
       storesMap.set(storeId, { id: storeId, name: storeName, totalRequested: 0 });
     }
 
-    const orderItems = order.items || [];
+    const orderItems = (order.items && order.items.length > 0 ? order.items : (order as any).lines) || [];
+    console.debug(`[orderAggregator] Order ${orderId}: ${orderItems.length} items (from ${order.items?.length ? 'items' : 'lines'})`);
+    if (orderItems.length === 0) {
+      console.debug(`[orderAggregator] Order ${orderId} has no items or lines — skipping`);
+    }
     orderItems.forEach((item: RequisitionItem | StoreOrderItem) => {
       const productName = item.productName || 'Unnamed Pastry';
       const quantity = Number(item.quantityRequested) || 0;
@@ -857,9 +912,25 @@ export function aggregateStoreOrders(
       const estimatedCost = Number(item.unitEstimatedCost) || 1.0;
       const category = item.category || 'General';
 
-      // Determine roomId
-      const itemRoomId = 'roomId' in item ? item.roomId : undefined;
-      const roomId = itemRoomId || getProductRoomId(productName, category);
+      // Determine roomId — priority: explicit > catalog match > keyword heuristic > safe fallback
+      const itemRoomId = 'roomId' in item ? (item as any).roomId : undefined;
+      const hasExplicitRoomId = !!itemRoomId;
+      const resolvedRoomId = itemRoomId || getProductRoomId(productName, category);
+      const roomId: ProductionRoomId = (resolvedRoomId && itemsByRoomAndProduct[resolvedRoomId as ProductionRoomId])
+        ? resolvedRoomId as ProductionRoomId
+        : 'patisserie_fine';
+
+      if (!hasExplicitRoomId || roomId !== resolvedRoomId) {
+        itemsWithMissingRoomId.push({
+          productName,
+          category,
+          storeName,
+          resolvedTo: roomId,
+        });
+        if (roomId !== resolvedRoomId) {
+          console.debug(`[orderAggregator] RoomId fallback: "${resolvedRoomId}" → "${roomId}" for "${productName}"`);
+        }
+      }
 
       // Find catalog specs if available
       const catalogItem = MASTER_PRODUCT_CATALOG.find(
@@ -964,6 +1035,22 @@ export function aggregateStoreOrders(
 
   const orderedReports = PRODUCTION_ROOMS.map((r) => reportsMap[r.id]);
 
+  // Debug: summary of aggregation results
+  const totalItemsMapped = Array.from(Object.values(itemsByRoomAndProduct)).reduce(
+    (sum, m) => sum + m.size, 0
+  );
+  console.debug(`[orderAggregator] Items mapped to rooms: ${totalItemsMapped}`);
+  console.debug(`[orderAggregator] Items with missing explicit roomId (used fallback): ${itemsWithMissingRoomId.length}`);
+  if (itemsWithMissingRoomId.length > 0) {
+    console.debug(`[orderAggregator] Missing roomId details:`, itemsWithMissingRoomId.slice(0, 10));
+  }
+  PRODUCTION_ROOMS.forEach((room) => {
+    const count = itemsByRoomAndProduct[room.id].size;
+    if (count > 0) {
+      console.debug(`[orderAggregator] Room "${room.nameFr}": ${count} product(s)`);
+    }
+  });
+
   const summary: GlobalLabProductionSummary = {
     totalOrdersAggregated: filteredOrders.length,
     totalUnitsAcrossAllRooms: globalUnits,
@@ -979,6 +1066,7 @@ export function aggregateStoreOrders(
     reports: reportsMap,
     orderedReports,
     summary,
+    itemsWithMissingRoomId,
   };
 }
 

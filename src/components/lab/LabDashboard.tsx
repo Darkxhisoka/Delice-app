@@ -6,6 +6,7 @@ import { notifyToast } from '../../services/storage';
 import { RequisitionManager } from './RequisitionManager';
 import { ReceiptForm } from './ReceiptForm';
 import { InventoryList } from './InventoryList';
+import { FinishedProductManager } from './FinishedProductManager';
 import { ReceiptHistory } from './ReceiptHistory';
 import { RecipeCosting } from './RecipeCosting';
 import { SupplierManager } from './SupplierManager';
@@ -99,6 +100,7 @@ export type LabModule =
   | 'RECONCILIATION_WASTE' 
   | 'NEW_RECEIPT' 
   | 'INVENTORY' 
+  | 'FINISHED_PRODUCTS'
   | 'RECIPES' 
   | 'RECEIPT_HISTORY' 
   | 'SUPPLIERS' 
@@ -161,6 +163,7 @@ const RAW_LAB_CATEGORIES: ModuleCategoryConfig[] = [
       { id: 'SUPPLIER_PO', labelKey: 'labModules.supplierPo', descKey: 'labModules.supplierPoDesc', icon: ShoppingCart, color: 'text-indigo-400 bg-indigo-400/20' },
       { id: 'NEW_RECEIPT', labelKey: 'labModules.newReceipt', descKey: 'labModules.newReceiptDesc', icon: Receipt, color: 'text-amber-400 bg-amber-400/20' },
       { id: 'INVENTORY', labelKey: 'labModules.inventory', descKey: 'labModules.inventoryDesc', icon: Boxes, color: 'text-indigo-400 bg-indigo-400/20' },
+      { id: 'FINISHED_PRODUCTS', labelKey: 'labModules.finishedProducts', descKey: 'labModules.finishedProductsDesc', icon: Package, color: 'text-amber-400 bg-amber-400/20' },
       { id: 'PACKAGING', labelKey: 'labModules.packaging', descKey: 'labModules.packagingDesc', icon: Package, color: 'text-amber-400 bg-amber-400/20' },
       { id: 'DESTOCKING', labelKey: 'labModules.destocking', descKey: 'labModules.destockingDesc', icon: Trash2, color: 'text-rose-400 bg-rose-400/20' },
       { id: 'RECEIPT_HISTORY', labelKey: 'labModules.receiptHistory', descKey: 'labModules.receiptHistoryDesc', icon: FileText, color: 'text-indigo-400 bg-indigo-400/20' },
@@ -548,6 +551,7 @@ export const LabDashboard: React.FC = () => {
           {activeModule === 'RECONCILIATION_WASTE' && <LabWasteAnalytics />}
           {activeModule === 'NEW_RECEIPT' && <ReceiptForm onSuccess={() => handleSelectModule('RECEIPT_HISTORY')} />}
           {activeModule === 'INVENTORY' && <InventoryList />}
+          {activeModule === 'FINISHED_PRODUCTS' && <FinishedProductManager />}
           {activeModule === 'DESTOCKING' && <RawMaterialDestocking />}
           {activeModule === 'RECIPES' && <RecipeCosting />}
           {activeModule === 'RECEIPT_HISTORY' && <ReceiptHistory />}

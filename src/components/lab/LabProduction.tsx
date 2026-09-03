@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   Printer,
@@ -33,6 +33,7 @@ import {
   getRequisitions,
   getStores,
   notifyToast,
+  subscribeToStoreChanges,
 } from '../../services/storage';
 import {
   ProductionRoomId,
@@ -65,7 +66,9 @@ export const LabProduction: React.FC = () => {
   const isRtl = i18n.language === 'ar';
 
   // State
-  const [targetDate, setTargetDate] = useState<string>('2026-08-05');
+  const todayStr = new Date().toISOString().slice(0, 10);
+  const yesterdayStr = (() => { const d = new Date(); d.setDate(d.getDate() - 1); return d.toISOString().slice(0, 10); })();
+  const [targetDate, setTargetDate] = useState<string>(todayStr);
   const [selectedStoreId, setSelectedStoreId] = useState<string>('ALL');
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [activeRoomFilter, setActiveRoomFilter] = useState<string>('ALL');
@@ -88,19 +91,54 @@ export const LabProduction: React.FC = () => {
   // Checked items local state for kitchen floor
   const [completedItems, setCompletedItems] = useState<Record<string, boolean>>({});
 
-  // Data fetching
-  const requisitions = getRequisitions();
-  const stores = getStores();
+  // Data fetching — reactive with subscription to store changes
+  const [requisitions, setRequisitions] = useState(() => {
+    const r = getRequisitions();
+    console.debug(`[LabProduction] Initial load: ${r.length} requisitions`);
+    if (r.length > 0) {
+      console.debug(`[LabProduction] Status breakdown:`, r.map(req => ({ id: req.id, status: req.status, items: req.items?.length || 0 })));
+    }
+    return r;
+  });
+  const [stores, setStores] = useState(() => getStores());
+  const [refreshKey, setRefreshKey] = useState(0);
+
+  // Subscribe to store changes (localStorage updates from approval, dispatch, etc.)
+  useEffect(() => {
+    console.debug(`[LabProduction] Subscribing to store changes...`);
+    const unsubscribe = subscribeToStoreChanges(() => {
+      console.debug(`[LabProduction] Store change detected — refreshing requisitions & stores`);
+      setRequisitions(getRequisitions());
+      setStores(getStores());
+      setRefreshKey(k => k + 1);
+    });
+    return () => {
+      console.debug(`[LabProduction] Unsubscribing from store changes`);
+      unsubscribe();
+    };
+  }, []);
+
+  // Also refresh on mount to catch any changes that happened while this component was unmounted
+  useEffect(() => {
+    const fresh = getRequisitions();
+    if (fresh.length !== requisitions.length) {
+      console.debug(`[LabProduction] Mount refresh: ${requisitions.length} → ${fresh.length} requisitions`);
+      setRequisitions(fresh);
+    }
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Aggregate orders through engine
   const aggregatedData = useMemo(() => {
-    return aggregateStoreOrders(requisitions, {
+    console.debug(`[LabProduction] Aggregating ${requisitions.length} requisitions (refreshKey=${refreshKey})...`);
+    const result = aggregateStoreOrders(requisitions, {
       targetDate: targetDate === 'ALL' ? undefined : targetDate,
       storeId: selectedStoreId === 'ALL' ? undefined : selectedStoreId,
     });
-  }, [requisitions, targetDate, selectedStoreId]);
+    console.debug(`[LabProduction] Aggregation complete: ${result.summary.activeRoomsCount} active rooms, ${result.summary.totalUnitsToProduce} total units`);
+    return result;
+  }, [requisitions, targetDate, selectedStoreId, refreshKey]);
 
-  const { reports, orderedReports, summary } = aggregatedData;
+  const { reports, orderedReports, summary, itemsWithMissingRoomId } = aggregatedData;
 
   // Available unique dates from requisitions for quick date-picking
   const availableDates = useMemo(() => {
@@ -260,25 +298,25 @@ export const LabProduction: React.FC = () => {
             <div className="flex items-center gap-1.5 mt-2 overflow-x-auto pb-1 text-xs">
               <button
                 type="button"
-                onClick={() => setTargetDate('2026-08-05')}
+                onClick={() => setTargetDate(todayStr)}
                 className={`px-2 py-0.5 rounded-md transition font-medium ${
-                  targetDate === '2026-08-05'
+                  targetDate === todayStr
                     ? 'bg-amber-500 text-zinc-950'
                     : 'bg-zinc-800 text-zinc-400 hover:text-zinc-200'
                 }`}
               >
-                {t('productionDispatcher.today', 'Aujourd’hui (05/08)')}
+                {t('productionDispatcher.today', 'Aujourd\'hui')} ({todayStr.slice(5).replace('-', '/')})
               </button>
               <button
                 type="button"
-                onClick={() => setTargetDate('2026-08-04')}
+                onClick={() => setTargetDate(yesterdayStr)}
                 className={`px-2 py-0.5 rounded-md transition font-medium ${
-                  targetDate === '2026-08-04'
+                  targetDate === yesterdayStr
                     ? 'bg-amber-500 text-zinc-950'
                     : 'bg-zinc-800 text-zinc-400 hover:text-zinc-200'
                 }`}
               >
-                04/08
+                {yesterdayStr.slice(5).replace('-', '/')}
               </button>
               <button
                 type="button"
@@ -511,6 +549,66 @@ export const LabProduction: React.FC = () => {
           </div>
         </div>
       </div>
+
+      {/* --- WARNINGS & EMPTY STATE --- */}
+      {itemsWithMissingRoomId.length > 0 && (
+        <div className="bg-amber-950/40 border border-amber-500/30 rounded-xl p-4 flex items-start gap-3">
+          <AlertCircle className="w-5 h-5 text-amber-400 shrink-0 mt-0.5" />
+          <div>
+            <p className="text-sm font-medium text-amber-300">
+              {itemsWithMissingRoomId.length} {t('productionDispatcher.missingRoomWarning', 'produit(s) sans salle attribuée — routés automatiquement')}
+            </p>
+            <div className="mt-2 flex flex-wrap gap-1.5">
+              {itemsWithMissingRoomId.slice(0, 8).map((entry, idx) => {
+                const roomMeta = PRODUCTION_ROOMS.find((r) => r.id === entry.resolvedTo);
+                return (
+                  <span
+                    key={idx}
+                    className="text-[11px] px-2 py-0.5 rounded-full bg-zinc-800/80 text-zinc-300 border border-zinc-700/50"
+                  >
+                    {entry.productName} → {roomMeta?.nameFr || entry.resolvedTo}
+                  </span>
+                );
+              })}
+              {itemsWithMissingRoomId.length > 8 && (
+                <span className="text-[11px] px-2 py-0.5 text-zinc-500">
+                  +{itemsWithMissingRoomId.length - 8} autres
+                </span>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {summary.totalOrdersAggregated === 0 && requisitions.length > 0 && (
+        <div className="bg-zinc-900/80 border border-zinc-800/80 rounded-xl p-6 text-center">
+          <AlertCircle className="w-8 h-8 text-zinc-600 mx-auto mb-2" />
+          <p className="text-sm text-zinc-400">
+            {t('productionDispatcher.noResultsForDate', 'Aucune commande trouvée pour cette date.')}
+          </p>
+          <p className="text-xs text-zinc-500 mt-1">
+            {t('productionDispatcher.tryAllDates', 'Essayez "Toutes" ou changez la date cible.')}
+          </p>
+          <button
+            onClick={() => setTargetDate('ALL')}
+            className="mt-3 px-4 py-1.5 rounded-lg bg-amber-500/20 text-amber-400 border border-amber-500/30 text-xs font-medium hover:bg-amber-500/30 transition"
+          >
+            {t('productionDispatcher.showAllDates', 'Voir toutes les dates')}
+          </button>
+        </div>
+      )}
+
+      {requisitions.length === 0 && (
+        <div className="bg-zinc-900/80 border border-zinc-800/80 rounded-xl p-6 text-center">
+          <AlertCircle className="w-8 h-8 text-zinc-600 mx-auto mb-2" />
+          <p className="text-sm text-zinc-400">
+            {t('productionDispatcher.noRequisitions', 'Aucune demande boutique soumise.')}
+          </p>
+          <p className="text-xs text-zinc-500 mt-1">
+            {t('productionDispatcher.createRequisitionHint', 'Les commandes créées depuis les boutiques apparaîtront ici.')}
+          </p>
+        </div>
+      )}
 
       {/* --- VIEW 1: 7 ROOM CARDS GRID --- */}
       {viewMode === 'grid' && (

@@ -501,7 +501,10 @@ export async function updateRequisitionStatusInSupabase(
           ...(newStatus === 'DELIVERED' ? { deliveredAt: new Date().toISOString() } : {}),
         };
         localStorage.setItem('pastry_app_requisitions', JSON.stringify(list));
+        console.debug(`[supabaseService] LocalStorage synced: req ${reqId} → status ${newStatus}, notifying listeners`);
         notifyListeners();
+      } else {
+        console.debug(`[supabaseService] Requisition ${reqId} not found in localStorage for sync`);
       }
     }
   } catch (err) {

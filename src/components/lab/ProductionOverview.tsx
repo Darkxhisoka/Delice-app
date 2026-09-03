@@ -87,7 +87,7 @@ export const ProductionOverview: React.FC = () => {
       id: 'b1',
       batchCode: 'BATCH-2026-0803-01',
       recipeName: 'Artisan Butter Croissant Lamination',
-      category: 'Croissants & Pastries',
+      category: 'Viennoiserie & Briocherie',
       targetUnits: 1200,
       completedUnits: 1200,
       stage: 'DISPATCH_READY',
@@ -101,7 +101,7 @@ export const ProductionOverview: React.FC = () => {
       id: 'b2',
       batchCode: 'BATCH-2026-0803-02',
       recipeName: 'Pain au Chocolat (Valrhona 64%)',
-      category: 'Croissants & Pastries',
+      category: 'Viennoiserie & Briocherie',
       targetUnits: 850,
       completedUnits: 680,
       stage: 'BAKING',
@@ -157,8 +157,8 @@ export const ProductionOverview: React.FC = () => {
 
   // Daily Production Category Breakdown
   const categoryProductionData = [
-    { category: 'Croissants & Pastries', actual: 2050, target: 2200, unitCost: 0.85 },
-    { category: 'Cakes & Tortes', actual: 340, target: 400, unitCost: 4.20 },
+    { category: 'Viennoiserie & Briocherie', actual: 2050, target: 2200, unitCost: 0.85 },
+    { category: 'Pâtisseries Fines', actual: 340, target: 400, unitCost: 4.20 },
     { category: 'Tart Shells & Bases', actual: 850, target: 900, unitCost: 0.65 },
     { category: 'Fillings & Creams', actual: 420, target: 450, unitCost: 1.10 },
     { category: 'Bread & Savory', actual: 520, target: 600, unitCost: 0.95 }

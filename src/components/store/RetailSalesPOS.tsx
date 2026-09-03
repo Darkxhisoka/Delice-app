@@ -49,22 +49,24 @@ interface RetailSalesPOSProps {
 
 const CATEGORIES: ('ALL' | RetailCategory)[] = [
   'ALL',
-  'Croissants & Pastries',
-  'Cakes & Tortes',
-  'Tart Shells & Desserts',
-  'Macarons & Sweets',
-  'Beverages & Coffee',
-  'Savory & Bread',
+  'G\u00e2teaux Secs',
+  'G\u00e2teaux Orientaux',
+  'Mille-Feuille & Feuilletage',
+  'Viennoiserie & Briocherie',
+  'P\u00e2tisseries Fines',
+  'Pi\u00e8ces Mont\u00e9es',
+  'Trompe-l\u2019\u0153il',
 ];
 
 const CATEGORY_TRANSLATION_KEYS: Record<string, string> = {
   'ALL': 'pos.categoryAll',
-  'Croissants & Pastries': 'pos.categoryCroissants',
-  'Cakes & Tortes': 'pos.categoryCakes',
-  'Tart Shells & Desserts': 'pos.categoryTarts',
-  'Macarons & Sweets': 'pos.categoryMacarons',
-  'Beverages & Coffee': 'pos.categoryBeverages',
-  'Savory & Bread': 'pos.categorySavory',
+  'G\u00e2teaux Secs': 'productCategories.gateauxSecs',
+  'G\u00e2teaux Orientaux': 'productCategories.gateauxOrientaux',
+  'Mille-Feuille & Feuilletage': 'productCategories.milleFeuille',
+  'Viennoiserie & Briocherie': 'productCategories.viennoiserie',
+  'P\u00e2tisseries Fines': 'productCategories.patisserieFine',
+  'Pi\u00e8ces Mont\u00e9es': 'productCategories.pieceMontee',
+  'Trompe-l\u2019\u0153il': 'productCategories.trompeOeil',
 };
 
 export const RetailSalesPOS: React.FC<RetailSalesPOSProps> = ({ currentStore }) => {
