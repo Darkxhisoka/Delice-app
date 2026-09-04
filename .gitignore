@@ -36,4 +36,5 @@ android/src-tauri/target/
 # Signing keys / secrets - never commit
 *.jks
 *.keystore
+.github_key*
 
