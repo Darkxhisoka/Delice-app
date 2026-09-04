@@ -14,6 +14,7 @@ import {
   upsertRawMaterialToSupabase
 } from '../../services/supabaseService';
 import { isAppOffline } from '../../services/indexedDbQueue';
+import { db, dbApproveRequisition } from '../../db/database';
 import { Requisition, RequisitionStatus, StoreLocation } from '../../types';
 import {
   RequisitionSearchFilter,
@@ -61,6 +62,7 @@ export const RequisitionManager: React.FC = () => {
   const [rejectingReqId, setRejectingReqId] = useState<string | null>(null);
   const [rejectionReasonInput, setRejectionReasonInput] = useState<string>('');
   const [selectedPackingListReq, setSelectedPackingListReq] = useState<Requisition | null>(null);
+  const [actionLoadingId, setActionLoadingId] = useState<string | null>(null);
 
   const loadData = async () => {
     setLoading(true);
@@ -97,17 +99,39 @@ export const RequisitionManager: React.FC = () => {
     newStatus: RequisitionStatus,
     options?: { rejectionReason?: string }
   ) => {
+    setActionLoadingId(reqId);
+    // 1. Standardize status (lowercase 'approved')
+    const normalizedStatus: RequisitionStatus =
+      String(newStatus).toLowerCase() === 'approved' ? 'approved' : newStatus;
+
     try {
-      // 1. If not offline, update in Supabase database
-      if (!isAppOffline()) {
-        await updateRequisitionStatusInSupabase(reqId, newStatus, options);
+      // 2. Direct Dexie.js write with async/await
+      try {
+        if (db && db.requisitions) {
+          if (normalizedStatus === 'approved') {
+            const foundReq = requisitions.find((r) => r.id === reqId);
+            await dbApproveRequisition(reqId, foundReq);
+          } else {
+            await db.requisitions.update(reqId, {
+              status: normalizedStatus,
+              updatedAt: new Date().toISOString()
+            });
+          }
+        }
+      } catch (dexieErr) {
+        console.warn('Dexie direct write notice:', dexieErr);
       }
 
-      // 2. Also update local storage state (which enqueues into IndexedDB)
-      const updated = updateRequisitionStatus(reqId, newStatus, options);
+      // 3. Supabase database write with async/await
+      if (!isAppOffline()) {
+        await updateRequisitionStatusInSupabase(reqId, normalizedStatus, options);
+      }
 
-      // 3. When Lab Admin approves, trigger raw material inventory deductions if online
-      if (!isAppOffline() && (newStatus === 'APPROVED' || newStatus === 'DISPATCHED') && updated) {
+      // 4. Update local storage state (enqueues into IndexedDB and fires event)
+      const updated = updateRequisitionStatus(reqId, normalizedStatus, options);
+
+      // 5. When Lab Admin approves, trigger raw material inventory deductions if online
+      if (!isAppOffline() && (normalizedStatus === 'approved' || normalizedStatus === 'DISPATCHED') && updated) {
         const rawMats = await fetchRawMaterialsFromSupabase();
         if (rawMats && rawMats.length > 0) {
           for (const item of updated.items) {
@@ -127,24 +151,27 @@ export const RequisitionManager: React.FC = () => {
         }
       }
 
+      // 6. Refresh UI after database operations complete
       await loadData();
 
       const offlineNote = isAppOffline() ? ' (💾 Enregistré localement dans la file IndexedDB)' : '';
       notifyToast({
-        type: newStatus === 'REJECTED' ? 'warning' : 'success',
+        type: normalizedStatus === 'REJECTED' ? 'warning' : 'success',
         title: isAppOffline() ? 'Mise à jour hors-ligne' : `Réquisition mise à jour`,
-        message: `Statut changé en "${newStatus}"${updated ? ` pour ${updated.storeName}` : ''}${offlineNote}.`,
+        message: `Statut changé en "${normalizedStatus}"${updated ? ` pour ${updated.storeName}` : ''}${offlineNote}.`,
       });
     } catch (err: any) {
       console.warn('Network update failed, updating local IndexedDB queue:', err);
       // Fallback local update
-      const updated = updateRequisitionStatus(reqId, newStatus, options);
+      const updated = updateRequisitionStatus(reqId, normalizedStatus, options);
       await loadData();
       notifyToast({
         type: 'info',
         title: 'Mise à jour locale (IndexedDB)',
-        message: `Statut "${newStatus}" sauvegardé localement dans la file IndexedDB pour synchronisation.`
+        message: `Statut "${normalizedStatus}" sauvegardé localement dans la file IndexedDB pour synchronisation.`
       });
+    } finally {
+      setActionLoadingId(null);
     }
   };
 
@@ -171,9 +198,12 @@ export const RequisitionManager: React.FC = () => {
     const matchesStore =
       filters.selectedStoreId === 'ALL' || req.storeId === filters.selectedStoreId;
 
-    // 2. Status filter
+    // 2. Status filter with case-insensitive / normalized approval support
     const matchesStatus =
-      filters.selectedStatus === 'ALL' || req.status === filters.selectedStatus;
+      filters.selectedStatus === 'ALL' ||
+      req.status === filters.selectedStatus ||
+      (filters.selectedStatus.toLowerCase() === 'approved' &&
+        (req.status === 'approved' || req.status === 'APPROVED' || String(req.status).toLowerCase() === 'approuvé'));
 
     // 3. Keyword Search match
     const term = filters.searchTerm.trim().toLowerCase();
@@ -235,6 +265,7 @@ export const RequisitionManager: React.FC = () => {
           </span>
         );
       case 'APPROVED':
+      case 'approved':
         return (
           <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold bg-sky-100 text-sky-900 border border-sky-300">
             <CheckCircle2 className="w-3.5 h-3.5" /> Approuvée
@@ -396,44 +427,77 @@ export const RequisitionManager: React.FC = () => {
                         {req.status === 'PENDING' && (
                           <>
                             <button
-                              onClick={() => handleStatusUpdate(req.id, 'APPROVED')}
-                              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold transition-colors shadow-xs"
+                              disabled={actionLoadingId === req.id}
+                              onClick={async () => {
+                                await handleStatusUpdate(req.id, 'approved');
+                              }}
+                              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white text-xs font-bold transition-colors shadow-xs cursor-pointer"
                             >
-                              <CheckCircle2 className="w-3.5 h-3.5" /> Approuver
+                              {actionLoadingId === req.id ? (
+                                <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                              ) : (
+                                <CheckCircle2 className="w-3.5 h-3.5" />
+                              )}
+                              Approuver
                             </button>
                             <button
+                              disabled={actionLoadingId === req.id}
                               onClick={() => handleOpenRejectModal(req.id)}
-                              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-300 text-xs font-semibold transition-colors"
+                              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-rose-50 hover:bg-rose-100 disabled:opacity-50 text-rose-700 border border-rose-300 text-xs font-semibold transition-colors cursor-pointer"
                             >
                               <XCircle className="w-3.5 h-3.5" /> Rejeter
                             </button>
                           </>
                         )}
 
-                        {req.status === 'APPROVED' && (
+                        {(req.status === 'APPROVED' || req.status === 'approved') && (
                           <button
-                            onClick={() => handleStatusUpdate(req.id, 'PROCESSING')}
-                            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold transition-colors shadow-xs"
+                            disabled={actionLoadingId === req.id}
+                            onClick={async () => {
+                              await handleStatusUpdate(req.id, 'PROCESSING');
+                            }}
+                            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white text-xs font-bold transition-colors shadow-xs cursor-pointer"
                           >
-                            <Package className="w-3.5 h-3.5" /> Lancer la Cuisson / Prépa
+                            {actionLoadingId === req.id ? (
+                              <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                            ) : (
+                              <Package className="w-3.5 h-3.5" />
+                            )}
+                            Lancer la Cuisson / Prépa
                           </button>
                         )}
 
                         {req.status === 'PROCESSING' && (
                           <button
-                            onClick={() => handleStatusUpdate(req.id, 'DISPATCHED')}
-                            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-purple-600 hover:bg-purple-700 text-white text-xs font-bold transition-colors shadow-xs"
+                            disabled={actionLoadingId === req.id}
+                            onClick={async () => {
+                              await handleStatusUpdate(req.id, 'DISPATCHED');
+                            }}
+                            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-purple-600 hover:bg-purple-700 disabled:opacity-50 text-white text-xs font-bold transition-colors shadow-xs cursor-pointer"
                           >
-                            <Truck className="w-3.5 h-3.5" /> Expédier la Livraison
+                            {actionLoadingId === req.id ? (
+                              <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                            ) : (
+                              <Truck className="w-3.5 h-3.5" />
+                            )}
+                            Expédier la Livraison
                           </button>
                         )}
 
                         {req.status === 'DISPATCHED' && (
                           <button
-                            onClick={() => handleStatusUpdate(req.id, 'DELIVERED')}
-                            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold transition-colors shadow-xs"
+                            disabled={actionLoadingId === req.id}
+                            onClick={async () => {
+                              await handleStatusUpdate(req.id, 'DELIVERED');
+                            }}
+                            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white text-xs font-bold transition-colors shadow-xs cursor-pointer"
                           >
-                            <CheckCheck className="w-3.5 h-3.5" /> Marquer Livrée
+                            {actionLoadingId === req.id ? (
+                              <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                            ) : (
+                              <CheckCheck className="w-3.5 h-3.5" />
+                            )}
+                            Marquer Livrée
                           </button>
                         )}
 

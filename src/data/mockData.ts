@@ -565,7 +565,7 @@ export const INITIAL_REQUISITIONS: Requisition[] = [
     requestedBy: 'Hamza (Gérant Douera 01)',
     dateRequested: '2026-08-04',
     dateNeeded: '2026-08-05',
-    status: 'PENDING',
+    status: 'approved',
     items: [
       {
         id: 'rqi-13',
@@ -627,7 +627,7 @@ export const INITIAL_REQUISITIONS: Requisition[] = [
     requestedBy: 'Billal (Gérant Douera 02)',
     dateRequested: '2026-08-04',
     dateNeeded: '2026-08-05',
-    status: 'APPROVED',
+    status: 'approved',
     items: [
       {
         id: 'rqi-19',

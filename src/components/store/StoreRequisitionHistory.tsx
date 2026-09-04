@@ -135,6 +135,7 @@ export const StoreRequisitionHistory: React.FC = () => {
     const statusOrder: Record<RequisitionStatus, number> = {
       PENDING: 1,
       APPROVED: 2,
+      approved: 2,
       IN_PRODUCTION: 3,
       PROCESSING: 3,
       READY_FOR_DISPATCH: 3.5,

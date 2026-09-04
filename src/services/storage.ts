@@ -1,5 +1,6 @@
 import { syncToFirestore } from '../lib/firebaseSync';
 import { enqueueOfflineAction } from './indexedDbQueue';
+import { db } from '../db/database';
 import { convertCost, convertQuantity } from './unitConversionService';
 import {
   UserRole,
@@ -669,8 +670,15 @@ export function updateRequisitionStatus(
   const reqIndex = requisitions.findIndex((r) => r.id === reqId);
   if (reqIndex === -1) return null;
 
+  // Standardize approved status to canonical lowercase 'approved'
+  const normalizedStatus = String(newStatus).toLowerCase() === 'approved' ? 'approved' : newStatus;
+
   const targetReq = { ...requisitions[reqIndex] };
-  targetReq.status = newStatus;
+  targetReq.status = normalizedStatus as RequisitionStatus;
+
+  if (normalizedStatus === 'approved') {
+    (targetReq as any).approvedAt = new Date().toISOString();
+  }
 
   if (newStatus === 'REJECTED' && options?.rejectionReason) {
     targetReq.rejectionReason = options.rejectionReason;
@@ -708,6 +716,37 @@ export function updateRequisitionStatus(
 
   requisitions[reqIndex] = targetReq;
   localStorage.setItem(KEYS.REQUISITIONS, JSON.stringify(requisitions));
+
+  // Explicitly write to Dexie.js db.requisitions
+  try {
+    if (db && db.requisitions) {
+      const approvedAt = (targetReq as any).approvedAt || new Date().toISOString();
+      db.requisitions.update(targetReq.id, {
+        status: normalizedStatus,
+        ...(normalizedStatus === 'approved' ? { approvedAt } : {}),
+        ...(normalizedStatus === 'DISPATCHED' ? { dispatchedAt: new Date().toISOString() } : {}),
+        ...(normalizedStatus === 'DELIVERED' ? { deliveredAt: new Date().toISOString() } : {}),
+        ...(options?.rejectionReason ? { rejectionReason: options.rejectionReason } : {})
+      }).then((updatedCount) => {
+        if (updatedCount === 0) {
+          return db.requisitions.put({
+            ...targetReq,
+            status: normalizedStatus,
+            ...(normalizedStatus === 'approved' ? { approvedAt } : {})
+          });
+        }
+      }).catch((err) => console.warn('Dexie updateRequisitionStatus notice:', err));
+    }
+  } catch (err) {
+    console.warn('Dexie requisition sync notice:', err);
+  }
+
+  // Dispatch real-time event for UI components and Dispatcher
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new CustomEvent('requisition-updated', {
+      detail: { id: targetReq.id, status: normalizedStatus }
+    }));
+  }
 
   // Enqueue status change in IndexedDB Offline Queue
   enqueueOfflineAction({

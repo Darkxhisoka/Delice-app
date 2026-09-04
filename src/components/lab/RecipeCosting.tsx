@@ -10,6 +10,7 @@ import {
   getRecipeUnitCost
 } from '../../services/storage';
 import { Recipe, RawMaterial, RecipeIngredient, RecipeType } from '../../types';
+import { PASTRY_CATEGORIES, getRoomIdFromCategory } from '../../constants/categories';
 import { ProductionRunner } from './ProductionRunner';
 import {
   ChefHat,
@@ -110,7 +111,7 @@ export const RecipeCosting: React.FC = () => {
   // Form State
   const [recipeName, setRecipeName] = useState<string>('');
   const [recipeType, setRecipeType] = useState<RecipeType>('FINISHED');
-  const [recipeCategory, setRecipeCategory] = useState<string>('Viennoiserie');
+  const [recipeCategory, setRecipeCategory] = useState<string>('Viennoiserie & Brioche');
   const [yieldUnits, setYieldUnits] = useState<number>(50);
   const [unitName, setUnitName] = useState<string>('pieces');
   const [prepTimeMinutes, setPrepTimeMinutes] = useState<number>(120);
@@ -161,7 +162,7 @@ export const RecipeCosting: React.FC = () => {
     setEditingRecipe(null);
     setRecipeName('');
     setRecipeType(typeToUse);
-    setRecipeCategory(typeToUse === 'SEMI_FINISHED' ? 'Creams & Fillings' : 'Viennoiserie');
+    setRecipeCategory(typeToUse === 'SEMI_FINISHED' ? 'Creams & Fillings' : 'Viennoiserie & Brioche');
     setYieldUnits(typeToUse === 'SEMI_FINISHED' ? 10 : 50);
     setUnitName(typeToUse === 'SEMI_FINISHED' ? 'kg' : 'pieces');
     setPrepTimeMinutes(60);
@@ -182,7 +183,7 @@ export const RecipeCosting: React.FC = () => {
     setEditingRecipe(recipeToEdit);
     setRecipeName(recipeToEdit.name);
     setRecipeType(recipeToEdit.recipeType || 'FINISHED');
-    setRecipeCategory(recipeToEdit.category || 'Viennoiserie');
+    setRecipeCategory(recipeToEdit.category || 'Viennoiserie & Brioche');
     setYieldUnits(recipeToEdit.yieldUnits);
     setUnitName(recipeToEdit.unitName);
     setPrepTimeMinutes(recipeToEdit.prepTimeMinutes);
@@ -265,11 +266,14 @@ export const RecipeCosting: React.FC = () => {
       return !!ing.semiFinishedRecipeId && ing.quantity > 0;
     });
 
+    const assignedRoomId = getRoomIdFromCategory(recipeCategory || 'Viennoiserie & Brioche');
+
     if (editingRecipe) {
       const updated = updateRecipe(editingRecipe.id, {
         name: recipeName.trim(),
         recipeType,
-        category: recipeCategory || 'Viennoiserie',
+        category: recipeCategory || 'Viennoiserie & Brioche',
+        roomId: assignedRoomId,
         yieldUnits: Number(yieldUnits) || 1,
         unitName: unitName.trim() || 'pieces',
         prepTimeMinutes: Number(prepTimeMinutes) || 0,
@@ -289,7 +293,8 @@ export const RecipeCosting: React.FC = () => {
       const newRec = addRecipe({
         name: recipeName.trim(),
         recipeType,
-        category: recipeCategory || 'Viennoiserie',
+        category: recipeCategory || 'Viennoiserie & Brioche',
+        roomId: assignedRoomId,
         yieldUnits: Number(yieldUnits) || 1,
         unitName: unitName.trim() || 'pieces',
         prepTimeMinutes: Number(prepTimeMinutes) || 0,
@@ -820,7 +825,7 @@ export const RecipeCosting: React.FC = () => {
                       type="button"
                       onClick={() => {
                         setRecipeType('FINISHED');
-                        if (recipeCategory === 'Creams & Fillings') setRecipeCategory('Viennoiserie');
+                        if (recipeCategory === 'Creams & Fillings') setRecipeCategory('Viennoiserie & Brioche');
                       }}
                       className={`flex items-center gap-3 p-3 rounded-xl border text-left transition-all ${
                         recipeType === 'FINISHED'
@@ -898,21 +903,30 @@ export const RecipeCosting: React.FC = () => {
 
                     {/* Category */}
                     <div>
-                      <label className="block text-xs font-bold text-slate-700 mb-1.5">
-                        Catégorie de Recette
-                      </label>
+                      <div className="flex items-center justify-between mb-1.5">
+                        <label className="text-xs font-bold text-slate-700">
+                          Catégorie de Recette (Atelier Labo)
+                        </label>
+                        <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-amber-100 text-amber-900 border border-amber-300">
+                          {getRoomIdFromCategory(recipeCategory)}
+                        </span>
+                      </div>
                       <select
                         value={recipeCategory}
                         onChange={(e) => setRecipeCategory(e.target.value)}
                         className="w-full text-xs font-semibold bg-slate-50 text-slate-900 rounded-xl p-3 border border-slate-300 focus:ring-2 focus:ring-amber-500 focus:bg-white transition-all min-h-[44px] cursor-pointer"
                       >
-                        <option value="Viennoiserie">Viennoiserie</option>
-                        <option value="Pâtisserie">Pâtisserie</option>
-                        <option value="Creams & Fillings">Crèmes & Garnitures</option>
-                        <option value="Dough & Bases">Pâtes & Fonds de Tarte</option>
-                        <option value="Gâteaux & Cakes">Gâteaux & Entremets</option>
-                        <option value="Tarts & Pies">Tartes & Tartelettes</option>
-                        <option value="Savoury">Salé & Traiteur</option>
+                        {PASTRY_CATEGORIES.map((cat) => (
+                          <option key={cat.id} value={cat.categoryName}>
+                            {cat.nameFr} — {cat.nameAr}
+                          </option>
+                        ))}
+                        {recipeType === 'SEMI_FINISHED' && (
+                          <>
+                            <option value="Creams & Fillings">Crèmes & Garnitures (Semi-Fini)</option>
+                            <option value="Dough & Bases">Pâtes & Fonds de Tarte (Semi-Fini)</option>
+                          </>
+                        )}
                       </select>
                     </div>
 

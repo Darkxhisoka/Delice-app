@@ -72,6 +72,7 @@ export interface Receipt {
 export type ProductionRoomId = 
   | 'gateaux_secs'
   | 'gateaux_orientaux'
+  | 'feuilletage'
   | 'mille_feuille'
   | 'viennoiserie'
   | 'patisserie_fine'
@@ -143,6 +144,7 @@ export interface AggregatedProductionItem {
   storeBreakdown: StoreQuantityBreakdown[];
   completedQuantity?: number;
   status?: 'PENDING' | 'IN_PRODUCTION' | 'COMPLETED';
+  itemType?: 'finished_product' | 'raw_material';
 }
 
 export interface RoomProductionReport {
@@ -176,6 +178,7 @@ export interface RoomProductionReport {
 export type RequisitionStatus = 
   | 'PENDING' 
   | 'APPROVED' 
+  | 'approved'
   | 'IN_PRODUCTION' 
   | 'READY_FOR_DISPATCH' 
   | 'IN_TRANSIT' 
@@ -208,6 +211,19 @@ export interface RequisitionItem {
   unit: string;
   unitEstimatedCost: number;
   roomId?: ProductionRoomId;
+  itemId?: string;
+  itemType?: 'finished_product' | 'raw_material';
+}
+
+export interface OrderLine {
+  itemId: string;
+  itemType: 'finished_product' | 'raw_material';
+  itemTitle: string;
+  category: string;
+  roomId: string;
+  requestedQty: number;
+  unit: string;
+  unitEstimatedCost?: number;
 }
 
 export interface Requisition {
@@ -244,6 +260,7 @@ export interface Recipe {
   id: string;
   name: string;
   category: string;
+  roomId?: ProductionRoomId;
   recipeType?: RecipeType; // 'FINISHED' or 'SEMI_FINISHED'
   classification?: ProductClassification;
   yieldUnits: number; // e.g. 24 Croissants or 10 kg

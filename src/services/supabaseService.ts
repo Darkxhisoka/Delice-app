@@ -1,4 +1,5 @@
 import { supabase } from '../lib/supabaseClient';
+import { db } from '../db/database';
 import {
   getRawMaterials,
   saveRawMaterials,
@@ -428,11 +429,17 @@ export async function updateRequisitionStatusInSupabase(
   newStatus: RequisitionStatus,
   options?: { rejectionReason?: string; fulfilledQuantities?: Record<string, number> }
 ): Promise<void> {
+  // Standardize approved status to canonical lowercase 'approved'
+  const normalizedStatus = String(newStatus).toLowerCase() === 'approved' ? 'approved' : newStatus;
+
   const updatePayload: any = {
-    status: newStatus,
+    status: normalizedStatus,
     updated_at: new Date().toISOString(),
   };
 
+  if (normalizedStatus === 'approved') {
+    updatePayload.approved_at = new Date().toISOString();
+  }
   if (newStatus === 'REJECTED' && options?.rejectionReason) {
     updatePayload.rejection_reason = options.rejectionReason;
   }
@@ -454,6 +461,22 @@ export async function updateRequisitionStatusInSupabase(
     logSupabaseWarning(err, 'updateRequisitionStatusInSupabase exception');
   }
 
+  // Dexie.js persistent write
+  try {
+    if (db && db.requisitions) {
+      const approvedAt = new Date().toISOString();
+      await db.requisitions.update(reqId, {
+        status: normalizedStatus,
+        ...(normalizedStatus === 'approved' ? { approvedAt } : {}),
+        ...(normalizedStatus === 'DISPATCHED' ? { dispatchedAt: new Date().toISOString() } : {}),
+        ...(normalizedStatus === 'DELIVERED' ? { deliveredAt: new Date().toISOString() } : {}),
+        ...(options?.rejectionReason ? { rejectionReason: options.rejectionReason } : {})
+      });
+    }
+  } catch (dexieErr) {
+    console.warn('Dexie updateRequisitionStatusInSupabase notice:', dexieErr);
+  }
+
   // Local storage fallback sync
   try {
     const rawReqs = localStorage.getItem('pastry_app_requisitions');
@@ -463,7 +486,8 @@ export async function updateRequisitionStatusInSupabase(
       if (reqIdx >= 0) {
         list[reqIdx] = {
           ...list[reqIdx],
-          status: newStatus,
+          status: normalizedStatus as RequisitionStatus,
+          ...(normalizedStatus === 'approved' ? { approvedAt: new Date().toISOString() } : {}),
           ...(options?.rejectionReason ? { rejectionReason: options.rejectionReason } : {}),
           ...(newStatus === 'DISPATCHED' ? { dispatchedAt: new Date().toISOString() } : {}),
           ...(newStatus === 'DELIVERED' ? { deliveredAt: new Date().toISOString() } : {}),
@@ -474,6 +498,13 @@ export async function updateRequisitionStatusInSupabase(
     }
   } catch (err) {
     console.warn('LocalStorage updateRequisitionStatus error:', err);
+  }
+
+  // Realtime notification
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new CustomEvent('requisition-updated', {
+      detail: { id: reqId, status: normalizedStatus }
+    }));
   }
 }
 

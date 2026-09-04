@@ -20,6 +20,20 @@ export interface DexieProduct {
   updatedAt: string;
 }
 
+export interface DexieRawMaterial {
+  id: string;
+  code?: string;
+  name: string;
+  category: string;
+  unit: string;
+  costPerUnit?: number;
+  currentStock: number;
+  minStockAlert?: number;
+  storeId?: string;
+  isActive?: boolean;
+  updatedAt: string;
+}
+
 export interface DexieCartItem {
   id: string; // Unique cart line item ID
   productId: string;
@@ -83,6 +97,8 @@ export interface StoragePersistStatus {
  */
 export class DeliceDatabase extends Dexie {
   products!: Table<DexieProduct, string>;
+  raw_materials!: Table<DexieRawMaterial, string>;
+  requisitions!: Table<any, string>;
   cart!: Table<DexieCartItem, string>;
   sales!: Table<DexieSale, string>;
   settings!: Table<DexieAppSetting, string>;
@@ -93,6 +109,25 @@ export class DeliceDatabase extends Dexie {
     // Schema Version 1
     this.version(1).stores({
       products: 'id, code, name, category, storeId, barcode, isActive, updatedAt',
+      cart: 'id, productId, storeId, addedAt',
+      sales: 'id, transactionNumber, storeId, paymentMethod, syncStatus, timestamp',
+      settings: 'key, updatedAt'
+    });
+
+    // Schema Version 2: Added raw_materials table for unified catalog requisitions
+    this.version(2).stores({
+      products: 'id, code, name, category, storeId, barcode, isActive, updatedAt',
+      raw_materials: 'id, code, name, category, unit, currentStock, updatedAt',
+      cart: 'id, productId, storeId, addedAt',
+      sales: 'id, transactionNumber, storeId, paymentMethod, syncStatus, timestamp',
+      settings: 'key, updatedAt'
+    });
+
+    // Schema Version 3: Added requisitions table for lab dispatcher sync
+    this.version(3).stores({
+      products: 'id, code, name, category, storeId, barcode, isActive, updatedAt',
+      raw_materials: 'id, code, name, category, unit, currentStock, updatedAt',
+      requisitions: 'id, requisitionNumber, storeId, status, dateRequested',
       cart: 'id, productId, storeId, addedAt',
       sales: 'id, transactionNumber, storeId, paymentMethod, syncStatus, timestamp',
       settings: 'key, updatedAt'
@@ -172,6 +207,19 @@ export async function dbBulkUpsertProducts(products: DexieProduct[]): Promise<vo
   await db.products.bulkPut(products);
 }
 
+// Raw Materials
+export async function dbGetAllRawMaterials(): Promise<DexieRawMaterial[]> {
+  return await db.raw_materials.toArray();
+}
+
+export async function dbUpsertRawMaterial(material: DexieRawMaterial): Promise<string> {
+  return await db.raw_materials.put(material);
+}
+
+export async function dbBulkUpsertRawMaterials(materials: DexieRawMaterial[]): Promise<void> {
+  await db.raw_materials.bulkPut(materials);
+}
+
 // Cart Items
 export async function dbGetCartItems(storeId?: string): Promise<DexieCartItem[]> {
   if (storeId) {
@@ -234,4 +282,162 @@ export async function dbGetSetting<T = any>(key: string, defaultValue?: T): Prom
     return record.value as T;
   }
   return defaultValue;
+}
+
+// ============================================================================
+// Store Requisitions & Dispatcher Operations
+// ============================================================================
+
+export async function dbGetRequisitions(): Promise<any[]> {
+  try {
+    if (db.requisitions) {
+      return await db.requisitions.toArray();
+    }
+  } catch (err) {
+    console.warn('[dbGetRequisitions] Dexie read warning:', err);
+  }
+  return [];
+}
+
+export async function dbSaveRequisition(req: any): Promise<string> {
+  return await db.requisitions.put(req);
+}
+
+export async function dbBulkUpsertRequisitions(reqs: any[]): Promise<void> {
+  if (!reqs || reqs.length === 0) return;
+  await db.requisitions.bulkPut(reqs);
+}
+
+/**
+ * Standardized Requisition Approval in Dexie.js
+ * Explicitly writes status: 'approved' (lowercase) and approvedAt timestamp.
+ */
+export async function dbApproveRequisition(id: string, requisitionData?: any): Promise<void> {
+  const approvedAt = new Date().toISOString();
+  try {
+    const updatedCount = await db.requisitions.update(id, {
+      status: 'approved',
+      approvedAt,
+      updatedAt: approvedAt
+    });
+
+    if (updatedCount === 0 && requisitionData) {
+      await db.requisitions.put({
+        ...requisitionData,
+        id,
+        status: 'approved',
+        approvedAt,
+        updatedAt: approvedAt
+      });
+    }
+
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('requisition-updated', {
+        detail: { id, status: 'approved', approvedAt }
+      }));
+    }
+  } catch (err) {
+    console.warn('[dbApproveRequisition] notice:', err);
+    if (requisitionData) {
+      await db.requisitions.put({
+        ...requisitionData,
+        id,
+        status: 'approved',
+        approvedAt
+      }).catch((e) => console.error('[dbApproveRequisition] put fallback error:', e));
+    }
+  }
+}
+
+/**
+ * MIGRATION & REPAIR SCRIPT ON STARTUP
+ * Scans Dexie.js and localStorage for existing requisitions and repairs
+ * inconsistent status strings ('Approved', 'APPROVED', 'approuvé', 'VALIDATED', etc.)
+ * directly to canonical lowercase 'approved'.
+ */
+export async function repairRequisitionStatuses(): Promise<{ updatedCount: number; totalCount: number }> {
+  let updatedCount = 0;
+  let totalCount = 0;
+
+  const approvedAliases = ['approved', 'approuvé', 'approuve', 'validated', 'valide', 'validé'];
+
+  try {
+    // 1. Repair and sync in Dexie.js
+    if (db.requisitions) {
+      let dexieReqs = await db.requisitions.toArray();
+
+      // If Dexie table is empty, attempt to hydrate from localStorage
+      if (dexieReqs.length === 0 && typeof window !== 'undefined') {
+        const rawLocal = localStorage.getItem('pastry_app_requisitions');
+        if (rawLocal) {
+          try {
+            const parsed = JSON.parse(rawLocal);
+            if (Array.isArray(parsed) && parsed.length > 0) {
+              await db.requisitions.bulkPut(parsed);
+              dexieReqs = parsed;
+            }
+          } catch {
+            // ignore JSON error
+          }
+        }
+      }
+
+      totalCount = dexieReqs.length;
+
+      for (const req of dexieReqs) {
+        const currentStatus = String(req.status || '').toLowerCase().trim();
+        if (approvedAliases.includes(currentStatus) && req.status !== 'approved') {
+          await db.requisitions.update(req.id, {
+            status: 'approved',
+            approvedAt: req.approvedAt || new Date().toISOString()
+          });
+          updatedCount++;
+        }
+      }
+    }
+
+    // 2. Repair in LocalStorage ('pastry_app_requisitions')
+    if (typeof window !== 'undefined') {
+      const rawLocal = localStorage.getItem('pastry_app_requisitions');
+      if (rawLocal) {
+        try {
+          const list = JSON.parse(rawLocal);
+          if (Array.isArray(list)) {
+            let changed = false;
+            const fixed = list.map((item: any) => {
+              const currentStatus = String(item.status || '').toLowerCase().trim();
+              if (approvedAliases.includes(currentStatus) && item.status !== 'approved') {
+                changed = true;
+                return {
+                  ...item,
+                  status: 'approved',
+                  approvedAt: item.approvedAt || new Date().toISOString()
+                };
+              }
+              return item;
+            });
+
+            if (changed) {
+              localStorage.setItem('pastry_app_requisitions', JSON.stringify(fixed));
+            }
+          }
+        } catch {
+          // ignore
+        }
+      }
+    }
+
+    console.log(`[repairRequisitionStatuses] ✅ Repaired ${updatedCount} / ${totalCount} requisitions to canonical 'approved'.`);
+  } catch (err) {
+    console.warn('[repairRequisitionStatuses] Repair script notice:', err);
+  }
+
+  return { updatedCount, totalCount };
+}
+
+// Run automatic repair on load if client-side
+if (typeof window !== 'undefined') {
+  setTimeout(() => {
+    repairRequisitionStatuses().catch(() => {});
+  }, 300);
 }
