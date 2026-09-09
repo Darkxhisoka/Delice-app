@@ -153,6 +153,8 @@
     "analyticsDesc": "إحصائيات متقدمة",
     "voiceNotes": "الإملاء الصوتي وملاحظات الشيف",
     "voiceNotesDesc": "تسجيل بدون استخدام اليدين وتعديل الوصفات",
+    "bakerProductionOf": "سير عمل الخباز (أمر التصنيع والمقادير)",
+    "bakerProductionOfDesc": "حساب الوصفات والخصم الآلي وطباعة A4",
     "productionBatchPlanner": "تخطيط الدفعات بالذكاء الاصطناعي",
     "productionBatchPlannerDesc": "جدولة وجدولة الدفعات وحساب المقادير",
     "dailyProductionPlan": "قائمة مهام طهاة الحلويات",

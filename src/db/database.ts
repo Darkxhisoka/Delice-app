@@ -83,6 +83,31 @@ export interface DexieAppSetting {
   updatedAt: string;
 }
 
+export interface DexieProductionOrder {
+  id: string;
+  ofCode: string;
+  bakerName: string;
+  productId: string;
+  productName: string;
+  productCode?: string;
+  batchCount: number;
+  baseBatchYield?: number;
+  totalYield: number;
+  yieldUnit?: string;
+  specialInstructions?: string;
+  deductedIngredients: Array<{
+    rawMaterialId: string;
+    materialName: string;
+    dosagePerBatch: number;
+    totalCalculated: number;
+    unit: string;
+    stockBefore: number;
+    stockAfter: number;
+  }>;
+  status: 'completed' | 'in_progress' | 'cancelled';
+  createdAt: string;
+}
+
 export interface StoragePersistStatus {
   isPersisted: boolean;
   persistenceSupported: boolean;
@@ -99,6 +124,7 @@ export class DeliceDatabase extends Dexie {
   products!: Table<DexieProduct, string>;
   raw_materials!: Table<DexieRawMaterial, string>;
   requisitions!: Table<any, string>;
+  production_orders!: Table<DexieProductionOrder, string>;
   cart!: Table<DexieCartItem, string>;
   sales!: Table<DexieSale, string>;
   settings!: Table<DexieAppSetting, string>;
@@ -128,6 +154,17 @@ export class DeliceDatabase extends Dexie {
       products: 'id, code, name, category, storeId, barcode, isActive, updatedAt',
       raw_materials: 'id, code, name, category, unit, currentStock, updatedAt',
       requisitions: 'id, requisitionNumber, storeId, status, dateRequested',
+      cart: 'id, productId, storeId, addedAt',
+      sales: 'id, transactionNumber, storeId, paymentMethod, syncStatus, timestamp',
+      settings: 'key, updatedAt'
+    });
+
+    // Schema Version 4: Added production_orders table for active OF baker workflow
+    this.version(4).stores({
+      products: 'id, code, name, category, storeId, barcode, isActive, updatedAt',
+      raw_materials: 'id, code, name, category, unit, currentStock, updatedAt',
+      requisitions: 'id, requisitionNumber, storeId, status, dateRequested',
+      production_orders: 'id, ofCode, productId, bakerName, status, createdAt',
       cart: 'id, productId, storeId, addedAt',
       sales: 'id, transactionNumber, storeId, paymentMethod, syncStatus, timestamp',
       settings: 'key, updatedAt'

@@ -26,9 +26,11 @@ import {
   FileSpreadsheet,
   FileText,
   ClipboardList,
-  LayoutGrid
+  LayoutGrid,
+  ChefHat
 } from 'lucide-react';
 import { OrdreDeFabricationReport } from '../components/lab/OrdreDeFabricationReport';
+import { BakerProductionWorkflow } from '../components/lab/BakerProductionWorkflow';
 
 /**
  * Case-insensitive check for 'approved', 'approuvé', and 'validated' (Requirement 5)
@@ -219,7 +221,7 @@ export function LabProduction() {
   const [isRescanning, setIsRescanning] = useState<boolean>(false);
 
   // VIEW MODE: Grid dispatcher vs dedicated Ordre de Fabrication (OF) view
-  const [viewMode, setViewMode] = useState<'DISPATCHER' | 'OF_REPORT'>('DISPATCHER');
+  const [viewMode, setViewMode] = useState<'DISPATCHER' | 'OF_REPORT' | 'BAKER_OF'>('DISPATCHER');
   const [selectedOFRoomId, setSelectedOFRoomId] = useState<string>('patisseries_fines');
 
   const log = (msg: string) => {
@@ -579,7 +581,7 @@ export function LabProduction() {
 
         <div className="flex items-center gap-2 w-full lg:w-auto flex-wrap">
           {/* Mode Switcher */}
-          <div className="flex items-center bg-slate-100 p-1 rounded-xl border border-slate-200">
+          <div className="flex items-center bg-slate-100 p-1 rounded-xl border border-slate-200 flex-wrap gap-1">
             <button
               onClick={() => setViewMode('DISPATCHER')}
               className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition cursor-pointer ${
@@ -606,7 +608,18 @@ export function LabProduction() {
               }`}
             >
               <ClipboardList className="w-3.5 h-3.5 text-blue-600" />
-              <span>Ordres de Fabrication (OF)</span>
+              <span>OF Dispatchés</span>
+            </button>
+            <button
+              onClick={() => setViewMode('BAKER_OF')}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition cursor-pointer ${
+                viewMode === 'BAKER_OF'
+                  ? 'bg-amber-500 text-slate-950 shadow-xs font-black'
+                  : 'text-amber-800 hover:text-amber-950 bg-amber-50/80 hover:bg-amber-100'
+              }`}
+            >
+              <ChefHat className="w-3.5 h-3.5 text-amber-700" />
+              <span>Workflow Pâtissier (OF Recettes)</span>
             </button>
           </div>
 
@@ -799,8 +812,24 @@ export function LabProduction() {
         </div>
       )}
 
-      {/* VIEW SELECTION: Dedicated OF Report View vs Dispatcher Grid */}
-      {viewMode === 'OF_REPORT' ? (
+      {/* VIEW SELECTION: Dedicated OF Report View vs Dispatcher Grid vs Baker Active OF Workflow */}
+      {viewMode === 'BAKER_OF' ? (
+        <div className="space-y-4">
+          <div className="flex items-center justify-between bg-slate-800 text-slate-200 px-4 py-2.5 rounded-xl border border-slate-700 print:hidden">
+            <span className="text-xs font-bold flex items-center gap-2">
+              <ChefHat className="w-4 h-4 text-amber-400" />
+              Mode actif : Déclaration Pâtissier, calcul de recette et déstockage atomique
+            </span>
+            <button
+              onClick={() => setViewMode('DISPATCHER')}
+              className="text-xs font-bold text-amber-400 hover:underline cursor-pointer"
+            >
+              ← Retour à la grille des ateliers
+            </button>
+          </div>
+          <BakerProductionWorkflow />
+        </div>
+      ) : viewMode === 'OF_REPORT' ? (
         <div className="space-y-6">
           {/* Workshop selector tabs for OF */}
           <div className="bg-white p-2 rounded-2xl border border-slate-200 shadow-xs flex items-center gap-1.5 overflow-x-auto print:hidden">

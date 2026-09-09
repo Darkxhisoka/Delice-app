@@ -38,6 +38,7 @@ import { ExportReportingCenter } from '../reports/ExportReportingCenter';
 import { ChefVoiceNotesManager } from './ChefVoiceNotesManager';
 import { UnitConversionWidget } from '../common/UnitConversionWidget';
 import { LabProduction } from './LabProduction';
+import { BakerProductionWorkflow } from './BakerProductionWorkflow';
 import {
   FlaskConical,
   Receipt,
@@ -77,6 +78,7 @@ import {
 export type LabModule = 
   | 'EXECUTIVE_DASHBOARD'
   | 'LAB_PRODUCTION_DISPATCHER'
+  | 'BAKER_PRODUCTION_OF'
   | 'VOICE_NOTES'
   | 'UNIT_CONVERTER'
   | 'MARGIN_ANALYTICS' 
@@ -142,6 +144,7 @@ const RAW_LAB_CATEGORIES: ModuleCategoryConfig[] = [
     categoryIcon: Utensils,
     items: [
       { id: 'LAB_PRODUCTION_DISPATCHER', labelKey: 'labModules.labProductionDispatcher', descKey: 'labModules.labProductionDispatcherDesc', icon: ChefHat, color: 'text-amber-400 bg-amber-400/20' },
+      { id: 'BAKER_PRODUCTION_OF', labelKey: 'labModules.bakerProductionOf', descKey: 'labModules.bakerProductionOfDesc', icon: ChefHat, color: 'text-amber-400 bg-amber-400/20' },
       { id: 'VOICE_NOTES', labelKey: 'labModules.voiceNotes', descKey: 'labModules.voiceNotesDesc', icon: Mic, color: 'text-amber-400 bg-amber-400/20' },
       { id: 'PRODUCTION_BATCH_PLANNER', labelKey: 'labModules.productionBatchPlanner', descKey: 'labModules.productionBatchPlannerDesc', icon: Zap, color: 'text-amber-400 bg-amber-400/20' },
       { id: 'DAILY_PRODUCTION_PLAN', labelKey: 'labModules.dailyProductionPlan', descKey: 'labModules.dailyProductionPlanDesc', icon: Utensils, color: 'text-amber-400 bg-amber-400/20' },
@@ -527,6 +530,7 @@ export const LabDashboard: React.FC = () => {
         >
           {activeModule === 'EXECUTIVE_DASHBOARD' && <ExecutiveInventoryDashboard />}
           {activeModule === 'LAB_PRODUCTION_DISPATCHER' && <LabProduction />}
+          {activeModule === 'BAKER_PRODUCTION_OF' && <BakerProductionWorkflow />}
           {activeModule === 'VOICE_NOTES' && <ChefVoiceNotesManager />}
           {activeModule === 'UNIT_CONVERTER' && <UnitConversionWidget />}
           {activeModule === 'DAILY_PRODUCTION_PLAN' && <DailyProductionPlan />}

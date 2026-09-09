@@ -153,6 +153,8 @@
     "analyticsDesc": "Statistiques avancées",
     "voiceNotes": "Dictée Vocale & Notes Chefs",
     "voiceNotesDesc": "Enregistrement mains-libres & modifications recettes",
+    "bakerProductionOf": "Workflow Pâtissier (OF & Recettes)",
+    "bakerProductionOfDesc": "Calcul recettes, déstockage Dexie et fiche A4",
     "productionBatchPlanner": "Planification IA & Fournées",
     "productionBatchPlannerDesc": "Ordonnancement et calcul des batchs",
     "dailyProductionPlan": "Task List Pâtissiers",
