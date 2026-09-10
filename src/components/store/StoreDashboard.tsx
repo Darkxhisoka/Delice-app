@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, Suspense, lazy } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
 import { useTranslation } from 'react-i18next';
 import { subscribeToSupabaseRealtime } from '../../services/supabaseService';
@@ -6,20 +6,22 @@ import { notifyToast } from '../../services/storage';
 import { RequisitionForm } from './RequisitionForm';
 import { StoreRequisitionHistory } from './StoreRequisitionHistory';
 import { RetailSalesPOS } from './RetailSalesPOS';
-import { UnsoldProductsManager } from './UnsoldProductsManager';
-import { SalesAnalyticsView } from './SalesAnalyticsView';
-import { StoreReconciliation } from './StoreReconciliation';
-import { StoreReceivingView } from './StoreReceiving';
-import { StorePackaging } from './StorePackaging';
 import { ActivityFeed } from '../common/ActivityFeed';
 import { QuickActionsFloatingButton } from './QuickActionsFloatingButton';
-import { CustomCakePreOrders } from './CustomCakePreOrders';
-import { CustomerLoyaltyManager } from './CustomerLoyaltyManager';
-import { CashDrawerZReportView } from './CashDrawerZReportView';
-import { StoreReturnsManager } from './StoreReturnsManager';
-import { EmergencyDataExportModal } from './EmergencyDataExportModal';
 import { getActiveStore } from '../../services/storage';
 import { CompanyLogo } from '../common/CompanyLogo';
+
+// Lazy-loaded secondary store tabs to keep POS checkout initialization fast
+const CustomCakePreOrders = lazy(() => import('./CustomCakePreOrders').then(m => ({ default: m.CustomCakePreOrders })));
+const CustomerLoyaltyManager = lazy(() => import('./CustomerLoyaltyManager').then(m => ({ default: m.CustomerLoyaltyManager })));
+const CashDrawerZReportView = lazy(() => import('./CashDrawerZReportView').then(m => ({ default: m.CashDrawerZReportView })));
+const StoreReturnsManager = lazy(() => import('./StoreReturnsManager').then(m => ({ default: m.StoreReturnsManager })));
+const StoreReceivingView = lazy(() => import('./StoreReceiving').then(m => ({ default: m.StoreReceivingView })));
+const StorePackaging = lazy(() => import('./StorePackaging').then(m => ({ default: m.StorePackaging })));
+const StoreReconciliation = lazy(() => import('./StoreReconciliation').then(m => ({ default: m.StoreReconciliation })));
+const UnsoldProductsManager = lazy(() => import('./UnsoldProductsManager').then(m => ({ default: m.UnsoldProductsManager })));
+const SalesAnalyticsView = lazy(() => import('./SalesAnalyticsView').then(m => ({ default: m.SalesAnalyticsView })));
+const EmergencyDataExportModal = lazy(() => import('./EmergencyDataExportModal').then(m => ({ default: m.EmergencyDataExportModal })));
 import { 
   ShoppingCart, 
   PackageX, 
@@ -327,19 +329,28 @@ export const StoreDashboard: React.FC = () => {
           exit={{ opacity: 0, y: -8 }}
           transition={{ duration: 0.2, ease: 'easeInOut' }}
         >
-          {activeTab === 'POS_SALES' && <RetailSalesPOS currentStore={activeStore} />}
-          {activeTab === 'CUSTOM_CAKES' && <CustomCakePreOrders />}
-          {activeTab === 'LOYALTY_VIP' && <CustomerLoyaltyManager />}
-          {activeTab === 'CASH_Z_REPORT' && <CashDrawerZReportView />}
-          {activeTab === 'STORE_RETURNS' && <StoreReturnsManager />}
-          {activeTab === 'RECEIVING' && <StoreReceivingView />}
-          {activeTab === 'PACKAGING' && <StorePackaging />}
-          {activeTab === 'RECONCILIATION' && <StoreReconciliation currentStore={activeStore} />}
-          {activeTab === 'UNSOLD_LOGS' && <UnsoldProductsManager currentStore={activeStore} />}
-          {activeTab === 'SALES_ANALYTICS' && <SalesAnalyticsView currentStore={activeStore} />}
-          {activeTab === 'NEW_REQ' && <RequisitionForm onSuccess={() => handleTabSelect('HISTORY')} />}
-          {activeTab === 'HISTORY' && <StoreRequisitionHistory />}
-          {activeTab === 'ACTIVITY_FEED' && <ActivityFeed initialInterface="STORE" />}
+          <Suspense
+            fallback={
+              <div className="flex flex-col items-center justify-center py-20 text-slate-400 space-y-3">
+                <div className="w-8 h-8 border-2 border-amber-400/30 border-t-amber-400 rounded-full animate-spin" />
+                <p className="text-xs font-medium text-slate-400">{t('common.loading', 'Chargement...')}</p>
+              </div>
+            }
+          >
+            {activeTab === 'POS_SALES' && <RetailSalesPOS currentStore={activeStore} />}
+            {activeTab === 'CUSTOM_CAKES' && <CustomCakePreOrders />}
+            {activeTab === 'LOYALTY_VIP' && <CustomerLoyaltyManager />}
+            {activeTab === 'CASH_Z_REPORT' && <CashDrawerZReportView />}
+            {activeTab === 'STORE_RETURNS' && <StoreReturnsManager />}
+            {activeTab === 'RECEIVING' && <StoreReceivingView />}
+            {activeTab === 'PACKAGING' && <StorePackaging />}
+            {activeTab === 'RECONCILIATION' && <StoreReconciliation currentStore={activeStore} />}
+            {activeTab === 'UNSOLD_LOGS' && <UnsoldProductsManager currentStore={activeStore} />}
+            {activeTab === 'SALES_ANALYTICS' && <SalesAnalyticsView currentStore={activeStore} />}
+            {activeTab === 'NEW_REQ' && <RequisitionForm onSuccess={() => handleTabSelect('HISTORY')} />}
+            {activeTab === 'HISTORY' && <StoreRequisitionHistory />}
+            {activeTab === 'ACTIVITY_FEED' && <ActivityFeed initialInterface="STORE" />}
+          </Suspense>
         </motion.div>
       </AnimatePresence>
 
@@ -573,10 +584,14 @@ export const StoreDashboard: React.FC = () => {
       </AnimatePresence>
 
       {/* Emergency IndexedDB & Filesystem Export Modal */}
-      <EmergencyDataExportModal
-        isOpen={isEmergencyModalOpen}
-        onClose={() => setIsEmergencyModalOpen(false)}
-      />
+      {isEmergencyModalOpen && (
+        <Suspense fallback={null}>
+          <EmergencyDataExportModal
+            isOpen={isEmergencyModalOpen}
+            onClose={() => setIsEmergencyModalOpen(false)}
+          />
+        </Suspense>
+      )}
 
     </div>
   );

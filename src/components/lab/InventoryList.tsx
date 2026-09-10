@@ -22,6 +22,7 @@ import { RawMaterialImporter } from './RawMaterialImporter';
 import { AddRawMaterialModal } from './AddRawMaterialModal';
 import { UnitConverterModal } from '../common/UnitConverterModal';
 import { UnitConversionBadge } from '../common/UnitConversionBadge';
+import { GenerateReorderListModal } from './GenerateReorderListModal';
 import { exportRawMaterialsToPDF, exportRawMaterialsToExcel } from '../../utils/reportingExport';
 import {
   Boxes,
@@ -46,7 +47,8 @@ import {
   Loader2,
   Download,
   FileText,
-  Scale
+  Scale,
+  ShoppingCart
 } from 'lucide-react';
 
 export const InventoryList: React.FC = () => {
@@ -85,6 +87,10 @@ export const InventoryList: React.FC = () => {
   // Unit Converter Modal State
   const [isUnitConverterOpen, setIsUnitConverterOpen] = useState<boolean>(false);
   const [converterMaterial, setConverterMaterial] = useState<RawMaterial | null>(null);
+
+  // Reorder List Modal State
+  const [isReorderModalOpen, setIsReorderModalOpen] = useState<boolean>(false);
+  const [reorderPreselectedMatId, setReorderPreselectedMatId] = useState<string | undefined>(undefined);
 
   const loadData = async () => {
     setLoading(true);
@@ -349,6 +355,23 @@ export const InventoryList: React.FC = () => {
         {stockType === 'RAW_MATERIALS' && (
           <div className="pr-2 flex flex-wrap items-center gap-2">
             <button
+              id="btn-generate-reorder-list"
+              onClick={() => {
+                setReorderPreselectedMatId(undefined);
+                setIsReorderModalOpen(true);
+              }}
+              className="inline-flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-bold text-white bg-rose-600 hover:bg-rose-700 active:bg-rose-800 rounded-lg shadow-xs transition-colors cursor-pointer"
+              title={t('inventory.generateReorderListTitle', 'Générer la liste de réapprovisionnement pour les ingrédients sous le seuil d\'alerte')}
+            >
+              <ShoppingCart className="w-4 h-4" />
+              <span>{t('inventory.generateReorderList', 'Liste de Réappro')}</span>
+              {lowStockRawCount > 0 && (
+                <span className="px-1.5 py-0.2 bg-white text-rose-700 rounded-full text-[10px] font-black leading-none">
+                  {lowStockRawCount}
+                </span>
+              )}
+            </button>
+            <button
               onClick={() => {
                 setConverterMaterial(null);
                 setIsUnitConverterOpen(true);
@@ -435,15 +458,33 @@ export const InventoryList: React.FC = () => {
           </div>
         </div>
 
-        <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs flex items-center justify-between">
+        <div 
+          onClick={() => {
+            if (stockType === 'RAW_MATERIALS') {
+              setReorderPreselectedMatId(undefined);
+              setIsReorderModalOpen(true);
+            }
+          }}
+          className={`bg-white p-5 rounded-2xl border border-slate-200 shadow-xs flex items-center justify-between transition-all ${
+            stockType === 'RAW_MATERIALS' ? 'cursor-pointer hover:border-rose-400 hover:shadow-md group' : ''
+          }`}
+          title={stockType === 'RAW_MATERIALS' ? 'Cliquer pour générer la liste de réapprovisionnement' : undefined}
+        >
           <div>
-            <span className="text-[11px] font-bold uppercase text-slate-400 tracking-wider">{t('inventory.lowStockAlerts', 'Alertes Stock Bas')}</span>
+            <div className="flex items-center gap-2">
+              <span className="text-[11px] font-bold uppercase text-slate-400 tracking-wider">{t('inventory.lowStockAlerts', 'Alertes Stock Bas')}</span>
+              {stockType === 'RAW_MATERIALS' && (
+                <span className="text-[10px] font-bold text-rose-700 bg-rose-50 border border-rose-200 px-1.5 py-0.2 rounded-md group-hover:bg-rose-100 transition-colors">
+                  Réappro →
+                </span>
+              )}
+            </div>
             <div className="text-2xl font-black text-amber-600 mt-1">
               {t('inventory.itemsCount', { count: (stockType === 'RAW_MATERIALS' ? lowStockRawCount : lowStockSfCount), defaultValue: `${stockType === 'RAW_MATERIALS' ? lowStockRawCount : lowStockSfCount} Articles` })}
             </div>
             <p className="text-xs text-slate-500 mt-0.5">{t('inventory.belowReorderLevel', 'En-dessous du seuil de réapprovisionnement')}</p>
           </div>
-          <div className="p-3 bg-amber-50 text-amber-600 rounded-xl">
+          <div className="p-3 bg-amber-50 text-amber-600 rounded-xl group-hover:scale-105 transition-transform">
             <AlertTriangle className="w-6 h-6" />
           </div>
         </div>
@@ -578,13 +619,31 @@ export const InventoryList: React.FC = () => {
                       </td>
                       <td className="p-3 text-center">
                         {isOutOfStock ? (
-                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-rose-100 text-rose-800 border border-rose-300">
-                            {t('inventory.outOfStock', 'Rupture')}
-                          </span>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setReorderPreselectedMatId(mat.id);
+                              setIsReorderModalOpen(true);
+                            }}
+                            className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-rose-100 text-rose-800 border border-rose-300 hover:bg-rose-200 transition-colors cursor-pointer"
+                            title="Rupture de stock ! Cliquer pour commander"
+                          >
+                            <ShoppingCart className="w-3 h-3 text-rose-700" />
+                            <span>{t('inventory.outOfStock', 'Rupture')}</span>
+                          </button>
                         ) : isLowStock ? (
-                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-800 border border-amber-300">
-                            {t('inventory.lowStock', 'Stock Bas')}
-                          </span>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setReorderPreselectedMatId(mat.id);
+                              setIsReorderModalOpen(true);
+                            }}
+                            className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-800 border border-amber-300 hover:bg-amber-200 transition-colors cursor-pointer"
+                            title="Stock bas ! Cliquer pour commander"
+                          >
+                            <ShoppingCart className="w-3 h-3 text-amber-700" />
+                            <span>{t('inventory.lowStock', 'Stock Bas')}</span>
+                          </button>
                         ) : (
                           <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-300">
                             {t('inventory.inStock', 'En Stock')}
@@ -600,6 +659,16 @@ export const InventoryList: React.FC = () => {
                       </td>
                       <td className="p-3 text-center">
                         <div className="flex items-center justify-center gap-1">
+                          <button
+                            onClick={() => {
+                              setReorderPreselectedMatId(mat.id);
+                              setIsReorderModalOpen(true);
+                            }}
+                            className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer"
+                            title="Ajouter au bon de réapprovisionnement"
+                          >
+                            <ShoppingCart className="w-4 h-4" />
+                          </button>
                           <button
                             onClick={() => {
                               setConverterMaterial(mat);
@@ -953,6 +1022,17 @@ export const InventoryList: React.FC = () => {
           setConverterMaterial(null);
         }}
         initialMaterial={converterMaterial}
+      />
+
+      {/* Generate Reorder List Modal */}
+      <GenerateReorderListModal
+        isOpen={isReorderModalOpen}
+        onClose={() => {
+          setIsReorderModalOpen(false);
+          setReorderPreselectedMatId(undefined);
+        }}
+        materials={materials}
+        preselectedMaterialId={reorderPreselectedMatId}
       />
 
     </div>

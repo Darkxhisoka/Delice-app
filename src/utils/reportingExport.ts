@@ -271,3 +271,142 @@ export function exportProductionBatchesToExcel(batches: ProductionBatch[]) {
     notifyToast({ type: 'error', title: 'Erreur Export', message: err?.message || 'Échec de génération Excel.' });
   }
 }
+
+/**
+ * Direct PDF export for low-stock materials intended for supplier reordering
+ */
+export function exportLowStockReorderListToPDF(materials: RawMaterial[], supplierName?: string) {
+  const lowStock = materials.filter((m) => {
+    const threshold = m.min_reorder_level ?? m.reorderLevel;
+    return m.currentStock <= threshold;
+  });
+
+  if (lowStock.length === 0) {
+    notifyToast({
+      type: 'info',
+      title: 'Aucun Stock Bas',
+      message: 'Toutes les matières premières sont à un niveau optimal.',
+    });
+    return;
+  }
+
+  try {
+    const doc = new jsPDF();
+    const dateStr = new Date().toLocaleDateString('fr-FR', {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric'
+    });
+    const orderRef = `REAP-${new Date().toISOString().substring(0, 10).replace(/-/g, '')}-${Math.floor(100 + Math.random() * 900)}`;
+
+    // Top Header Banner
+    doc.setFillColor(BRAND_PRIMARY[0], BRAND_PRIMARY[1], BRAND_PRIMARY[2]);
+    doc.rect(0, 0, 210, 30, 'F');
+    doc.setFillColor(225, 29, 72); // Rose 600 accent
+    doc.rect(0, 30, 210, 2, 'F');
+
+    doc.setTextColor(255, 255, 255);
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(16);
+    doc.text('PÂTISSERIE LE DÉLICE', 14, 13);
+
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(8.5);
+    doc.setTextColor(203, 213, 225);
+    doc.text('Laboratoire Central • Direction des Approvisionnements', 14, 20);
+    doc.text(`Réf : ${orderRef} • ${lowStock.length} ingrédients en alerte`, 14, 26);
+
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(11);
+    doc.setTextColor(255, 255, 255);
+    doc.text('BON DE RÉAPPROVISIONNEMENT', 196, 14, { align: 'right' });
+
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(8);
+    doc.setTextColor(254, 202, 202);
+    doc.text(`Émis le ${dateStr} • COMMANDE FOURNISSEUR`, 196, 21, { align: 'right' });
+
+    let startY = 38;
+
+    // Recipient & Summary card
+    doc.setFillColor(248, 250, 252);
+    doc.roundedRect(14, startY, 182, 22, 2, 2, 'F');
+    doc.setDrawColor(226, 232, 240);
+    doc.roundedRect(14, startY, 182, 22, 2, 2, 'S');
+
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(8.5);
+    doc.setTextColor(BRAND_PRIMARY[0], BRAND_PRIMARY[1], BRAND_PRIMARY[2]);
+    doc.text('DESTINATAIRE FOURNISSEUR :', 18, startY + 7);
+    doc.setFont('helvetica', 'normal');
+    doc.setTextColor(51, 65, 85);
+    doc.text(supplierName || 'Tous Fournisseurs Partenaires (Liste Consolidée Matières Premières)', 18, startY + 13);
+    doc.text('Lieu de livraison : Laboratoire Central Délice - Quai de Réception (8h - 14h)', 18, startY + 18);
+
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(BRAND_PRIMARY[0], BRAND_PRIMARY[1], BRAND_PRIMARY[2]);
+    doc.text('URGENCE :', 145, startY + 7);
+    doc.setTextColor(225, 29, 72);
+    doc.text('PRIORITAIRE / SOUS 24H', 145, startY + 13);
+
+    startY += 28;
+
+    const rows = lowStock.map((m) => {
+      const minThreshold = m.min_reorder_level ?? m.reorderLevel;
+      const suggestedQty = Math.max(1, Math.ceil(minThreshold * 2.0 - m.currentStock));
+      const unitCost = m.currentAvgCost > 0 ? m.currentAvgCost : 0;
+      const lineCost = suggestedQty * unitCost;
+
+      return [
+        m.sku || '-',
+        m.name,
+        m.category,
+        `${m.currentStock} ${m.unit}`,
+        `${minThreshold} ${m.unit}`,
+        `${suggestedQty} ${m.unit}`,
+        `${unitCost.toFixed(2)} DZD`,
+        `${lineCost.toFixed(2)} DZD`,
+      ];
+    });
+
+    autoTable(doc, {
+      startY,
+      head: [['Réf.', 'Matière Première', 'Catégorie', 'Stock Actuel', 'Seuil Min.', 'Qté Recommandée', 'P.U Moyen', 'Total Estimé']],
+      body: rows,
+      theme: 'grid',
+      headStyles: {
+        fillColor: BRAND_PRIMARY,
+        textColor: [255, 255, 255],
+        fontStyle: 'bold',
+        fontSize: 7.5,
+        halign: 'center',
+      },
+      bodyStyles: { fontSize: 7.5 },
+      columnStyles: {
+        0: { cellWidth: 16, halign: 'center', fontStyle: 'bold' },
+        1: { cellWidth: 44, fontStyle: 'bold' },
+        2: { cellWidth: 26 },
+        3: { cellWidth: 20, halign: 'right', textColor: [225, 29, 72] },
+        4: { cellWidth: 18, halign: 'right' },
+        5: { cellWidth: 22, halign: 'right', fontStyle: 'bold', textColor: [15, 23, 42] },
+        6: { cellWidth: 18, halign: 'right' },
+        7: { cellWidth: 18, halign: 'right', fontStyle: 'bold' },
+      },
+      alternateRowStyles: {
+        fillColor: [248, 250, 252],
+      },
+    });
+
+    addFooter(doc);
+    doc.save(`reapprovisionnement_fournisseur_${orderRef}.pdf`);
+    notifyToast({
+      type: 'success',
+      title: 'Bon de Réapprovisionnement Téléchargé',
+      message: `${lowStock.length} ingrédients sous seuil ont été exportés en PDF.`,
+    });
+  } catch (err: any) {
+    console.error('PDF export error:', err);
+    notifyToast({ type: 'error', title: 'Erreur Export', message: err?.message || 'Échec de génération PDF.' });
+  }
+}
+

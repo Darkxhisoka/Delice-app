@@ -459,10 +459,71 @@ export function saveRawMaterials(materials: RawMaterial[]) {
 export const setRawMaterials = saveRawMaterials;
 
 // Suppliers
+const DEFAULT_BAKERY_SUPPLIERS: Supplier[] = [
+  {
+    id: 'sup-1',
+    name: 'Moulins Viron & Grands Moulins d\'Algérie',
+    contactPerson: 'Karim Bouzid',
+    email: 'commandes@grandsmoulins.dz',
+    phone: '+213 550 12 34 56',
+    categoriesProvided: ['Flour & Grains'],
+    paymentTerms: '30 jours fin de mois'
+  },
+  {
+    id: 'sup-2',
+    name: 'Laiterie Professionnelle & Beurre Tourage AOP',
+    contactPerson: 'Sofiane Merad',
+    email: 'contact@laiterie-pro.dz',
+    phone: '+213 555 98 76 54',
+    categoriesProvided: ['Dairy & Eggs', 'Fats & Oils'],
+    paymentTerms: 'Comptant à la livraison'
+  },
+  {
+    id: 'sup-3',
+    name: 'Chocolaterie & Cacao Pur Import',
+    contactPerson: 'Amel Haddad',
+    email: 'ventes@chocopur.dz',
+    phone: '+213 560 44 33 22',
+    categoriesProvided: ['Chocolate & Cocoa'],
+    paymentTerms: '15 jours'
+  },
+  {
+    id: 'sup-4',
+    name: 'Centrale Sucres, Arômes & Fruits Secs',
+    contactPerson: 'Nabil Mansouri',
+    email: 'contact@aromes-sucre.dz',
+    phone: '+213 551 66 77 88',
+    categoriesProvided: ['Sugars & Sweeteners', 'Fruits & Nuts', 'Flavorings & Vanilla'],
+    paymentTerms: '30 jours'
+  },
+  {
+    id: 'sup-5',
+    name: 'Emballages & Cartonnages Pâtissiers',
+    contactPerson: 'Yacine Belkacem',
+    email: 'service@delice-pack.dz',
+    phone: '+213 552 11 22 33',
+    categoriesProvided: ['Packaging', 'Other'],
+    paymentTerms: '30 jours'
+  }
+];
+
 export function getSuppliers(): Supplier[] {
   initStorage();
   const data = localStorage.getItem(KEYS.SUPPLIERS);
-  return data ? JSON.parse(data) : [];
+  if (!data) {
+    localStorage.setItem(KEYS.SUPPLIERS, JSON.stringify(DEFAULT_BAKERY_SUPPLIERS));
+    return DEFAULT_BAKERY_SUPPLIERS;
+  }
+  try {
+    const parsed = JSON.parse(data);
+    if (Array.isArray(parsed) && parsed.length > 0) {
+      return parsed;
+    }
+    localStorage.setItem(KEYS.SUPPLIERS, JSON.stringify(DEFAULT_BAKERY_SUPPLIERS));
+    return DEFAULT_BAKERY_SUPPLIERS;
+  } catch {
+    return DEFAULT_BAKERY_SUPPLIERS;
+  }
 }
 
 export function addSupplier(supplier: Omit<Supplier, 'id'>): Supplier {

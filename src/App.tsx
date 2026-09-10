@@ -1,16 +1,20 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, Suspense, lazy } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
 import { Navbar } from './components/common/Navbar';
 import { ToastContainer } from './components/common/ToastContainer';
-import { LabAssistantChatbot } from './components/common/LabAssistantChatbot';
 import { OfflineStatusBanner } from './components/common/OfflineStatusBanner';
-import { StoreDashboard } from './components/store/StoreDashboard';
-import { LabDashboard } from './components/lab/LabDashboard';
 import { ProtectedRoute } from './components/common/ProtectedRoute';
-import { LoginModal } from './components/common/LoginModal';
 import { LoadingScreen } from './components/common/LoadingScreen';
-import { VersionUpdateModal } from './components/common/VersionUpdateModal';
+import { StoreDashboardSkeleton } from './components/store/StoreDashboardSkeleton';
+import { LabDashboardSkeleton } from './components/lab/LabDashboardSkeleton';
 import { ErrorBoundary } from './components/ErrorBoundary';
+
+// Lazy-loaded primary views and overlays for optimized bundle size & fast cold start
+const StoreDashboard = lazy(() => import('./components/store/StoreDashboard').then(m => ({ default: m.StoreDashboard })));
+const LabDashboard = lazy(() => import('./components/lab/LabDashboard').then(m => ({ default: m.LabDashboard })));
+const LoginModal = lazy(() => import('./components/common/LoginModal').then(m => ({ default: m.LoginModal })));
+const VersionUpdateModal = lazy(() => import('./components/common/VersionUpdateModal').then(m => ({ default: m.VersionUpdateModal })));
+const LabAssistantChatbot = lazy(() => import('./components/common/LabAssistantChatbot').then(m => ({ default: m.LabAssistantChatbot })));
 import { initBackgroundSync } from './services/backgroundSync';
 import { applyDirection, getStoredLanguage } from './i18n';
 import { useTranslation } from 'react-i18next';
@@ -260,7 +264,7 @@ export default function App() {
 
   return (
     <ErrorBoundary fallbackTitle={t('app.errorBoundaryFallback', 'Pâtisserie le Délice - Mode Récupération')}>
-      <div className="min-h-screen bg-slate-100 text-slate-900 font-sans antialiased flex flex-col selection:bg-indigo-500 selection:text-white overflow-x-hidden">
+      <div className="min-h-screen bg-slate-100 text-slate-900 font-sans antialiased flex flex-col selection:bg-indigo-500 selection:text-white overflow-x-hidden print:overflow-visible print:bg-white">
         {/* Initial App Initialization & Data Fetching Contextual Skeleton Loader */}
         <AnimatePresence>
           {isInitializing && (
@@ -302,14 +306,16 @@ export default function App() {
                 exit={{ opacity: 0, y: -12, scale: 0.99 }}
                 transition={{ duration: 0.25, ease: 'easeOut' }}
               >
-                {isStoreView ? <StoreDashboard /> : <LabDashboard />}
+                <Suspense fallback={isStoreView ? <StoreDashboardSkeleton /> : <LabDashboardSkeleton />}>
+                  {isStoreView ? <StoreDashboard /> : <LabDashboard />}
+                </Suspense>
               </motion.div>
             </AnimatePresence>
           </ProtectedRoute>
         </main>
 
         {/* Footer */}
-        <footer className="bg-slate-900 text-slate-400 py-6 border-t border-slate-800 text-xs">
+        <footer className="print:hidden bg-slate-900 text-slate-400 py-6 border-t border-slate-800 text-xs">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-3">
             <div className="flex items-center gap-2">
               <span className="font-bold text-slate-200">{t('nav.brand', 'Pâtisserie le Délice')}</span>
@@ -326,34 +332,42 @@ export default function App() {
         </footer>
 
         {/* Login Screen Modal overlay when /login is triggered or requested */}
-        <LoginModal
-          isOpen={isLoginModalOpen || currentPath === '/login'}
-          onClose={() => setIsLoginModalOpen(false)}
-          currentRole={currentRole}
-          onRoleSelect={(role) => {
-            setCurrentRole(role);
-            const path = role === 'CENTRAL_LAB' ? '/lab' : '/store';
-            handleRedirect(path);
-            setIsLoginModalOpen(false);
-          }}
-        />
+        {(isLoginModalOpen || currentPath === '/login') && (
+          <Suspense fallback={null}>
+            <LoginModal
+              isOpen={true}
+              onClose={() => setIsLoginModalOpen(false)}
+              currentRole={currentRole}
+              onRoleSelect={(role) => {
+                setCurrentRole(role);
+                const path = role === 'CENTRAL_LAB' ? '/lab' : '/store';
+                handleRedirect(path);
+                setIsLoginModalOpen(false);
+              }}
+            />
+          </Suspense>
+        )}
 
         {/* Mandatory / Recommended Version Update Modal */}
-        {versionUpdateState && (
-          <VersionUpdateModal
-            isOpen={isVersionModalOpen}
-            onClose={() => setIsVersionModalOpen(false)}
-            localVersion={versionUpdateState.localVersion}
-            remoteVersion={versionUpdateState.remoteVersion}
-            manifest={versionUpdateState.manifest}
-            isMandatory={versionUpdateState.isMandatory}
-            migrationsApplied={versionUpdateState.migrationsApplied}
-          />
+        {versionUpdateState && isVersionModalOpen && (
+          <Suspense fallback={null}>
+            <VersionUpdateModal
+              isOpen={isVersionModalOpen}
+              onClose={() => setIsVersionModalOpen(false)}
+              localVersion={versionUpdateState.localVersion}
+              remoteVersion={versionUpdateState.remoteVersion}
+              manifest={versionUpdateState.manifest}
+              isMandatory={versionUpdateState.isMandatory}
+              migrationsApplied={versionUpdateState.migrationsApplied}
+            />
+          </Suspense>
         )}
 
         {/* Global Toast Container & AI Assistant Chatbot */}
         <ToastContainer />
-        <LabAssistantChatbot />
+        <Suspense fallback={null}>
+          <LabAssistantChatbot />
+        </Suspense>
       </div>
     </ErrorBoundary>
   );

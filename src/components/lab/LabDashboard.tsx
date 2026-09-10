@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, Suspense, lazy } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
 import { useTranslation } from 'react-i18next';
 import { subscribeToSupabaseRealtime } from '../../services/supabaseService';
@@ -7,38 +7,40 @@ import { RequisitionManager } from './RequisitionManager';
 import { ReceiptForm } from './ReceiptForm';
 import { InventoryList } from './InventoryList';
 import { ReceiptHistory } from './ReceiptHistory';
-import { RecipeCosting } from './RecipeCosting';
 import { SupplierManager } from './SupplierManager';
 import { StoreManager } from './StoreManager';
 import { AnalyticsReporting } from './AnalyticsReporting';
 import { ActivityLog } from './ActivityLog';
 import { LabSalesOverview } from './LabSalesOverview';
-import { ProductionOverview } from './ProductionOverview';
-import { ProductionRunner } from './ProductionRunner';
-import { WasteLossManager } from './WasteLossManager';
-import { LabWasteAnalytics } from './LabWasteAnalytics';
-import { MarginDashboard } from './MarginDashboard';
-import { DeliveryManifestView } from './DeliveryManifest';
-import { SupplierPO } from './SupplierPO';
-import { DailyProductionPlan } from './DailyProductionPlan';
-import { QualityControl } from './QualityControl';
-import { StoreAnalytics } from '../reports/StoreAnalytics';
 import { PackagingLab } from './PackagingLab';
 import { RawMaterialDestocking } from './RawMaterialDestocking';
-import { ExecutiveInventoryDashboard } from './ExecutiveInventoryDashboard';
 import { OfflineQueueStatusPill } from './OfflineQueueStatusPill';
 import { OfflineQueueDrawer } from './OfflineQueueDrawer';
 import { SyncStatusView } from './SyncStatusView';
 import { CompanyLogo } from '../common/CompanyLogo';
-import { ProductionBatchPlanner } from './ProductionBatchPlanner';
-import { ColdRoomExpiryTracker } from './ColdRoomExpiryTracker';
-import { PriceInflationSimulator } from './PriceInflationSimulator';
-import { StoreReturnsManager } from '../store/StoreReturnsManager';
-import { ExportReportingCenter } from '../reports/ExportReportingCenter';
-import { ChefVoiceNotesManager } from './ChefVoiceNotesManager';
 import { UnitConversionWidget } from '../common/UnitConversionWidget';
-import { LabProduction } from './LabProduction';
-import { BakerProductionWorkflow } from './BakerProductionWorkflow';
+
+// Code-split heavy lab sub-modules to keep bundle minimal and cold-start instantaneous
+const ExecutiveInventoryDashboard = lazy(() => import('./ExecutiveInventoryDashboard').then(m => ({ default: m.ExecutiveInventoryDashboard })));
+const BakerProductionOrderWorkflow = lazy(() => import('./BakerProductionOrderWorkflow').then(m => ({ default: m.BakerProductionOrderWorkflow })));
+const FicheTechniqueCOGS = lazy(() => import('./FicheTechniqueCOGS').then(m => ({ default: m.FicheTechniqueCOGS })));
+const LabProduction = lazy(() => import('./LabProduction').then(m => ({ default: m.LabProduction })));
+const StoreAnalytics = lazy(() => import('../reports/StoreAnalytics').then(m => ({ default: m.StoreAnalytics })));
+const MarginDashboard = lazy(() => import('./MarginDashboard').then(m => ({ default: m.MarginDashboard })));
+const DeliveryManifestView = lazy(() => import('./DeliveryManifest').then(m => ({ default: m.DeliveryManifestView })));
+const SupplierPO = lazy(() => import('./SupplierPO').then(m => ({ default: m.SupplierPO })));
+const QualityControl = lazy(() => import('./QualityControl').then(m => ({ default: m.QualityControl })));
+const DailyProductionPlan = lazy(() => import('./DailyProductionPlan').then(m => ({ default: m.DailyProductionPlan })));
+const ProductionRunner = lazy(() => import('./ProductionRunner').then(m => ({ default: m.ProductionRunner })));
+const ProductionOverview = lazy(() => import('./ProductionOverview').then(m => ({ default: m.ProductionOverview })));
+const WasteLossManager = lazy(() => import('./WasteLossManager').then(m => ({ default: m.WasteLossManager })));
+const LabWasteAnalytics = lazy(() => import('./LabWasteAnalytics').then(m => ({ default: m.LabWasteAnalytics })));
+const ProductionBatchPlanner = lazy(() => import('./ProductionBatchPlanner').then(m => ({ default: m.ProductionBatchPlanner })));
+const ColdRoomExpiryTracker = lazy(() => import('./ColdRoomExpiryTracker').then(m => ({ default: m.ColdRoomExpiryTracker })));
+const PriceInflationSimulator = lazy(() => import('./PriceInflationSimulator').then(m => ({ default: m.PriceInflationSimulator })));
+const StoreReturnsManager = lazy(() => import('../store/StoreReturnsManager').then(m => ({ default: m.StoreReturnsManager })));
+const ExportReportingCenter = lazy(() => import('../reports/ExportReportingCenter').then(m => ({ default: m.ExportReportingCenter })));
+const ChefVoiceNotesManager = lazy(() => import('./ChefVoiceNotesManager').then(m => ({ default: m.ChefVoiceNotesManager })));
 import {
   FlaskConical,
   Receipt,
@@ -342,6 +344,7 @@ export const LabDashboard: React.FC = () => {
   const [isModuleSheetOpen, setIsModuleSheetOpen] = useState<boolean>(false);
   const [isOfflineQueueDrawerOpen, setIsOfflineQueueDrawerOpen] = useState<boolean>(false);
   const [moduleSearch, setModuleSearch] = useState<string>('');
+  const [sharedProductId, setSharedProductId] = useState<string>('prod_mille_feuille_varsovie');
   const [lastSyncTime, setLastSyncTime] = useState<string>(new Date().toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit', second: '2-digit' }));
 
   useEffect(() => {
@@ -528,39 +531,64 @@ export const LabDashboard: React.FC = () => {
           exit={{ opacity: 0, y: -8 }}
           transition={{ duration: 0.2, ease: 'easeInOut' }}
         >
-          {activeModule === 'EXECUTIVE_DASHBOARD' && <ExecutiveInventoryDashboard />}
-          {activeModule === 'LAB_PRODUCTION_DISPATCHER' && <LabProduction />}
-          {activeModule === 'BAKER_PRODUCTION_OF' && <BakerProductionWorkflow />}
-          {activeModule === 'VOICE_NOTES' && <ChefVoiceNotesManager />}
-          {activeModule === 'UNIT_CONVERTER' && <UnitConversionWidget />}
-          {activeModule === 'DAILY_PRODUCTION_PLAN' && <DailyProductionPlan />}
-          {activeModule === 'PRODUCTION_BATCH_PLANNER' && <ProductionBatchPlanner />}
-          {activeModule === 'COLD_ROOM_TRACKER' && <ColdRoomExpiryTracker />}
-          {activeModule === 'PRICE_INFLATION' && <PriceInflationSimulator />}
-          {activeModule === 'STORE_RETURNS' && <StoreReturnsManager />}
-          {activeModule === 'EXPORT_REPORTS' && <ExportReportingCenter />}
-          {activeModule === 'SUPPLIER_PO' && <SupplierPO />}
-          {activeModule === 'QUALITY_CONTROL' && <QualityControl />}
-          {activeModule === 'MULTI_STORE_ANALYTICS' && <StoreAnalytics />}
-          {activeModule === 'MARGIN_ANALYTICS' && <MarginDashboard />}
-          {activeModule === 'DELIVERY_LOGISTICS' && <DeliveryManifestView />}
-          {activeModule === 'PACKAGING' && <PackagingLab />}
-          {activeModule === 'REQUISITIONS' && <RequisitionManager />}
-          {activeModule === 'PRODUCTION_RUNNER' && <ProductionRunner />}
-          {activeModule === 'PRODUCTION_OVERVIEW' && <ProductionOverview />}
-          {activeModule === 'WASTE_LOSS' && <WasteLossManager />}
-          {activeModule === 'RECONCILIATION_WASTE' && <LabWasteAnalytics />}
-          {activeModule === 'NEW_RECEIPT' && <ReceiptForm onSuccess={() => handleSelectModule('RECEIPT_HISTORY')} />}
-          {activeModule === 'INVENTORY' && <InventoryList />}
-          {activeModule === 'DESTOCKING' && <RawMaterialDestocking />}
-          {activeModule === 'RECIPES' && <RecipeCosting />}
-          {activeModule === 'RECEIPT_HISTORY' && <ReceiptHistory />}
-          {activeModule === 'SUPPLIERS' && <SupplierManager />}
-          {activeModule === 'STORES' && <StoreManager />}
-          {activeModule === 'STORE_SALES' && <LabSalesOverview />}
-          {activeModule === 'ANALYTICS' && <AnalyticsReporting />}
-          {(activeModule === 'SYNC_STATUS' || activeModule === 'OFFLINE_QUEUE') && <SyncStatusView />}
-          {activeModule === 'ACTIVITY_LOG' && <ActivityLog />}
+          <Suspense
+            fallback={
+              <div className="flex flex-col items-center justify-center py-24 text-slate-400 space-y-3">
+                <div className="w-10 h-10 border-2 border-amber-400/30 border-t-amber-400 rounded-full animate-spin" />
+                <p className="text-xs font-medium tracking-wide text-slate-400">{t('common.loading', 'Chargement...')}</p>
+              </div>
+            }
+          >
+            {activeModule === 'EXECUTIVE_DASHBOARD' && <ExecutiveInventoryDashboard />}
+            {activeModule === 'LAB_PRODUCTION_DISPATCHER' && <LabProduction />}
+            {activeModule === 'BAKER_PRODUCTION_OF' && (
+              <BakerProductionOrderWorkflow
+                initialProductId={sharedProductId}
+                onNavigateToFicheTechnique={(productId) => {
+                  setSharedProductId(productId);
+                  handleSelectModule('RECIPES');
+                }}
+              />
+            )}
+            {activeModule === 'VOICE_NOTES' && <ChefVoiceNotesManager />}
+            {activeModule === 'UNIT_CONVERTER' && <UnitConversionWidget />}
+            {activeModule === 'DAILY_PRODUCTION_PLAN' && <DailyProductionPlan />}
+            {activeModule === 'PRODUCTION_BATCH_PLANNER' && <ProductionBatchPlanner />}
+            {activeModule === 'COLD_ROOM_TRACKER' && <ColdRoomExpiryTracker />}
+            {activeModule === 'PRICE_INFLATION' && <PriceInflationSimulator />}
+            {activeModule === 'STORE_RETURNS' && <StoreReturnsManager />}
+            {activeModule === 'EXPORT_REPORTS' && <ExportReportingCenter />}
+            {activeModule === 'SUPPLIER_PO' && <SupplierPO />}
+            {activeModule === 'QUALITY_CONTROL' && <QualityControl />}
+            {activeModule === 'MULTI_STORE_ANALYTICS' && <StoreAnalytics />}
+            {activeModule === 'MARGIN_ANALYTICS' && <MarginDashboard />}
+            {activeModule === 'DELIVERY_LOGISTICS' && <DeliveryManifestView />}
+            {activeModule === 'PACKAGING' && <PackagingLab />}
+            {activeModule === 'REQUISITIONS' && <RequisitionManager />}
+            {activeModule === 'PRODUCTION_RUNNER' && <ProductionRunner />}
+            {activeModule === 'PRODUCTION_OVERVIEW' && <ProductionOverview />}
+            {activeModule === 'WASTE_LOSS' && <WasteLossManager />}
+            {activeModule === 'RECONCILIATION_WASTE' && <LabWasteAnalytics />}
+            {activeModule === 'NEW_RECEIPT' && <ReceiptForm onSuccess={() => handleSelectModule('RECEIPT_HISTORY')} />}
+            {activeModule === 'INVENTORY' && <InventoryList />}
+            {activeModule === 'DESTOCKING' && <RawMaterialDestocking />}
+            {activeModule === 'RECIPES' && (
+              <FicheTechniqueCOGS
+                initialProductId={sharedProductId}
+                onNavigateToBakerOF={(productId) => {
+                  setSharedProductId(productId);
+                  handleSelectModule('BAKER_PRODUCTION_OF');
+                }}
+              />
+            )}
+            {activeModule === 'RECEIPT_HISTORY' && <ReceiptHistory />}
+            {activeModule === 'SUPPLIERS' && <SupplierManager />}
+            {activeModule === 'STORES' && <StoreManager />}
+            {activeModule === 'STORE_SALES' && <LabSalesOverview />}
+            {activeModule === 'ANALYTICS' && <AnalyticsReporting />}
+            {(activeModule === 'SYNC_STATUS' || activeModule === 'OFFLINE_QUEUE') && <SyncStatusView />}
+            {activeModule === 'ACTIVITY_LOG' && <ActivityLog />}
+          </Suspense>
         </motion.div>
       </AnimatePresence>
 

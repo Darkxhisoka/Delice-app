@@ -215,14 +215,25 @@
     color: #000000 !important;
   }
 
-  /* Hide app navigation, buttons, headers, and UI chrome */
+  /* Hide app navigation, buttons, headers, footer, and UI chrome */
   nav,
   header,
   aside,
+  footer,
   button,
   .print\:hidden,
   .no-print {
     display: none !important;
+  }
+
+  /* Ensure root containers do not clip or hide A4 print contents */
+  html,
+  body,
+  #root,
+  main {
+    overflow: visible !important;
+    height: auto !important;
+    min-height: auto !important;
   }
 
   /* Print Modal Container overrides */

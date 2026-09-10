@@ -30,7 +30,7 @@ import {
   ChefHat
 } from 'lucide-react';
 import { OrdreDeFabricationReport } from '../components/lab/OrdreDeFabricationReport';
-import { BakerProductionWorkflow } from '../components/lab/BakerProductionWorkflow';
+import { BakerProductionOrderWorkflow } from '../components/lab/BakerProductionOrderWorkflow';
 
 /**
  * Case-insensitive check for 'approved', 'approuvé', and 'validated' (Requirement 5)
@@ -561,9 +561,9 @@ export function LabProduction() {
   };
 
   return (
-    <div className="p-4 sm:p-6 max-w-7xl mx-auto space-y-6">
+    <div className="p-4 sm:p-6 max-w-7xl mx-auto space-y-6 print:p-0 print:m-0 print:max-w-none print:space-y-0">
       {/* Header Bar */}
-      <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-xs flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4">
+      <div className="print:hidden bg-white border border-slate-200 rounded-2xl p-5 shadow-xs flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4">
         <div>
           <div className="flex items-center gap-2 mb-1">
             <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-bold bg-emerald-100 text-emerald-900 border border-emerald-300">
@@ -653,7 +653,7 @@ export function LabProduction() {
       </div>
 
       {/* KPI Overview Cards */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+      <div className="print:hidden grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
         <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-xs">
           <div className="flex items-center justify-between text-slate-500 mb-2">
             <span className="text-xs font-bold uppercase tracking-wider">Réquisitions Approuvées</span>
@@ -696,7 +696,7 @@ export function LabProduction() {
       </div>
 
       {/* Filter and Search Controls */}
-      <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-xs space-y-3">
+      <div className="print:hidden bg-white p-4 rounded-xl border border-slate-200 shadow-xs space-y-3">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
           {/* Search Item */}
           <div className="relative">
@@ -787,7 +787,7 @@ export function LabProduction() {
 
       {/* Live Diagnostic Drawer */}
       {showDebug && (
-        <div className="bg-slate-950 text-emerald-400 p-4 rounded-xl border border-slate-800 text-xs font-mono space-y-2">
+        <div className="print:hidden bg-slate-950 text-emerald-400 p-4 rounded-xl border border-slate-800 text-xs font-mono space-y-2">
           <div className="flex items-center justify-between border-b border-slate-800 pb-2 text-white font-bold">
             <span className="flex items-center gap-2">
               <Terminal className="w-4 h-4 text-emerald-400" /> Dexie.js Live Diagnostic Log
@@ -827,7 +827,7 @@ export function LabProduction() {
               ← Retour à la grille des ateliers
             </button>
           </div>
-          <BakerProductionWorkflow />
+          <BakerProductionOrderWorkflow />
         </div>
       ) : viewMode === 'OF_REPORT' ? (
         <div className="space-y-6">
