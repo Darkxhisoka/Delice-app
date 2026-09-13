@@ -1,0 +1,10 @@
+{
+  "short_name": "Le Délice",
+  "name": "Pâtisserie le Délice - Lab & Stocks",
+  "icons": [],
+  "start_url": "/",
+  "background_color": "#0f172a",
+  "theme_color": "#4f46e5",
+  "display": "standalone",
+  "description": "Plateforme de gestion de laboratoire pâtissier, inventaire hors-ligne, plannings de production et réquisitions."
+}

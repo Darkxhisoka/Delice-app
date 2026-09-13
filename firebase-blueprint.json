@@ -1,0 +1,111 @@
+{
+  "entities": {
+    "RawMaterial": {
+      "title": "Raw Material",
+      "description": "Raw material inventory item used in baking and production",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string", "maxLength": 200 },
+        "sku": { "type": "string", "maxLength": 100 },
+        "barcode": { "type": "string", "maxLength": 100 },
+        "category": { "type": "string", "maxLength": 100 },
+        "unit": { "type": "string", "maxLength": 20 },
+        "currentStock": { "type": "number" },
+        "currentAvgCost": { "type": "number" },
+        "reorderLevel": { "type": "number" },
+        "min_reorder_level": { "type": "number" },
+        "totalPurchasedQty": { "type": "number" },
+        "lastUpdated": { "type": "string", "maxLength": 50 }
+      },
+      "required": ["id", "name", "sku", "category", "unit", "currentStock", "currentAvgCost"]
+    },
+    "Receipt": {
+      "title": "Receipt",
+      "description": "Supplier goods purchase receipt",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "receiptNumber": { "type": "string", "maxLength": 100 },
+        "supplierId": { "type": "string", "maxLength": 100 },
+        "supplierName": { "type": "string", "maxLength": 200 },
+        "invoiceNumber": { "type": "string", "maxLength": 100 },
+        "purchaseDate": { "type": "string", "maxLength": 50 },
+        "recordedAt": { "type": "string", "maxLength": 50 },
+        "totalAmount": { "type": "number" },
+        "notes": { "type": "string", "maxLength": 1000 },
+        "recordedBy": { "type": "string", "maxLength": 200 }
+      },
+      "required": ["id", "receiptNumber", "supplierId", "purchaseDate", "totalAmount"]
+    },
+    "Requisition": {
+      "title": "Requisition",
+      "description": "Store stock requisition request to Central Lab",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "requisitionNumber": { "type": "string", "maxLength": 100 },
+        "storeId": { "type": "string", "maxLength": 100 },
+        "storeName": { "type": "string", "maxLength": 200 },
+        "requestedBy": { "type": "string", "maxLength": 200 },
+        "dateRequested": { "type": "string", "maxLength": 50 },
+        "dateNeeded": { "type": "string", "maxLength": 50 },
+        "status": { "type": "string", "maxLength": 50 },
+        "totalEstimatedCost": { "type": "number" },
+        "notes": { "type": "string", "maxLength": 1000 }
+      },
+      "required": ["id", "requisitionNumber", "storeId", "status"]
+    },
+    "Recipe": {
+      "title": "Recipe",
+      "description": "Pastry or semi-finished recipe definition",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string", "maxLength": 200 },
+        "category": { "type": "string", "maxLength": 100 },
+        "recipeType": { "type": "string", "maxLength": 50 },
+        "yieldUnits": { "type": "number" },
+        "unitName": { "type": "string", "maxLength": 50 },
+        "prepTimeMinutes": { "type": "number" }
+      },
+      "required": ["id", "name", "category", "yieldUnits", "unitName"]
+    },
+    "ActivityLog": {
+      "title": "Activity Log",
+      "description": "System operational audit log entry",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "title": { "type": "string", "maxLength": 200 },
+        "description": { "type": "string", "maxLength": 1000 },
+        "timestamp": { "type": "string", "maxLength": 50 },
+        "actor": { "type": "string", "maxLength": 200 },
+        "severity": { "type": "string", "maxLength": 50 }
+      },
+      "required": ["id", "title", "description", "timestamp"]
+    }
+  },
+  "firestore": {
+    "/raw_materials/{materialId}": {
+      "schema": { "$ref": "#/entities/RawMaterial" },
+      "description": "Collection of raw materials"
+    },
+    "/receipts/{receiptId}": {
+      "schema": { "$ref": "#/entities/Receipt" },
+      "description": "Collection of goods receipts"
+    },
+    "/requisitions/{requisitionId}": {
+      "schema": { "$ref": "#/entities/Requisition" },
+      "description": "Collection of store requisitions"
+    },
+    "/recipes/{recipeId}": {
+      "schema": { "$ref": "#/entities/Recipe" },
+      "description": "Collection of bakery recipes"
+    },
+    "/activity_logs/{logId}": {
+      "schema": { "$ref": "#/entities/ActivityLog" },
+      "description": "Collection of activity logs"
+    }
+  }
+}

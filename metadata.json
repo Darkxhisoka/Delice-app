@@ -1,0 +1,9 @@
+{
+  "name": "Pâtisserie le Délice",
+  "description": "Pastry business management platform for Pâtisserie le Délice with role-based access for Retail Stores and Central Lab, raw material purchasing, inventory tracking, and store requisitions.",
+  "requestFramePermissions": [
+    "camera",
+    "microphone"
+  ],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

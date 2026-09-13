@@ -1,0 +1,18 @@
+import type { CapacitorConfig } from '@capacitor/cli';
+
+const config: CapacitorConfig = {
+  appId: 'com.delice.patisserie',
+  appName: 'Délice Pâtisserie',
+  webDir: 'dist',
+  plugins: {
+    CapacitorUpdater: {
+      autoUpdate: 'onLaunch',
+      resetWhenUpdate: true,
+      updateUrl: 'https://plugin.capgo.app/updates',
+      statsUrl: 'https://stats.capgo.app/api/stats',
+      defaultChannel: 'production'
+    }
+  }
+};
+
+export default config;
