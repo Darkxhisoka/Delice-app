@@ -5,6 +5,10 @@ import {
   DexieProduct,
   DexieRawMaterial,
   DexieProductionOrder,
+  DexieProductIngredient,
+  SEED_RAW_MATERIALS_CATALOG,
+  SEED_FINISHED_GOODS_CATALOG,
+  dbExecuteProductionOrder,
   migrateLegacyFichesAndFinishedGoodsToProducts
 } from '../../db/database';
 import {
@@ -41,31 +45,11 @@ import {
 } from 'lucide-react';
 
 // ============================================================================
-// Types & Interfaces
+// Types & Interfaces (Unified with db.products & db.raw_materials)
 // ============================================================================
 
-export interface FicheTechniqueIngredient {
-  rawMaterialId: string;
-  name: string;
-  quantityPerBatch: number; // Base dosage for 1 nominal batch ("tour")
-  unit: string;
-  category?: string;
-}
-
-export interface FinishedProductWithFiche {
-  id: string;
-  code?: string;
-  name: string;
-  category: string;
-  type: 'finished_good' | 'produit_fini' | string;
-  roomId: string;
-  yieldPerBatch: number; // Standard yield per 1 batch (e.g. 50 pieces)
-  batchUnit: string; // e.g. "pièces", "portions", "tartes", "sablés"
-  ingredients: FicheTechniqueIngredient[];
-  instructions?: string;
-  description?: string;
-  currentStock?: number;
-}
+export type FicheTechniqueIngredient = DexieProductIngredient;
+export type FinishedProductWithFiche = DexieProduct;
 
 export interface CalculatedIngredientRow {
   rawMaterialId: string;
@@ -79,164 +63,6 @@ export interface CalculatedIngredientRow {
   shortfall: number;
   isWeighed?: boolean;
 }
-
-// ============================================================================
-// Master Catalog Seeding Data (Finished Goods with Complete Fiches Techniques)
-// ============================================================================
-
-const SEED_FINISHED_GOODS: FinishedProductWithFiche[] = [
-  {
-    id: 'prod_mille_feuille_varsovie',
-    code: 'PAT-MIL-001',
-    name: 'Mille-Feuille Varsovie',
-    category: 'mille_feuille',
-    type: 'finished_good',
-    roomId: 'mille_feuille',
-    yieldPerBatch: 50,
-    batchUnit: 'pièces',
-    instructions:
-      'Cuisson feuilletage caramélisé sous grille 190°C (30 min). Pochage crème diplomate vanille Bourbon de Madagascar. Fondant marbré au cornet chocolat.',
-    ingredients: [
-      { rawMaterialId: 'rm_farine_t45', name: 'Farine de Gruau T45', quantityPerBatch: 2.2, unit: 'kg', category: 'Farines' },
-      { rawMaterialId: 'rm_beurre_tourage_aop', name: 'Beurre de Tourage AOP 84% M.G.', quantityPerBatch: 1.8, unit: 'kg', category: 'Matières Grasses' },
-      { rawMaterialId: 'rm_eau_purifiee', name: 'Eau Purifiée Tempérée', quantityPerBatch: 0.95, unit: 'L', category: 'Liquides' },
-      { rawMaterialId: 'rm_sel_fin', name: 'Sel Fin Raffiné', quantityPerBatch: 0.04, unit: 'kg', category: 'Épicerie' },
-      { rawMaterialId: 'rm_lait_entier', name: 'Lait Entier Pasteurisé', quantityPerBatch: 4.0, unit: 'L', category: 'Produits Laitiers' },
-      { rawMaterialId: 'rm_sucre_semoule', name: 'Sucre Semoule Cristallisé', quantityPerBatch: 0.8, unit: 'kg', category: 'Sucres' },
-      { rawMaterialId: 'rm_jaunes_oeufs', name: "Jaunes d'Œufs Frais", quantityPerBatch: 0.4, unit: 'kg', category: 'Produits Frais' },
-      { rawMaterialId: 'rm_poudre_creme', name: 'Poudre à Crème Pâtissière', quantityPerBatch: 0.35, unit: 'kg', category: 'Poudres' },
-      { rawMaterialId: 'rm_beurre_doux', name: 'Beurre Doux Extra-Fin 82%', quantityPerBatch: 0.3, unit: 'kg', category: 'Matières Grasses' },
-      { rawMaterialId: 'rm_vanille_bourbon', name: 'Gousses de Vanille Bourbon de Madagascar', quantityPerBatch: 6, unit: 'pièces', category: 'Arômes & Épices' },
-      { rawMaterialId: 'rm_fondant_patissier', name: 'Fondant Blanc Pâtissier', quantityPerBatch: 1.2, unit: 'kg', category: 'Décors & Glaçages' },
-      { rawMaterialId: 'rm_chocolat_noir_64', name: 'Chocolat Noir de Couverture 64%', quantityPerBatch: 0.15, unit: 'kg', category: 'Chocolats' },
-    ],
-  },
-  {
-    id: 'prod_croissant_beurre_aop',
-    code: 'VIE-CRO-001',
-    name: 'Croissant Feuilleté Pur Beurre AOP',
-    category: 'viennoiserie',
-    type: 'finished_good',
-    roomId: 'viennoiserie',
-    yieldPerBatch: 80,
-    batchUnit: 'pièces',
-    instructions:
-      'Pétrissage pâte levée feuilletée (12 min). Pointage 1h puis bloc froid 4°C. Tourage 1 tour double + 1 tour simple avec beurre 84%. Détaillage triangles 75g. Apprêt 2h15 à 27°C, 80% humidité. Dorure double et cuisson 185°C ventilé (17 min).',
-    ingredients: [
-      { rawMaterialId: 'rm_farine_t45', name: 'Farine de Gruau T45', quantityPerBatch: 5.0, unit: 'kg', category: 'Farines' },
-      { rawMaterialId: 'rm_beurre_tourage_aop', name: 'Beurre de Tourage AOP 84% M.G.', quantityPerBatch: 2.5, unit: 'kg', category: 'Matières Grasses' },
-      { rawMaterialId: 'rm_sucre_semoule', name: 'Sucre Semoule Cristallisé', quantityPerBatch: 0.6, unit: 'kg', category: 'Sucres' },
-      { rawMaterialId: 'rm_levure_boulangere', name: 'Levure Fraîche de Boulangerie', quantityPerBatch: 0.22, unit: 'kg', category: 'Levures' },
-      { rawMaterialId: 'rm_lait_entier', name: 'Lait Entier Pasteurisé', quantityPerBatch: 2.8, unit: 'L', category: 'Produits Laitiers' },
-      { rawMaterialId: 'rm_oeufs_entiers', name: 'Œufs Frais Entiers Calibre M', quantityPerBatch: 8, unit: 'pièces', category: 'Produits Frais' },
-      { rawMaterialId: 'rm_sel_fin', name: 'Sel Fin Raffiné', quantityPerBatch: 0.09, unit: 'kg', category: 'Épicerie' },
-    ],
-  },
-  {
-    id: 'prod_pain_chocolat_valrhona',
-    code: 'VIE-PNC-002',
-    name: 'Pain au Chocolat Bâtons Pur Beurre',
-    category: 'viennoiserie',
-    type: 'finished_good',
-    roomId: 'viennoiserie',
-    yieldPerBatch: 70,
-    batchUnit: 'pièces',
-    instructions:
-      'Laminage pâte à croissant 3.5mm. Roulage régulier avec 2 barres de chocolat noir 55% par unité. Pousse douce et cuisson 185°C (16 min).',
-    ingredients: [
-      { rawMaterialId: 'rm_farine_t45', name: 'Farine de Gruau T45', quantityPerBatch: 4.8, unit: 'kg', category: 'Farines' },
-      { rawMaterialId: 'rm_beurre_tourage_aop', name: 'Beurre de Tourage AOP 84% M.G.', quantityPerBatch: 2.4, unit: 'kg', category: 'Matières Grasses' },
-      { rawMaterialId: 'rm_batons_chocolat', name: 'Bâtons Chocolat Noir Pâtissier 55%', quantityPerBatch: 2.1, unit: 'kg', category: 'Chocolats' },
-      { rawMaterialId: 'rm_sucre_semoule', name: 'Sucre Semoule Cristallisé', quantityPerBatch: 0.55, unit: 'kg', category: 'Sucres' },
-      { rawMaterialId: 'rm_levure_boulangere', name: 'Levure Fraîche de Boulangerie', quantityPerBatch: 0.2, unit: 'kg', category: 'Levures' },
-      { rawMaterialId: 'rm_lait_entier', name: 'Lait Entier Pasteurisé', quantityPerBatch: 2.5, unit: 'L', category: 'Produits Laitiers' },
-    ],
-  },
-  {
-    id: 'prod_tarte_citron_meringuee',
-    code: 'PAT-TAR-003',
-    name: 'Tartelette Citron Meringue Italienne',
-    category: 'patisseries_fines',
-    type: 'finished_good',
-    roomId: 'patisserie_fine',
-    yieldPerBatch: 40,
-    batchUnit: 'pièces',
-    instructions:
-      'Foncer cercles inox pâte sablée amande, cuire à blanc 160°C. Crémeux citron monté au beurre froid à 40°C. Pochage meringue italienne serrée et coloration au chalumeau.',
-    ingredients: [
-      { rawMaterialId: 'rm_farine_t45', name: 'Farine de Gruau T45', quantityPerBatch: 1.6, unit: 'kg', category: 'Farines' },
-      { rawMaterialId: 'rm_beurre_doux', name: 'Beurre Doux Extra-Fin 82%', quantityPerBatch: 1.8, unit: 'kg', category: 'Matières Grasses' },
-      { rawMaterialId: 'rm_sucre_semoule', name: 'Sucre Semoule Cristallisé', quantityPerBatch: 1.5, unit: 'kg', category: 'Sucres' },
-      { rawMaterialId: 'rm_oeufs_entiers', name: 'Œufs Frais Entiers Calibre M', quantityPerBatch: 16, unit: 'pièces', category: 'Produits Frais' },
-      { rawMaterialId: 'rm_poudre_amande', name: 'Poudre d’Amande Blanche Extra-Fine', quantityPerBatch: 0.8, unit: 'kg', category: 'Fruits Secs' },
-      { rawMaterialId: 'rm_jus_citron', name: 'Jus de Citron Pur Non Traité', quantityPerBatch: 1.4, unit: 'L', category: 'Fruits' },
-    ],
-  },
-  {
-    id: 'prod_eclair_chocolat_guanaja',
-    code: 'PAT-ECL-004',
-    name: 'Éclair Chocolat Noir Grand Cru 70%',
-    category: 'patisseries_fines',
-    type: 'finished_good',
-    roomId: 'patisserie_fine',
-    yieldPerBatch: 60,
-    batchUnit: 'pièces',
-    instructions:
-      'Dessécher panade à la casserole. Incorporer œufs tièdes au batteur. Dresser à la douille cannelée 14cm. Cuisson sur sole 180°C. Garnir crémeux chocolat noir 70%, glacer au fondant tempéré.',
-    ingredients: [
-      { rawMaterialId: 'rm_farine_t45', name: 'Farine de Gruau T45', quantityPerBatch: 1.2, unit: 'kg', category: 'Farines' },
-      { rawMaterialId: 'rm_beurre_doux', name: 'Beurre Doux Extra-Fin 82%', quantityPerBatch: 1.1, unit: 'kg', category: 'Matières Grasses' },
-      { rawMaterialId: 'rm_oeufs_entiers', name: 'Œufs Frais Entiers Calibre M', quantityPerBatch: 20, unit: 'pièces', category: 'Produits Frais' },
-      { rawMaterialId: 'rm_lait_entier', name: 'Lait Entier Pasteurisé', quantityPerBatch: 3.5, unit: 'L', category: 'Produits Laitiers' },
-      { rawMaterialId: 'rm_chocolat_noir_64', name: 'Chocolat Noir de Couverture 64%', quantityPerBatch: 1.8, unit: 'kg', category: 'Chocolats' },
-      { rawMaterialId: 'rm_sucre_semoule', name: 'Sucre Semoule Cristallisé', quantityPerBatch: 0.9, unit: 'kg', category: 'Sucres' },
-    ],
-  },
-  {
-    id: 'prod_makroudh_royal_amande',
-    code: 'ORI-MAK-005',
-    name: 'Makroudh Royal aux Amandes & Miel Pur',
-    category: 'gateaux_orientaux',
-    type: 'finished_good',
-    roomId: 'gateaux_orientaux',
-    yieldPerBatch: 120,
-    batchUnit: 'pièces',
-    instructions:
-      'Pétrissage semoule moyenne avec smen pur et eau de fleur d’oranger. Farce amandes moulues parfumée à la cannelle. Friture dorée puis double trempage au miel d’oranger.',
-    ingredients: [
-      { rawMaterialId: 'rm_semoule_moyenne', name: 'Semoule Moyenne de Blé Dur', quantityPerBatch: 3.5, unit: 'kg', category: 'Semoules' },
-      { rawMaterialId: 'rm_smen_pur', name: 'Beurre Clarifié Traditionnel (Smen)', quantityPerBatch: 1.2, unit: 'kg', category: 'Matières Grasses' },
-      { rawMaterialId: 'rm_poudre_amande', name: 'Poudre d’Amande Blanche Extra-Fine', quantityPerBatch: 1.8, unit: 'kg', category: 'Fruits Secs' },
-      { rawMaterialId: 'rm_miel_fleur_oranger', name: 'Miel Pur de Fleurs d’Oranger', quantityPerBatch: 2.5, unit: 'kg', category: 'Sucres & Miels' },
-      { rawMaterialId: 'rm_eau_fleur_oranger', name: 'Eau de Fleur d’Oranger Distillée', quantityPerBatch: 0.6, unit: 'L', category: 'Arômes & Épices' },
-    ],
-  },
-];
-
-// Baseline Raw Materials for initial Dexie state
-const SEED_RAW_MATERIALS: DexieRawMaterial[] = [
-  { id: 'rm_farine_t45', code: 'RM-FLR-01', name: 'Farine de Gruau T45', category: 'Farines', unit: 'kg', currentStock: 140, minStockAlert: 40, updatedAt: new Date().toISOString() },
-  { id: 'rm_beurre_tourage_aop', code: 'RM-BTR-01', name: 'Beurre de Tourage AOP 84% M.G.', category: 'Matières Grasses', unit: 'kg', currentStock: 80, minStockAlert: 25, updatedAt: new Date().toISOString() },
-  { id: 'rm_beurre_doux', code: 'RM-BTR-02', name: 'Beurre Doux Extra-Fin 82%', category: 'Matières Grasses', unit: 'kg', currentStock: 60, minStockAlert: 20, updatedAt: new Date().toISOString() },
-  { id: 'rm_eau_purifiee', code: 'RM-WAT-01', name: 'Eau Purifiée Tempérée', category: 'Liquides', unit: 'L', currentStock: 250, minStockAlert: 50, updatedAt: new Date().toISOString() },
-  { id: 'rm_sel_fin', code: 'RM-SLT-01', name: 'Sel Fin Raffiné', category: 'Épicerie', unit: 'kg', currentStock: 35, minStockAlert: 10, updatedAt: new Date().toISOString() },
-  { id: 'rm_lait_entier', code: 'RM-MLK-01', name: 'Lait Entier Pasteurisé', category: 'Produits Laitiers', unit: 'L', currentStock: 75, minStockAlert: 20, updatedAt: new Date().toISOString() },
-  { id: 'rm_sucre_semoule', code: 'RM-SUG-01', name: 'Sucre Semoule Cristallisé', category: 'Sucres', unit: 'kg', currentStock: 95, minStockAlert: 30, updatedAt: new Date().toISOString() },
-  { id: 'rm_jaunes_oeufs', code: 'RM-EGG-YOLK', name: "Jaunes d'Œufs Frais", category: 'Produits Frais', unit: 'kg', currentStock: 18, minStockAlert: 5, updatedAt: new Date().toISOString() },
-  { id: 'rm_oeufs_entiers', code: 'RM-EGG-01', name: 'Œufs Frais Entiers Calibre M', category: 'Produits Frais', unit: 'pièces', currentStock: 280, minStockAlert: 70, updatedAt: new Date().toISOString() },
-  { id: 'rm_poudre_creme', code: 'RM-CRM-01', name: 'Poudre à Crème Pâtissière', category: 'Poudres', unit: 'kg', currentStock: 25, minStockAlert: 6, updatedAt: new Date().toISOString() },
-  { id: 'rm_vanille_bourbon', code: 'RM-VAN-01', name: 'Gousses de Vanille Bourbon de Madagascar', category: 'Arômes & Épices', unit: 'pièces', currentStock: 45, minStockAlert: 10, updatedAt: new Date().toISOString() },
-  { id: 'rm_fondant_patissier', code: 'RM-FND-01', name: 'Fondant Blanc Pâtissier', category: 'Décors & Glaçages', unit: 'kg', currentStock: 40, minStockAlert: 10, updatedAt: new Date().toISOString() },
-  { id: 'rm_chocolat_noir_64', code: 'RM-CHO-64', name: 'Chocolat Noir de Couverture 64%', category: 'Chocolats', unit: 'kg', currentStock: 50, minStockAlert: 15, updatedAt: new Date().toISOString() },
-  { id: 'rm_batons_chocolat', code: 'RM-CHO-BAT', name: 'Bâtons Chocolat Noir Pâtissier 55%', category: 'Chocolats', unit: 'kg', currentStock: 35, minStockAlert: 10, updatedAt: new Date().toISOString() },
-  { id: 'rm_levure_boulangere', code: 'RM-YST-01', name: 'Levure Fraîche de Boulangerie', category: 'Levures', unit: 'kg', currentStock: 15, minStockAlert: 4, updatedAt: new Date().toISOString() },
-  { id: 'rm_poudre_amande', code: 'RM-ALM-01', name: 'Poudre d’Amande Blanche Extra-Fine', category: 'Fruits Secs', unit: 'kg', currentStock: 30, minStockAlert: 8, updatedAt: new Date().toISOString() },
-  { id: 'rm_jus_citron', code: 'RM-CIT-01', name: 'Jus de Citron Pur Non Traité', category: 'Fruits', unit: 'L', currentStock: 22, minStockAlert: 6, updatedAt: new Date().toISOString() },
-  { id: 'rm_semoule_moyenne', code: 'RM-SEM-01', name: 'Semoule Moyenne de Blé Dur', category: 'Semoules', unit: 'kg', currentStock: 80, minStockAlert: 20, updatedAt: new Date().toISOString() },
-  { id: 'rm_smen_pur', code: 'RM-SMN-01', name: 'Beurre Clarifié Traditionnel (Smen)', category: 'Matières Grasses', unit: 'kg', currentStock: 25, minStockAlert: 6, updatedAt: new Date().toISOString() },
-  { id: 'rm_miel_fleur_oranger', code: 'RM-HON-01', name: 'Miel Pur de Fleurs d’Oranger', category: 'Sucres & Miels', unit: 'kg', currentStock: 35, minStockAlert: 10, updatedAt: new Date().toISOString() },
-  { id: 'rm_eau_fleur_oranger', code: 'RM-ORW-01', name: 'Eau de Fleur d’Oranger Distillée', category: 'Arômes & Épices', unit: 'L', currentStock: 18, minStockAlert: 5, updatedAt: new Date().toISOString() },
-];
 
 const PRESET_BAKERS = [
   'Chef Karim Meziane',
@@ -315,10 +141,10 @@ export function BakerProductionOrderWorkflow({
         // Ensure raw materials table has baseline materials
         const existingMats = await db.raw_materials.toArray();
         if (existingMats.length === 0) {
-          await db.raw_materials.bulkPut(SEED_RAW_MATERIALS);
+          await db.raw_materials.bulkPut(SEED_RAW_MATERIALS_CATALOG);
         } else {
           // Add any missing seeds
-          const missingMats = SEED_RAW_MATERIALS.filter(
+          const missingMats = SEED_RAW_MATERIALS_CATALOG.filter(
             (sm) => !existingMats.some((em) => em.id === sm.id)
           );
           if (missingMats.length > 0) {
@@ -368,6 +194,7 @@ export function BakerProductionOrderWorkflow({
           }));
 
           list.push({
+            ...p,
             id: p.id,
             code: p.code || 'PF',
             name: p.name,
@@ -390,7 +217,7 @@ export function BakerProductionOrderWorkflow({
       return list;
     }
 
-    return SEED_FINISHED_GOODS;
+    return SEED_FINISHED_GOODS_CATALOG;
   }, [rawProducts]);
 
   // Ensure valid selection
@@ -428,16 +255,27 @@ export function BakerProductionOrderWorkflow({
           (rm.code && rm.code === ing.rawMaterialId)
       );
 
-      const availableStock = matchedMat?.currentStock ?? 0;
+      // Also check in rawProducts if it is a semi-finished product (base)
+      const matchedSf = !matchedMat
+        ? rawProducts?.find(
+            (p: any) =>
+              (p.type === 'semi_finished' || p.type === 'semi_fini') &&
+              (p.id === ing.rawMaterialId ||
+                p.name.trim().toLowerCase() === ing.name.trim().toLowerCase() ||
+                (p.code && p.code === ing.rawMaterialId))
+          )
+        : null;
+
+      const availableStock = matchedMat?.currentStock ?? matchedSf?.currentStock ?? 0;
       const isSufficient = availableStock >= calculatedQuantity;
       const shortfall = isSufficient
         ? 0
         : Math.round((calculatedQuantity - availableStock) * 1000) / 1000;
 
       return {
-        rawMaterialId: matchedMat?.id || ing.rawMaterialId,
+        rawMaterialId: matchedMat?.id || matchedSf?.id || ing.rawMaterialId,
         name: ing.name,
-        category: ing.category || matchedMat?.category || 'Matières Premières',
+        category: ing.category || matchedMat?.category || matchedSf?.category || (matchedSf ? 'Bases & Semi-Finis' : 'Matières Premières'),
         quantityPerBatch: ing.quantityPerBatch,
         calculatedQuantity,
         unit: ing.unit,
@@ -447,7 +285,7 @@ export function BakerProductionOrderWorkflow({
         isWeighed: !!checkedIngredients[ing.rawMaterialId],
       };
     });
-  }, [selectedProduct, batchCount, rawMaterials, checkedIngredients]);
+  }, [selectedProduct, batchCount, rawMaterials, rawProducts, checkedIngredients]);
 
   // Overall Stock Health
   const missingIngredients = useMemo(() => {
@@ -519,68 +357,28 @@ export function BakerProductionOrderWorkflow({
     setFeedbackSuccess(null);
 
     try {
-      const ofId = `of_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
-      const nowIso = new Date().toISOString();
-
-      let orderSnapshot: DexieProductionOrder;
-
-      // ATOMIC TRANSACTION: [db.raw_materials, db.production_orders]
-      await db.transaction('rw', [db.raw_materials, db.production_orders], async () => {
-        const deductedSnapshots = [];
-
-        // 1. Deduct exact calculated quantities from db.raw_materials
-        for (const row of ingredientCalculationRows) {
-          const mat = await db.raw_materials.get(row.rawMaterialId);
-          const current = mat?.currentStock ?? 0;
-          const after = Math.max(0, Math.round((current - row.calculatedQuantity) * 1000) / 1000);
-
-          if (mat) {
-            await db.raw_materials.update(row.rawMaterialId, {
-              currentStock: after,
-              updatedAt: nowIso,
-            });
-          }
-
-          deductedSnapshots.push({
-            rawMaterialId: row.rawMaterialId,
-            materialName: row.name,
-            dosagePerBatch: row.quantityPerBatch,
-            totalCalculated: row.calculatedQuantity,
-            unit: row.unit,
-            stockBefore: current,
-            stockAfter: after,
-          });
-        }
-
-        // 2. Create the historical record in db.production_orders
-        orderSnapshot = {
-          id: ofId,
-          ofCode: currentOfCode,
-          bakerName: bakerName.trim() || 'Chef Pâtissier',
-          productId: selectedProduct.id,
-          productName: selectedProduct.name,
-          productCode: selectedProduct.code || 'PF',
-          batchCount,
-          baseBatchYield: selectedProduct.yieldPerBatch,
-          totalYield: calculatedTotalYield,
-          yieldUnit: selectedProduct.batchUnit,
-          batchUnit: selectedProduct.batchUnit,
-          specialInstructions: notes,
-          notes,
-          roomId: selectedProduct.roomId,
-          deductedIngredients: deductedSnapshots,
-          ingredients: deductedSnapshots,
-          status: 'completed',
-          createdAt: nowIso,
-        };
-
-        await db.production_orders.put(orderSnapshot);
+      // Execute Atomic Production Order Transaction across db.raw_materials, db.products, and db.production_orders
+      const orderSnapshot = await dbExecuteProductionOrder({
+        ofCode: currentOfCode,
+        bakerName: bakerName.trim() || 'Chef Pâtissier',
+        productId: selectedProduct.id,
+        batchCount,
+        notes,
+        ingredients: ingredientCalculationRows.map((row) => ({
+          rawMaterialId: row.rawMaterialId,
+          materialName: row.name,
+          name: row.name,
+          dosagePerBatch: row.quantityPerBatch,
+          quantityPerBatch: row.quantityPerBatch,
+          calculatedQuantity: row.calculatedQuantity,
+          unit: row.unit,
+        })),
       });
 
       // Transaction successfully committed!
-      setActiveOrderForPrint(orderSnapshot!);
+      setActiveOrderForPrint(orderSnapshot);
       setFeedbackSuccess(
-        `Ordre de Fabrication ${currentOfCode} validé ! Le stock a été déduit avec succès.`
+        `Ordre de Fabrication ${currentOfCode} validé ! Le stock de matières premières a été déduit et +${orderSnapshot.totalYield} ${orderSnapshot.yieldUnit} ont été ajoutés au stock de produits finis.`
       );
 
       // Generate next OF code

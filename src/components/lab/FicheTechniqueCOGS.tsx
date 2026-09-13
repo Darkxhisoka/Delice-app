@@ -5,8 +5,10 @@ import {
   DexieProduct,
   DexieRawMaterial,
   DexieProductIngredient,
-  migrateLegacyFichesAndFinishedGoodsToProducts
+  migrateLegacyFichesAndFinishedGoodsToProducts,
+  validateRecipeIngredients
 } from '../../db/database';
+import { SAMPLE_SEMI_FINISHED_GOODS } from '../../db/dbSeeder';
 import {
   ChefHat,
   Scale,
@@ -29,9 +31,13 @@ import {
   Package,
   Sliders,
   Check,
-  X
+  X,
+  SlidersHorizontal,
+  Wrench
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
+import { FicheTechniqueEditor } from './FicheTechniqueEditor';
+import { IngredientsDiagnosticView } from './IngredientsDiagnosticView';
 
 interface FicheTechniqueCOGSProps {
   initialProductId?: string;
@@ -71,10 +77,32 @@ export const FicheTechniqueCOGS: React.FC<FicheTechniqueCOGSProps> = ({
     return await db.raw_materials.toArray();
   }, []);
 
+  const liveSemiFinished = useLiveQuery(async () => {
+    const all = await db.products.toArray();
+    return all.filter((p) => p.type === 'semi_finished' || p.type === 'semi_fini');
+  }, []);
+
+  // Ensure semi-finished products (bases) exist in db.products
+  useEffect(() => {
+    const ensureSemiFinishedSeeded = async () => {
+      try {
+        const all = await db.products.toArray();
+        const sfCount = all.filter((p) => p.type === 'semi_finished' || p.type === 'semi_fini').length;
+        if (sfCount === 0) {
+          await db.products.bulkPut(SAMPLE_SEMI_FINISHED_GOODS);
+        }
+      } catch (e) {
+        console.warn('[FicheTechniqueCOGS] Auto-seed semi-finished warning:', e);
+      }
+    };
+    ensureSemiFinishedSeeded();
+  }, []);
+
   // --------------------------------------------------------------------------
   // 2. Component State
   // --------------------------------------------------------------------------
   const [selectedProductId, setSelectedProductId] = useState<string>(initialProductId || '');
+  const [viewMode, setViewMode] = useState<'ADVANCED' | 'STUDIO_EDITOR' | 'DIAGNOSTIC'>('ADVANCED');
   const [searchTerm, setSearchTerm] = useState<string>('');
   const [selectedRoomFilter, setSelectedRoomFilter] = useState<string>('all');
   const [isMigrating, setIsMigrating] = useState<boolean>(false);
@@ -94,33 +122,73 @@ export const FicheTechniqueCOGS: React.FC<FicheTechniqueCOGSProps> = ({
   const [draftProduct, setDraftProduct] = useState<DexieProduct | null>(null);
   const [isDirty, setIsDirty] = useState<boolean>(false);
 
-  // Add Ingredient Form State
+  // Add Ingredient Form State (Raw Materials + Semi-Finished)
   const [selectedMaterialId, setSelectedMaterialId] = useState<string>('');
   const [ingredientDosage, setIngredientDosage] = useState<string>('');
   const [ingredientUnit, setIngredientUnit] = useState<string>('kg');
+  const [ingredientTypeFilter, setIngredientTypeFilter] = useState<'ALL' | 'RAW_MATERIAL' | 'SEMI_FINISHED'>('ALL');
   const [materialSearch, setMaterialSearch] = useState<string>('');
 
   // Target Margin calculator helper state
   const [targetMarginPercent, setTargetMarginPercent] = useState<number>(65);
 
-  // Fast Raw Material Lookup Map (by ID and by normalized name)
-  const rawMaterialCostMap = useMemo(() => {
-    const map = new Map<string, { cost: number; unit: string; name: string; stock: number }>();
-    if (!liveRawMaterials) return map;
+  // Fast Unified Component Lookup Map (linking db.raw_materials AND db.products semi-finis)
+  const componentLookupMap = useMemo(() => {
+    const map = new Map<
+      string,
+      {
+        id: string;
+        cost: number;
+        unit: string;
+        name: string;
+        stock: number;
+        type: 'RAW_MATERIAL' | 'SEMI_FINISHED';
+        category: string;
+        code?: string;
+      }
+    >();
 
-    liveRawMaterials.forEach((rm) => {
-      const cost = rm.costPerUnit || rm.unitCost || rm.currentAvgCost || rm.pamp || 0;
-      const data = {
-        cost,
-        unit: rm.unit || 'kg',
-        name: rm.name,
-        stock: rm.currentStock || 0
-      };
-      map.set(rm.id, data);
-      map.set(rm.name.toLowerCase().trim(), data);
-    });
+    if (liveRawMaterials) {
+      liveRawMaterials.forEach((rm) => {
+        const cost = rm.costPerUnit || rm.unitCost || rm.currentAvgCost || rm.pamp || 0;
+        const data = {
+          id: rm.id,
+          cost,
+          unit: rm.unit || 'kg',
+          name: rm.name,
+          stock: rm.currentStock ?? rm.stockQuantity ?? 0,
+          type: 'RAW_MATERIAL' as const,
+          category: rm.category || 'Matières Premières',
+          code: rm.code
+        };
+        map.set(rm.id, data);
+        map.set(rm.name.toLowerCase().trim(), data);
+      });
+    }
+
+    if (liveSemiFinished) {
+      liveSemiFinished.forEach((sf) => {
+        const cost = sf.cogsUnitCost || sf.costPrice || sf.unitCost || 0;
+        const data = {
+          id: sf.id,
+          cost,
+          unit: sf.batchUnit || sf.unit || 'kg',
+          name: sf.name,
+          stock: sf.currentStock ?? 0,
+          type: 'SEMI_FINISHED' as const,
+          category: sf.category || 'Bases & Semi-Finis',
+          code: sf.code
+        };
+        map.set(sf.id, data);
+        map.set(sf.name.toLowerCase().trim(), data);
+      });
+    }
+
     return map;
-  }, [liveRawMaterials]);
+  }, [liveRawMaterials, liveSemiFinished]);
+
+  // Alias for backward-compatibility with existing selectors and calculations
+  const rawMaterialCostMap = componentLookupMap;
 
   // Sync initial product selection
   useEffect(() => {
@@ -237,10 +305,10 @@ export const FicheTechniqueCOGS: React.FC<FicheTechniqueCOGSProps> = ({
       return;
     }
 
-    const selectedMat = liveRawMaterials?.find((m) => m.id === selectedMaterialId);
-    if (!selectedMat) return;
+    const itemInfo = componentLookupMap.get(selectedMaterialId);
+    if (!itemInfo) return;
 
-    const unitCost = Number(selectedMat.costPerUnit || selectedMat.unitCost || selectedMat.currentAvgCost || selectedMat.pamp || 0);
+    const unitCost = Number(itemInfo.cost || 0);
     const totalCost = Number((dosageNum * unitCost).toFixed(2));
 
     const existingIndex = (draftProduct.ingredients || []).findIndex(
@@ -258,18 +326,20 @@ export const FicheTechniqueCOGS: React.FC<FicheTechniqueCOGSProps> = ({
         ...prev,
         quantityPerBatch: newQty,
         unitCost,
-        totalCost: Number((newQty * unitCost).toFixed(2))
+        totalCost: Number((newQty * unitCost).toFixed(2)),
+        type: itemInfo.type
       };
     } else {
       // Add new ingredient row
       const newIng: DexieProductIngredient = {
-        rawMaterialId: selectedMat.id,
-        name: selectedMat.name,
+        rawMaterialId: itemInfo.id,
+        name: itemInfo.name,
         quantityPerBatch: dosageNum,
-        unit: ingredientUnit || selectedMat.unit || 'kg',
-        category: selectedMat.category || 'Matières Premières',
+        unit: ingredientUnit || itemInfo.unit || 'kg',
+        category: itemInfo.category || (itemInfo.type === 'SEMI_FINISHED' ? 'Bases & Semi-Finis' : 'Matières Premières'),
         unitCost,
-        totalCost
+        totalCost,
+        type: itemInfo.type
       };
       updatedIngredients = [...(draftProduct.ingredients || []), newIng];
     }
@@ -330,6 +400,18 @@ export const FicheTechniqueCOGS: React.FC<FicheTechniqueCOGSProps> = ({
   // --------------------------------------------------------------------------
   const handleSaveToDatabase = async () => {
     if (!draftProduct) return;
+
+    // Strict UI validation against db.raw_materials
+    const rawMaterialsList = await db.raw_materials.toArray();
+    const validation = validateRecipeIngredients(draftProduct.ingredients || [], rawMaterialsList);
+    if (!validation.isValid) {
+      alert(
+        `🚨 Validation Fiche Technique Échouée :\n\n` +
+        validation.errors.join('\n') +
+        `\n\nVeuillez sélectionner des matières premières valides depuis db.raw_materials.`
+      );
+      return;
+    }
 
     try {
       const yieldPerBatch = Number(draftProduct.yieldPerBatch) || 50;
@@ -509,6 +591,45 @@ export const FicheTechniqueCOGS: React.FC<FicheTechniqueCOGSProps> = ({
         </div>
 
         <div className="flex items-center flex-wrap gap-2.5">
+          {/* View Mode Toggle: Detailed A4 Fiche vs Studio Recipe Editor */}
+          <div className="inline-flex items-center bg-stone-100 p-1 rounded-xl border border-stone-200 text-xs font-semibold">
+            <button
+              type="button"
+              onClick={() => setViewMode('ADVANCED')}
+              className={`px-3 py-1.5 rounded-lg transition ${
+                viewMode === 'ADVANCED'
+                  ? 'bg-white text-stone-900 shadow-sm'
+                  : 'text-stone-600 hover:text-stone-900'
+              }`}
+            >
+              Vue Fiche & Impression
+            </button>
+            <button
+              type="button"
+              onClick={() => setViewMode('STUDIO_EDITOR')}
+              className={`px-3 py-1.5 rounded-lg transition flex items-center space-x-1.5 ${
+                viewMode === 'STUDIO_EDITOR'
+                  ? 'bg-amber-600 text-white shadow-sm'
+                  : 'text-stone-600 hover:text-stone-900'
+              }`}
+            >
+              <SlidersHorizontal className="w-3.5 h-3.5" />
+              <span>Éditeur Recette (Studio)</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setViewMode('DIAGNOSTIC')}
+              className={`px-3 py-1.5 rounded-lg transition flex items-center space-x-1.5 ${
+                viewMode === 'DIAGNOSTIC'
+                  ? 'bg-indigo-600 text-white shadow-sm font-bold'
+                  : 'text-stone-600 hover:text-indigo-900'
+              }`}
+            >
+              <Wrench className="w-3.5 h-3.5" />
+              <span>Diagnostic Ingrédients vs Stock</span>
+            </button>
+          </div>
+
           <button
             onClick={handleRunMigration}
             disabled={isMigrating}
@@ -552,7 +673,20 @@ export const FicheTechniqueCOGS: React.FC<FicheTechniqueCOGSProps> = ({
         )}
       </AnimatePresence>
 
-      {/* Main Grid: Left Master List / Right Detail Editor */}
+      {/* Conditional Rendering: Diagnostic vs Studio Recipe Editor vs Detailed View */}
+      {viewMode === 'DIAGNOSTIC' ? (
+        <IngredientsDiagnosticView onClose={() => setViewMode('ADVANCED')} />
+      ) : viewMode === 'STUDIO_EDITOR' ? (
+        <FicheTechniqueEditor
+          initialProductId={selectedProductId}
+          onSaved={(prod) => {
+            setSelectedProductId(prod.id);
+            setSaveSuccessNotice(`Fiche technique "${prod.name}" synchronisée dans db.products.`);
+          }}
+          onClose={() => setViewMode('ADVANCED')}
+        />
+      ) : (
+      /* Main Grid: Left Master List / Right Detail Editor */
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
         {/* Left Column: Master Finished Goods Catalog (4 cols) */}
         <div className="lg:col-span-4 space-y-4">
@@ -952,36 +1086,97 @@ export const FicheTechniqueCOGS: React.FC<FicheTechniqueCOGSProps> = ({
 
                 {/* Add Ingredient Bar */}
                 <div className="bg-stone-50 border border-stone-200 rounded-xl p-4 space-y-3">
-                  <span className="text-xs font-bold text-stone-700 uppercase tracking-wider block">
-                    Ajouter une Matière Première à la Recette
-                  </span>
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                    <span className="text-xs font-bold text-stone-700 uppercase tracking-wider block">
+                      Ajouter une Matière Première ou Semi-Fini à la Recette
+                    </span>
+
+                    {/* Filter Pills */}
+                    <div className="inline-flex rounded-lg bg-stone-200/80 p-0.5 text-xs font-medium self-start sm:self-auto">
+                      <button
+                        type="button"
+                        onClick={() => setIngredientTypeFilter('ALL')}
+                        className={`px-2.5 py-1 rounded-md transition-all cursor-pointer ${
+                          ingredientTypeFilter === 'ALL'
+                            ? 'bg-white text-stone-900 shadow-sm font-bold'
+                            : 'text-stone-600 hover:text-stone-900'
+                        }`}
+                      >
+                        Tous (MP + SF)
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setIngredientTypeFilter('RAW_MATERIAL')}
+                        className={`px-2.5 py-1 rounded-md transition-all cursor-pointer flex items-center gap-1 ${
+                          ingredientTypeFilter === 'RAW_MATERIAL'
+                            ? 'bg-emerald-600 text-white shadow-sm font-bold'
+                            : 'text-stone-600 hover:text-emerald-800'
+                        }`}
+                      >
+                        🌱 Matières 1ères ({liveRawMaterials?.length || 0})
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setIngredientTypeFilter('SEMI_FINISHED')}
+                        className={`px-2.5 py-1 rounded-md transition-all cursor-pointer flex items-center gap-1 ${
+                          ingredientTypeFilter === 'SEMI_FINISHED'
+                            ? 'bg-indigo-600 text-white shadow-sm font-bold'
+                            : 'text-stone-600 hover:text-indigo-800'
+                        }`}
+                      >
+                        ⚡ Semi-Finis ({liveSemiFinished?.length || 0})
+                      </button>
+                    </div>
+                  </div>
 
                   <div className="grid grid-cols-1 md:grid-cols-12 gap-3 items-end">
                     <div className="md:col-span-6 space-y-1">
                       <label className="text-xs font-medium text-stone-600">
-                        Sélectionner l'ingrédient (Catalogue db.raw_materials)
+                        Sélectionner l'ingrédient (Stock Matières Premières & Semi-Finis)
                       </label>
                       <select
                         value={selectedMaterialId}
                         onChange={(e) => {
                           const val = e.target.value;
                           setSelectedMaterialId(val);
-                          const matched = liveRawMaterials?.find((m) => m.id === val);
+                          const matched = componentLookupMap.get(val);
                           if (matched) {
                             setIngredientUnit(matched.unit || 'kg');
                           }
                         }}
                         className="w-full px-3 py-2 text-sm bg-white border border-stone-300 rounded-lg focus:ring-2 focus:ring-amber-500 font-medium"
                       >
-                        <option value="">-- Choisir un ingrédient --</option>
-                        {liveRawMaterials?.map((mat) => {
-                          const cost = mat.costPerUnit || mat.unitCost || mat.currentAvgCost || mat.pamp || 0;
-                          return (
-                            <option key={mat.id} value={mat.id}>
-                              {mat.name} ({cost > 0 ? `${cost.toFixed(2)} DZD/${mat.unit}` : `0 DZD/${mat.unit}`} - Stock: {mat.currentStock} {mat.unit})
-                            </option>
-                          );
-                        })}
+                        <option value="">-- Choisir une matière première ou un produit semi-fini --</option>
+                        
+                        {(ingredientTypeFilter === 'ALL' || ingredientTypeFilter === 'RAW_MATERIAL') && (
+                          <optgroup label="🌱 Matières Premières (Stock Matières Premières)">
+                            {liveRawMaterials?.map((mat) => {
+                              const cost = mat.costPerUnit || mat.unitCost || mat.currentAvgCost || mat.pamp || 0;
+                              const stock = mat.currentStock ?? mat.stockQuantity ?? 0;
+                              const formattedCost = cost > 0 ? `${cost.toFixed(2)} DZD/${mat.unit}` : `0 DZD/${mat.unit}`;
+                              return (
+                                <option key={mat.id} value={mat.id}>
+                                  {mat.name} (Stock: {stock} {mat.unit}) — {formattedCost}
+                                </option>
+                              );
+                            })}
+                          </optgroup>
+                        )}
+
+                        {(ingredientTypeFilter === 'ALL' || ingredientTypeFilter === 'SEMI_FINISHED') && (
+                          <optgroup label="⚡ Produits Semi-Finis & Bases (Stock Semi-Finis)">
+                            {liveSemiFinished?.map((sf) => {
+                              const cost = sf.cogsUnitCost || sf.costPrice || sf.unitCost || 0;
+                              const u = sf.batchUnit || sf.unit || 'kg';
+                              const stock = sf.currentStock ?? 0;
+                              return (
+                                <option key={sf.id} value={sf.id}>
+                                  ⭐ {sf.name} ({cost > 0 ? `${cost.toFixed(2)} DZD/${u}` : `0 DZD/${u}`} - Stock: {stock} {u})
+                                </option>
+                              );
+                            })}
+                          </optgroup>
+                        )}
                       </select>
                     </div>
 
@@ -1013,10 +1208,44 @@ export const FicheTechniqueCOGS: React.FC<FicheTechniqueCOGSProps> = ({
                         className="w-full py-2 px-4 text-sm font-semibold text-white bg-amber-700 hover:bg-amber-800 disabled:bg-stone-300 rounded-lg transition-colors cursor-pointer flex items-center justify-center gap-2"
                       >
                         <Plus className="w-4 h-4" />
-                        Ajouter Ingrédient
+                        Ajouter à la Recette
                       </button>
                     </div>
                   </div>
+
+                  {/* Selected Item Stock & Cost Pill Preview */}
+                  {selectedMaterialId && (() => {
+                    const sel = componentLookupMap.get(selectedMaterialId);
+                    if (!sel) return null;
+                    const isSf = sel.type === 'SEMI_FINISHED';
+                    const isOut = sel.stock <= 0;
+                    return (
+                      <div className={`px-3 py-2 rounded-lg text-xs flex flex-wrap items-center justify-between gap-2 border ${
+                        isSf
+                          ? 'bg-indigo-50 border-indigo-200 text-indigo-900'
+                          : 'bg-emerald-50 border-emerald-200 text-emerald-900'
+                      }`}>
+                        <div className="flex items-center gap-2">
+                          <span className={`px-1.5 py-0.5 rounded font-bold text-[10px] ${
+                            isSf ? 'bg-indigo-200 text-indigo-800' : 'bg-emerald-200 text-emerald-800'
+                          }`}>
+                            {isSf ? '⚡ SEMI-FINI (BASE)' : '🌱 MATIÈRE PREMIÈRE'}
+                          </span>
+                          <span className="font-semibold">{sel.name}</span>
+                          {sel.code && <span className="text-[11px] text-stone-500 font-mono">[{sel.code}]</span>}
+                        </div>
+                        <div className="flex items-center gap-3 font-mono">
+                          <span>
+                            Stock disponible : <strong className={isOut ? 'text-rose-600 font-bold' : 'text-stone-900 font-bold'}>{sel.stock} {sel.unit}</strong>
+                          </span>
+                          <span>•</span>
+                          <span>
+                            {isSf ? 'Coût COGS' : 'PAMP'} : <strong className="text-stone-900 font-bold">{sel.cost.toFixed(2)} DZD/{sel.unit}</strong>
+                          </span>
+                        </div>
+                      </div>
+                    );
+                  })()}
                 </div>
 
                 {/* Ingredients Table */}
@@ -1025,9 +1254,9 @@ export const FicheTechniqueCOGS: React.FC<FicheTechniqueCOGSProps> = ({
                     <thead className="bg-stone-100 text-stone-700 text-xs uppercase font-semibold border-b border-stone-200">
                       <tr>
                         <th className="py-3 px-4 w-12 text-center">#</th>
-                        <th className="py-3 px-4">Matière Première</th>
+                        <th className="py-3 px-4">Ingrédient / Base (Matière Première ou Semi-Fini)</th>
                         <th className="py-3 px-4 text-right">Dosage / Tour</th>
-                        <th className="py-3 px-4 text-right">Prix Unitaire (PAMP)</th>
+                        <th className="py-3 px-4 text-right">Prix Unitaire</th>
                         <th className="py-3 px-4 text-right">Coût Ingrédient</th>
                         <th className="py-3 px-4 w-32 text-center">Part du Coût</th>
                         <th className="py-3 px-4 w-16 text-center">Actions</th>
@@ -1037,15 +1266,18 @@ export const FicheTechniqueCOGS: React.FC<FicheTechniqueCOGSProps> = ({
                       {(!draftProduct.ingredients || draftProduct.ingredients.length === 0) ? (
                         <tr>
                           <td colSpan={7} className="text-center py-8 text-stone-400 text-sm">
-                            Aucun ingrédient dans cette fiche technique. Ajoutez des matières premières ci-dessus.
+                            Aucun ingrédient dans cette fiche technique. Ajoutez des matières premières ou semi-finis ci-dessus.
                           </td>
                         </tr>
                       ) : (
                         draftProduct.ingredients.map((ing, idx) => {
                           const totalBatchCost = cogsMetrics.totalBatchCost;
                           const costShare = totalBatchCost > 0 ? ((ing.totalCost || 0) / totalBatchCost) * 100 : 0;
-                          const matInfo = rawMaterialCostMap.get(ing.rawMaterialId) || rawMaterialCostMap.get(ing.name.toLowerCase().trim());
-                          const isLowStock = matInfo && matInfo.stock <= (ing.quantityPerBatch * 2);
+                          const matInfo = componentLookupMap.get(ing.rawMaterialId) || componentLookupMap.get(ing.name.toLowerCase().trim());
+                          const stock = matInfo?.stock ?? 0;
+                          const isLowStock = matInfo && stock <= (ing.quantityPerBatch * 2);
+                          const isOutOfStock = matInfo && stock <= 0;
+                          const isSemiFinished = ing.type === 'SEMI_FINISHED' || matInfo?.type === 'SEMI_FINISHED' || ing.category?.toLowerCase().includes('semi') || ing.category?.toLowerCase().includes('base');
 
                           return (
                             <tr key={`${ing.rawMaterialId}_${idx}`} className="hover:bg-stone-50/70 transition-colors">
@@ -1055,17 +1287,32 @@ export const FicheTechniqueCOGS: React.FC<FicheTechniqueCOGSProps> = ({
 
                               <td className="py-3 px-4">
                                 <div className="space-y-0.5">
-                                  <div className="font-semibold text-stone-900 flex items-center gap-2">
+                                  <div className="font-semibold text-stone-900 flex items-center gap-2 flex-wrap">
                                     <span>{ing.name}</span>
-                                    {isLowStock && (
-                                      <span className="text-[10px] bg-rose-50 text-rose-700 border border-rose-200 px-1.5 py-0.2 rounded">
-                                        Stock faible ({matInfo?.stock} {ing.unit})
+                                    {isSemiFinished ? (
+                                      <span className="text-[10px] bg-indigo-100 text-indigo-800 border border-indigo-200 px-2 py-0.5 rounded-full font-bold inline-flex items-center gap-1">
+                                        ⚡ Semi-Fini
+                                      </span>
+                                    ) : (
+                                      <span className="text-[10px] bg-emerald-100 text-emerald-800 border border-emerald-200 px-2 py-0.5 rounded-full font-bold inline-flex items-center gap-1">
+                                        🌱 Matière 1ère
                                       </span>
                                     )}
+                                    {isOutOfStock ? (
+                                      <span className="text-[10px] bg-rose-100 text-rose-800 border border-rose-200 px-1.5 py-0.2 rounded font-bold">
+                                        Rupture stock (0 {ing.unit})
+                                      </span>
+                                    ) : isLowStock ? (
+                                      <span className="text-[10px] bg-amber-100 text-amber-800 border border-amber-200 px-1.5 py-0.2 rounded font-bold">
+                                        Stock bas ({stock} {ing.unit})
+                                      </span>
+                                    ) : null}
                                   </div>
-                                  <span className="text-[11px] text-stone-400 block">
-                                    {ing.category || 'Matières Premières'}
-                                  </span>
+                                  <div className="flex items-center gap-2 text-[11px] text-stone-500">
+                                    <span>{ing.category || (isSemiFinished ? 'Bases & Semi-Finis' : 'Matières Premières')}</span>
+                                    <span>•</span>
+                                    <span>Stock en laboratoire : <strong className={isOutOfStock ? 'text-rose-600 font-bold' : isLowStock ? 'text-amber-600 font-bold' : 'text-emerald-700 font-bold'}>{stock} {ing.unit}</strong></span>
+                                  </div>
                                 </div>
                               </td>
 
@@ -1194,6 +1441,7 @@ export const FicheTechniqueCOGS: React.FC<FicheTechniqueCOGSProps> = ({
           )}
         </div>
       </div>
+      )}
 
       {/* Modal: New Finished Good Creation */}
       <AnimatePresence>

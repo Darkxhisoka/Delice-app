@@ -11,6 +11,7 @@ export interface DexieProductIngredient {
   category?: string;
   unitCost?: number;
   totalCost?: number;
+  type?: 'RAW_MATERIAL' | 'SEMI_FINISHED' | 'matiere_premiere' | 'semi_fini';
 }
 
 export interface DexieProduct {
@@ -28,8 +29,8 @@ export interface DexieProduct {
   barcode?: string;
   isActive: boolean;
   updatedAt: string;
-  // Finished Good & Technical Sheet (Fiche Technique) fields
-  type?: 'finished_good' | 'produit_fini' | 'raw_material' | string;
+  // Finished Good, Semi-Finished (Bases) & Technical Sheet (Fiche Technique) fields
+  type?: 'finished_good' | 'produit_fini' | 'semi_finished' | 'semi_fini' | 'raw_material' | string;
   roomId?: string;
   yieldPerBatch?: number;
   batchUnit?: string;
@@ -38,12 +39,17 @@ export interface DexieProduct {
   // COGS & Financial fields (Single Source of Truth)
   totalBatchCost?: number;
   cogsUnitCost?: number;
+  unitCost?: number;
   sellingPrice?: number;
   marginAmount?: number;
   marginPercentage?: number;
   instructions?: string;
   description?: string;
 }
+
+export type RecipeIngredient = DexieProductIngredient;
+export type Product = DexieProduct;
+export type RawMaterial = DexieRawMaterial;
 
 export interface DexieRawMaterial {
   id: string;
@@ -56,6 +62,7 @@ export interface DexieRawMaterial {
   currentAvgCost?: number;
   pamp?: number;
   currentStock: number;
+  stockQuantity?: number;
   minStockAlert?: number;
   storeId?: string;
   isActive?: boolean;
@@ -96,7 +103,9 @@ export interface DexieSale {
   discount: number;
   tax: number;
   totalAmount: number;
-  paymentMethod: 'CASH' | 'CARD' | 'CHECK' | 'DEBT' | 'SPLIT' | 'OTHER';
+  paymentMethod: 'CASH' | 'CARD' | 'CHECK' | 'DEBT' | 'SPLIT' | 'CONTACTLESS' | 'OTHER' | string;
+  cashTendered?: number;
+  changeGiven?: number;
   customerName?: string;
   customerPhone?: string;
   notes?: string;
@@ -150,6 +159,8 @@ export interface DexieProductionOrder {
   completedAt?: string;
   createdAt: string;
 }
+
+export type ProductionOrder = DexieProductionOrder;
 
 export interface StoragePersistStatus {
   isPersisted: boolean;
@@ -315,6 +326,11 @@ export async function dbGetFinishedGoods(roomId?: string): Promise<DexieProduct[
   });
 }
 
+export async function dbGetSemiFinishedProducts(): Promise<DexieProduct[]> {
+  const all = await db.products.toArray();
+  return all.filter((p: any) => p.type === 'semi_finished' || p.type === 'semi_fini');
+}
+
 export async function dbUpsertProduct(product: DexieProduct): Promise<string> {
   return await db.products.put(product);
 }
@@ -437,6 +453,291 @@ export async function dbMarkSaleSynced(id: string): Promise<void> {
     syncedAt: new Date().toISOString()
   });
 }
+
+// ============================================================================
+// ATOMIC TRANSACTIONS & BUSINESS LOGIC (Zero Data Fragmentation)
+// ============================================================================
+
+export interface ExecuteProductionOrderParams {
+  ofCode: string;
+  bakerName: string;
+  productId: string;
+  batchCount: number;
+  notes?: string;
+  ingredients: Array<{
+    rawMaterialId: string;
+    materialName?: string;
+    name?: string;
+    dosagePerBatch?: number;
+    quantityPerBatch?: number;
+    calculatedQuantity: number;
+    unit: string;
+  }>;
+}
+
+/**
+ * ATOMIC PRODUCTION ORDER TRANSACTION
+ * 1. Deducts exact raw materials from db.raw_materials (or semi-finis from db.products).
+ * 2. Increments finished good stock in db.products by total batch yield.
+ * 3. Records the immutable production snapshot in db.production_orders.
+ */
+export async function dbExecuteProductionOrder(params: ExecuteProductionOrderParams): Promise<DexieProductionOrder> {
+  const { ofCode, bakerName, productId, batchCount, notes, ingredients } = params;
+  const nowIso = new Date().toISOString();
+  const ofId = `of_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
+
+  let orderSnapshot: DexieProductionOrder;
+
+  await db.transaction('rw', [db.raw_materials, db.products, db.production_orders], async () => {
+    // 1. Retrieve the finished good product
+    const product = await db.products.get(productId);
+    if (!product) {
+      throw new Error(`Produit introuvable dans db.products (ID: ${productId})`);
+    }
+
+    const baseYield = product.yieldPerBatch || 1;
+    const totalYield = Math.round(batchCount * baseYield * 1000) / 1000;
+    const batchUnit = product.batchUnit || product.unit || 'pièces';
+
+    // 2. Deduct exact calculated quantities from db.raw_materials or semi-finished goods in db.products
+    const deductedSnapshots: Array<{
+      rawMaterialId: string;
+      materialName: string;
+      dosagePerBatch: number;
+      totalCalculated: number;
+      unit: string;
+      stockBefore: number;
+      stockAfter: number;
+    }> = [];
+
+    for (const row of ingredients) {
+      const matId = row.rawMaterialId;
+      const mat = await db.raw_materials.get(matId);
+      const dosage = row.dosagePerBatch ?? row.quantityPerBatch ?? 0;
+      const totalToDeduct = row.calculatedQuantity;
+      const matName = row.materialName || row.name || mat?.name || 'Ingrédient';
+      const unit = row.unit || mat?.unit || 'kg';
+
+      if (mat) {
+        const currentStock = mat.currentStock ?? 0;
+        const newStock = Math.max(0, Math.round((currentStock - totalToDeduct) * 1000) / 1000);
+        await db.raw_materials.update(matId, {
+          currentStock: newStock,
+          updatedAt: nowIso,
+        });
+
+        deductedSnapshots.push({
+          rawMaterialId: matId,
+          materialName: matName,
+          dosagePerBatch: dosage,
+          totalCalculated: totalToDeduct,
+          unit,
+          stockBefore: currentStock,
+          stockAfter: newStock,
+        });
+      } else {
+        // Fallback: check semi-finished goods in db.products
+        const sf = await db.products.get(matId);
+        const currentStock = sf?.currentStock ?? 0;
+        const newStock = Math.max(0, Math.round((currentStock - totalToDeduct) * 1000) / 1000);
+
+        if (sf) {
+          await db.products.update(matId, {
+            currentStock: newStock,
+            updatedAt: nowIso,
+          });
+        }
+
+        deductedSnapshots.push({
+          rawMaterialId: matId,
+          materialName: matName,
+          dosagePerBatch: dosage,
+          totalCalculated: totalToDeduct,
+          unit,
+          stockBefore: currentStock,
+          stockAfter: newStock,
+        });
+      }
+    }
+
+    // 3. Atomically increment the finished product stock in db.products
+    const currentFGStock = product.currentStock ?? 0;
+    const newFGStock = Math.round((currentFGStock + totalYield) * 1000) / 1000;
+    await db.products.update(productId, {
+      currentStock: newFGStock,
+      updatedAt: nowIso,
+    });
+
+    // 4. Create and persist the production order snapshot
+    orderSnapshot = {
+      id: ofId,
+      ofCode,
+      bakerName: bakerName.trim() || 'Chef Pâtissier',
+      productId: product.id,
+      productName: product.name,
+      productCode: product.code || 'PF',
+      batchCount,
+      baseBatchYield: baseYield,
+      totalYield,
+      yieldUnit: batchUnit,
+      batchUnit,
+      specialInstructions: notes || '',
+      notes: notes || '',
+      roomId: product.roomId || 'patisserie_fine',
+      deductedIngredients: deductedSnapshots,
+      ingredients: deductedSnapshots,
+      status: 'completed',
+      createdAt: nowIso,
+      completedAt: nowIso,
+    };
+
+    await db.production_orders.put(orderSnapshot);
+  });
+
+  return orderSnapshot!;
+}
+
+export interface ExecuteSaleParams {
+  storeId: string;
+  storeName: string;
+  cashierName: string;
+  items: Array<{
+    productId: string;
+    productName: string;
+    quantity: number;
+    unitPrice: number;
+    totalPrice: number;
+    unit?: string;
+  }>;
+  subtotal: number;
+  discount: number;
+  tax: number;
+  totalAmount: number;
+  paymentMethod: DexieSale['paymentMethod'];
+  cashTendered?: number;
+  changeGiven?: number;
+  notes?: string;
+}
+
+/**
+ * ATOMIC POS / SALES TRANSACTION
+ * 1. Decrements finished goods stock in db.products.
+ * 2. Persists the immutable sale receipt record in db.sales.
+ */
+export async function dbExecuteSaleTransaction(params: ExecuteSaleParams): Promise<DexieSale> {
+  const { storeId, storeName, cashierName, items, subtotal, discount, tax, totalAmount, paymentMethod, cashTendered, changeGiven, notes } = params;
+  const nowIso = new Date().toISOString();
+  const todayStr = nowIso.slice(0, 10).replace(/-/g, '');
+  const saleId = `sal_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
+  const cleanStore = storeId.replace(/[^a-zA-Z0-9]/g, '').slice(0, 4).toUpperCase() || 'STR';
+  const txNumber = `SAL-${cleanStore}-${todayStr}-${Math.floor(100 + Math.random() * 900)}`;
+
+  let saleRecord: DexieSale;
+
+  await db.transaction('rw', [db.products, db.sales], async () => {
+    // 1. Decrement finished goods stock in db.products
+    for (const item of items) {
+      const product = await db.products.get(item.productId);
+      if (product) {
+        const currentStock = product.currentStock ?? 0;
+        const newStock = Math.max(0, Math.round((currentStock - item.quantity) * 1000) / 1000);
+        await db.products.update(item.productId, {
+          currentStock: newStock,
+          updatedAt: nowIso,
+        });
+      }
+    }
+
+    // 2. Persist sale transaction in db.sales
+    saleRecord = {
+      id: saleId,
+      transactionNumber: txNumber,
+      storeId,
+      storeName,
+      cashierName,
+      items: items.map(i => ({
+        productId: i.productId,
+        productName: i.productName,
+        quantity: i.quantity,
+        unitPrice: i.unitPrice,
+        totalPrice: i.totalPrice,
+        unit: i.unit || 'pièce',
+      })),
+      subtotal,
+      discount,
+      tax,
+      totalAmount,
+      paymentMethod,
+      cashTendered,
+      changeGiven,
+      notes,
+      syncStatus: 'SYNCED',
+      timestamp: nowIso,
+    };
+
+    await db.sales.put(saleRecord);
+  });
+
+  return saleRecord!;
+}
+
+/**
+ * RECALCULATE PRODUCT COGS (Single Source of Truth)
+ * Dynamically re-evaluates recipe ingredient costs based on current raw material PAMP unit costs.
+ */
+export async function dbRecalculateProductCOGS(productId: string): Promise<DexieProduct | null> {
+  const product = await db.products.get(productId);
+  if (!product) return null;
+
+  const rawMaterials = await db.raw_materials.toArray();
+  const rawCostMap = new Map<string, number>();
+  for (const rm of rawMaterials) {
+    const cost = rm.costPerUnit || rm.unitCost || rm.currentAvgCost || rm.pamp || 0;
+    rawCostMap.set(rm.id, cost);
+    rawCostMap.set(rm.name.toLowerCase().trim(), cost);
+  }
+
+  const ingredients = product.ingredients || product.ficheTechnique || [];
+  let totalBatchCost = 0;
+
+  const updatedIngredients: DexieProductIngredient[] = ingredients.map(ing => {
+    const unitCost = ing.unitCost || rawCostMap.get(ing.rawMaterialId) || rawCostMap.get(ing.name.toLowerCase().trim()) || 0;
+    const lineTotal = Number((ing.quantityPerBatch * unitCost).toFixed(2));
+    totalBatchCost += lineTotal;
+    return {
+      ...ing,
+      unitCost,
+      totalCost: lineTotal
+    };
+  });
+
+  const yieldPerBatch = product.yieldPerBatch || 1;
+  const cogsUnitCost = yieldPerBatch > 0 ? Number((totalBatchCost / yieldPerBatch).toFixed(2)) : 0;
+  const sellingPrice = product.sellingPrice || product.price || (cogsUnitCost * 2.2);
+  const marginAmount = Number((sellingPrice - cogsUnitCost).toFixed(2));
+  const marginPercentage = sellingPrice > 0 ? Number(((marginAmount / sellingPrice) * 100).toFixed(2)) : 0;
+
+  const updatedProduct: DexieProduct = {
+    ...product,
+    ingredients: updatedIngredients,
+    ficheTechnique: updatedIngredients,
+    totalBatchCost: Number(totalBatchCost.toFixed(2)),
+    cogsUnitCost,
+    costPrice: cogsUnitCost,
+    price: sellingPrice,
+    sellingPrice,
+    marginAmount,
+    marginPercentage,
+    updatedAt: new Date().toISOString()
+  };
+
+  await db.products.put(updatedProduct);
+  return updatedProduct;
+}
+
+// Recipe migration and integrity synchronization
+export { cleanAndSyncRecipeIngredients, validateRecipeIngredients } from './recipeMigrationService';
+export type { CleanAndSyncResult } from './recipeMigrationService';
 
 // App Settings & Flags
 export async function dbSetSetting(key: string, value: any): Promise<string> {
@@ -610,6 +911,8 @@ export async function repairRequisitionStatuses(): Promise<{ updatedCount: numbe
  * DEFAULT SEED FINISHED PRODUCTS WITH DETAILED FICHES TECHNIQUES & COGS
  * Standardized data for Délice Central Lab production rooms.
  */
+export { SAMPLE_RAW_MATERIALS as SEED_RAW_MATERIALS_CATALOG } from './dbSeeder';
+
 export const SEED_FINISHED_GOODS_CATALOG: DexieProduct[] = [
   {
     id: 'prod_mille_feuille_varsovie',
@@ -1024,3 +1327,5 @@ if (typeof window !== 'undefined') {
     migrateLegacyFichesAndFinishedGoodsToProducts().catch(() => {});
   }, 250);
 }
+
+export { resetAndSeedRawMaterials } from './dbSeeder';

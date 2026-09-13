@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   getRawMaterials,
   getSuppliers,
@@ -9,6 +9,7 @@ import {
 } from '../../services/storage';
 import { RawMaterial, Supplier, ReceiptItem } from '../../types';
 import { BarcodeScannerModal } from '../common/BarcodeScannerModal';
+import { AddRawMaterialModal } from './AddRawMaterialModal';
 import {
   Plus,
   Trash2,
@@ -22,7 +23,8 @@ import {
   Sparkles,
   AlertCircle,
   Scan,
-  Barcode
+  Barcode,
+  PackagePlus
 } from 'lucide-react';
 
 interface ReceiptFormProps {
@@ -45,6 +47,8 @@ export const ReceiptForm: React.FC<ReceiptFormProps> = ({ onSuccess }) => {
   const [notes, setNotes] = useState<string>('');
   const [recordedBy, setRecordedBy] = useState<string>('Inventory Manager');
   const [isScannerOpen, setIsScannerOpen] = useState<boolean>(false);
+  const [isAddMaterialModalOpen, setIsAddMaterialModalOpen] = useState<boolean>(false);
+  const pendingMaterialRowIndexRef = useRef<number | null>(null);
 
   // Dynamic Line Items State
   const [lineItems, setLineItems] = useState<
@@ -132,6 +136,12 @@ export const ReceiptForm: React.FC<ReceiptFormProps> = ({ onSuccess }) => {
   };
 
   const handleMaterialChange = (index: number, matId: string) => {
+    if (matId === 'CREATE_NEW') {
+      pendingMaterialRowIndexRef.current = index;
+      setIsAddMaterialModalOpen(true);
+      return;
+    }
+
     const mat = rawMaterials.find((m) => m.id === matId);
     if (!mat) return;
 
@@ -144,6 +154,36 @@ export const ReceiptForm: React.FC<ReceiptFormProps> = ({ onSuccess }) => {
       };
       return updated;
     });
+  };
+
+  const handleMaterialCreated = () => {
+    const updatedMats = getRawMaterials();
+    setRawMaterials(updatedMats);
+
+    const targetIndex = pendingMaterialRowIndexRef.current;
+    if (targetIndex !== null && updatedMats.length > 0) {
+      // Find the most recently updated/created material
+      const newestMat = [...updatedMats].sort((a, b) => {
+        const timeA = new Date(a.lastUpdated || 0).getTime();
+        const timeB = new Date(b.lastUpdated || 0).getTime();
+        return timeB - timeA;
+      })[0];
+
+      if (newestMat) {
+        setLineItems((prev) => {
+          const updated = [...prev];
+          if (updated[targetIndex]) {
+            updated[targetIndex] = {
+              ...updated[targetIndex],
+              rawMaterialId: newestMat.id,
+              unitPrice: newestMat.currentAvgCost || 1.0,
+            };
+          }
+          return updated;
+        });
+      }
+    }
+    pendingMaterialRowIndexRef.current = null;
   };
 
   const handleQuantityChange = (index: number, qty: number) => {

@@ -27,6 +27,7 @@ import {
 import { useDesktopShortcuts } from './hooks/useDesktopShortcuts';
 import { useAndroidBackButton } from './hooks/useAndroidBackButton';
 import { initPersistentStorage } from './db/database';
+import { initializeDatabase } from './db/dbSeeder';
 import { supabase } from './lib/supabaseClient';
 import { subscribeToSupabaseRealtime } from './services/supabaseService';
 import { 
@@ -80,6 +81,7 @@ export default function App() {
     // 0. Initialize persistent storage, language direction & background sync
     applyDirection(getStoredLanguage());
     initPersistentStorage().catch((err) => console.warn('Persistent storage init note:', err));
+    initializeDatabase().catch((err) => console.warn('Database automatic seeder note:', err));
     initBackgroundSync();
 
     const handleLanguageChange = (e: Event) => {

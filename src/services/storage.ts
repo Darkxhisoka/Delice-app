@@ -1,6 +1,6 @@
 import { syncToFirestore } from '../lib/firebaseSync';
 import { enqueueOfflineAction } from './indexedDbQueue';
-import { db } from '../db/database';
+import { db, DexieRawMaterial } from '../db/database';
 import { convertCost, convertQuantity } from './unitConversionService';
 import {
   UserRole,
@@ -443,7 +443,18 @@ export function deleteStore(id: string): boolean {
 export function getRawMaterials(): RawMaterial[] {
   initStorage();
   const data = localStorage.getItem(KEYS.RAW_MATERIALS);
-  return data ? JSON.parse(data) : [];
+  if (!data) return [];
+  try {
+    const parsed: RawMaterial[] = JSON.parse(data);
+    // If cache still contains old mock English materials, clean them up
+    if (parsed.length > 0 && parsed.some(m => m.id === 'rm-1' || m.name.includes('High-Protein Bread Flour'))) {
+      localStorage.removeItem(KEYS.RAW_MATERIALS);
+      return [];
+    }
+    return parsed;
+  } catch {
+    return [];
+  }
 }
 
 export function saveRawMaterials(materials: RawMaterial[]) {
@@ -454,6 +465,51 @@ export function saveRawMaterials(materials: RawMaterial[]) {
       syncToFirestore('raw_materials', mat.id, mat);
     }
   });
+
+  // Keep Dexie db.raw_materials 100% synchronized for real-time live queries
+  try {
+    const dexieItems: DexieRawMaterial[] = materials.map((m) => {
+      const cost = Number(m.currentAvgCost ?? 0);
+      const stock = Number(m.currentStock ?? 0);
+      return {
+        id: m.id,
+        code: m.sku || `MP-${m.id}`,
+        name: m.name,
+        category: m.category || 'Matières Premières',
+        unit: m.unit || 'kg',
+        currentStock: stock,
+        stockQuantity: stock,
+        unitCost: cost,
+        costPerUnit: cost,
+        currentAvgCost: cost,
+        pamp: cost,
+        minStockAlert: m.reorderLevel ?? m.min_reorder_level ?? 10,
+        storeId: 'lab_central',
+        isActive: true,
+        updatedAt: m.lastUpdated || new Date().toISOString()
+      };
+    });
+
+    // Bulk put to Dexie
+    if (dexieItems.length > 0) {
+      db.raw_materials.bulkPut(dexieItems).catch((err) => {
+        console.warn('[storage] Dexie raw_materials bulkPut note:', err);
+      });
+    }
+
+    // Clean up any deleted IDs from db.raw_materials
+    const activeIds = new Set(materials.map((m) => m.id));
+    db.raw_materials.toArray().then((existingDexie) => {
+      const idsToDelete = existingDexie.filter((d) => !activeIds.has(d.id)).map((d) => d.id);
+      if (idsToDelete.length > 0) {
+        db.raw_materials.bulkDelete(idsToDelete).catch((err) => {
+          console.warn('[storage] Dexie raw_materials bulkDelete note:', err);
+        });
+      }
+    }).catch(() => {});
+  } catch (err) {
+    console.warn('[storage] Dexie raw_materials sync error:', err);
+  }
 }
 
 export const setRawMaterials = saveRawMaterials;

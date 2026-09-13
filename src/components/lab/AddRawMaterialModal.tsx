@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { RawMaterial, MaterialUnit } from '../../types';
 import { getRawMaterials, saveRawMaterials, addActivityLog, notifyToast } from '../../services/storage';
 import { upsertRawMaterialToSupabase } from '../../services/supabaseService';
+import { db } from '../../db/database';
 import {
   Boxes,
   Plus,
@@ -155,6 +156,29 @@ export const AddRawMaterialModal: React.FC<AddRawMaterialModalProps> = ({
 
       // Save directly to Supabase table
       const savedMaterial = await upsertRawMaterialToSupabase(newMaterialPayload);
+
+      // Also sync to Dexie IndexedDB
+      try {
+        await db.raw_materials.put({
+          id: savedMaterial.id,
+          code: savedMaterial.sku || `MP-${savedMaterial.id}`,
+          name: savedMaterial.name,
+          category: savedMaterial.category || 'Matières Premières',
+          unit: savedMaterial.unit || 'kg',
+          currentStock: savedMaterial.currentStock,
+          stockQuantity: savedMaterial.currentStock,
+          unitCost: savedMaterial.currentAvgCost,
+          costPerUnit: savedMaterial.currentAvgCost,
+          pamp: savedMaterial.currentAvgCost,
+          currentAvgCost: savedMaterial.currentAvgCost,
+          minStockAlert: savedMaterial.reorderLevel ?? 10,
+          storeId: 'lab_central',
+          isActive: true,
+          updatedAt: new Date().toISOString()
+        });
+      } catch (dexieErr) {
+        console.warn('Could not put new material into Dexie:', dexieErr);
+      }
 
       // Also sync to local storage cache
       saveRawMaterials([savedMaterial, ...existingMaterials]);

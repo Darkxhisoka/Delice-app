@@ -1,5 +1,8 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
+import { useLiveQuery } from 'dexie-react-hooks';
+import { db } from '../../db/database';
+import { resetAndSeedRawMaterials } from '../../db/dbSeeder';
 import {
   getRawMaterials,
   saveRawMaterials,
@@ -48,8 +51,10 @@ import {
   Download,
   FileText,
   Scale,
-  ShoppingCart
+  ShoppingCart,
+  Wrench
 } from 'lucide-react';
+import { IngredientsDiagnosticView } from './IngredientsDiagnosticView';
 
 export const InventoryList: React.FC = () => {
   const { t } = useTranslation();
@@ -91,6 +96,32 @@ export const InventoryList: React.FC = () => {
   // Reorder List Modal State
   const [isReorderModalOpen, setIsReorderModalOpen] = useState<boolean>(false);
   const [reorderPreselectedMatId, setReorderPreselectedMatId] = useState<string | undefined>(undefined);
+
+  // Diagnostic Ingredients vs Stock Modal State
+  const [isDiagnosticOpen, setIsDiagnosticOpen] = useState<boolean>(false);
+
+  // Live Query from Dexie db.raw_materials (Single reactive source of truth)
+  const liveDexieRawMaterials = useLiveQuery(() => db.raw_materials.toArray(), []);
+
+  useEffect(() => {
+    if (liveDexieRawMaterials && liveDexieRawMaterials.length > 0) {
+      const converted: RawMaterial[] = liveDexieRawMaterials.map((m) => ({
+        id: m.id,
+        name: m.name,
+        sku: m.code || `MP-${m.id}`,
+        category: (m.category as any) || 'Flour & Grains',
+        unit: (m.unit as any) || 'kg',
+        currentStock: m.currentStock ?? m.stockQuantity ?? 0,
+        currentAvgCost: m.currentAvgCost ?? m.unitCost ?? m.costPerUnit ?? m.pamp ?? 0,
+        reorderLevel: m.minStockAlert ?? 10,
+        min_reorder_level: m.minStockAlert ?? 10,
+        totalPurchasedQty: m.currentStock ?? m.stockQuantity ?? 0,
+        lastUpdated: m.updatedAt || new Date().toISOString()
+      }));
+      setMaterials(converted);
+      setLoading(false);
+    }
+  }, [liveDexieRawMaterials]);
 
   const loadData = async () => {
     setLoading(true);
@@ -157,30 +188,50 @@ export const InventoryList: React.FC = () => {
         lastUpdated: new Date().toISOString()
       });
 
+      // Synchroniser directement avec Dexie db.raw_materials
+      await db.raw_materials.put({
+        id: editingMat.id,
+        code: editingMat.sku || `MP-${editingMat.id}`,
+        name: editingMat.name,
+        category: editingMat.category || 'Flour & Grains',
+        unit: editingMat.unit || 'kg',
+        currentStock: adjustedStock,
+        stockQuantity: adjustedStock,
+        unitCost: adjustedCost,
+        costPerUnit: adjustedCost,
+        pamp: adjustedCost,
+        currentAvgCost: adjustedCost,
+        minStockAlert: editingMat.reorderLevel ?? 10,
+        storeId: 'lab_central',
+        isActive: true,
+        updatedAt: new Date().toISOString()
+      });
+
       const updated = materials.map((m) => (m.id === editingMat.id ? updatedMat : m));
       setMaterials(updated);
       saveRawMaterials(updated);
 
       notifyToast({
         type: 'success',
-        title: 'Mise à jour Supabase Réussie',
-        message: `${editingMat.name} mis à jour dans Supabase (Stock: ${adjustedStock} ${editingMat.unit}).`
+        title: 'Mise à jour Réussie',
+        message: `${editingMat.name} mis à jour (Stock: ${adjustedStock} ${editingMat.unit}, Coût: ${adjustedCost} DZD).`
       });
       setEditingMat(null);
     } catch (err: any) {
-      console.error('Error updating raw material in Supabase:', err);
+      console.error('Error updating raw material:', err);
       notifyToast({
         type: 'error',
-        title: 'Échec Supabase',
-        message: err.message || 'Impossible d\'enregistrer les modifications sur Supabase.'
+        title: 'Échec de mise à jour',
+        message: err.message || 'Impossible d\'enregistrer les modifications.'
       });
     }
   };
 
   const handleDeleteRawMaterial = async (mat: RawMaterial) => {
-    if (!window.confirm(`Voulez-vous vraiment supprimer "${mat.name}" de la base Supabase ?`)) return;
+    if (!window.confirm(`Voulez-vous vraiment supprimer "${mat.name}" du stock et des fiches techniques ?`)) return;
     try {
       await deleteRawMaterialFromSupabase(mat.id);
+      await db.raw_materials.delete(mat.id);
       const remaining = materials.filter((m) => m.id !== mat.id);
       setMaterials(remaining);
       saveRawMaterials(remaining);
@@ -188,14 +239,14 @@ export const InventoryList: React.FC = () => {
       notifyToast({
         type: 'success',
         title: 'Matière Première Supprimée',
-        message: `"${mat.name}" a été retiré de la base de données Supabase.`
+        message: `"${mat.name}" a été retiré du stock.`
       });
     } catch (err: any) {
-      console.error('Error deleting raw material from Supabase:', err);
+      console.error('Error deleting raw material:', err);
       notifyToast({
         type: 'error',
         title: 'Erreur de Suppression',
-        message: err.message || 'Échec de la suppression sur Supabase.'
+        message: err.message || 'Échec de la suppression.'
       });
     }
   };
@@ -404,6 +455,39 @@ export const InventoryList: React.FC = () => {
             >
               <FileSpreadsheet className="w-4 h-4 text-amber-700" />
               <span>{t('inventory.importCSV', 'Importer MP (CSV/Excel)')}</span>
+            </button>
+            <button
+              onClick={async () => {
+                if (window.confirm("Voulez-vous synchroniser et recharger le stock de matières premières avec les fiches techniques du laboratoire ?")) {
+                  try {
+                    await resetAndSeedRawMaterials();
+                    notifyToast({
+                      type: 'success',
+                      title: 'Stock Réaligné',
+                      message: 'Le stock de matières premières est parfaitement aligné avec les fiches techniques.'
+                    });
+                  } catch (e: any) {
+                    notifyToast({
+                      type: 'error',
+                      title: 'Erreur',
+                      message: e.message || 'Impossible de réaligner le stock.'
+                    });
+                  }
+                }
+              }}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-indigo-900 bg-indigo-100 hover:bg-indigo-200 active:bg-indigo-300 rounded-lg shadow-xs transition-colors cursor-pointer"
+              title="Réaligner et synchroniser les matières premières avec les fiches techniques"
+            >
+              <RefreshCw className="w-4 h-4 text-indigo-700" />
+              <span>Réaligner Fiches Techniques</span>
+            </button>
+            <button
+              onClick={() => setIsDiagnosticOpen(true)}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-amber-900 bg-amber-100 hover:bg-amber-200 active:bg-amber-300 rounded-lg shadow-xs transition-colors cursor-pointer"
+              title="Ouvrir le panneau de diagnostic des ingrédients des fiches techniques vs matières premières"
+            >
+              <Wrench className="w-4 h-4 text-amber-700" />
+              <span>Diagnostic Ingrédients</span>
             </button>
           </div>
         )}
@@ -1034,6 +1118,15 @@ export const InventoryList: React.FC = () => {
         materials={materials}
         preselectedMaterialId={reorderPreselectedMatId}
       />
+
+      {/* Diagnostic Ingrédients vs Matières Premières Modal */}
+      {isDiagnosticOpen && (
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-2 sm:p-4 overflow-y-auto">
+          <div className="bg-stone-50 rounded-2xl max-w-7xl w-full max-h-[94vh] overflow-y-auto p-4 sm:p-6 shadow-2xl border border-stone-200">
+            <IngredientsDiagnosticView onClose={() => setIsDiagnosticOpen(false)} />
+          </div>
+        </div>
+      )}
 
     </div>
   );

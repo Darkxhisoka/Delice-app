@@ -19,6 +19,7 @@ import {
 } from '../../services/storage';
 import { SaleReceiptModal } from './SaleReceiptModal';
 import { useHapticsAndSound } from '../../hooks/useHapticsAndSound';
+import { dbExecuteSaleTransaction } from '../../db/database';
 import {
   ShoppingCart,
   Plus,
@@ -230,7 +231,7 @@ export const RetailSalesPOS: React.FC<RetailSalesPOSProps> = ({ currentStore }) 
 
   const numericCashTendered = useMemo(() => parseFloat(cashTendered) || 0, [cashTendered]);
 
-  const handleCheckout = (e: React.FormEvent) => {
+  const handleCheckout = async (e: React.FormEvent) => {
     e.preventDefault();
     if (cartItems.length === 0) return;
 
@@ -244,6 +245,7 @@ export const RetailSalesPOS: React.FC<RetailSalesPOSProps> = ({ currentStore }) 
       return;
     }
 
+    // 1. Record in UI storage layer for local listeners & receipts
     const sale = recordSaleTransaction({
       storeId: currentStore.id,
       storeName: currentStore.name,
@@ -258,6 +260,33 @@ export const RetailSalesPOS: React.FC<RetailSalesPOSProps> = ({ currentStore }) 
       changeGiven: paymentMethod === 'CASH' ? changeGiven : undefined,
       notes: orderNotes.trim() || undefined,
     });
+
+    // 2. ATOMIC DEXIE TRANSACTION: Decrement finished good stock in db.products & persist to db.sales
+    try {
+      await dbExecuteSaleTransaction({
+        storeId: currentStore.id,
+        storeName: currentStore.name,
+        cashierName: cashierName || 'Store Staff',
+        items: cartItems.map((ci: any) => ({
+          productId: ci.productId,
+          productName: ci.productName,
+          quantity: ci.quantity,
+          unitPrice: ci.unitPrice,
+          totalPrice: ci.totalPrice,
+          unit: ci.unit || 'pièce',
+        })),
+        subtotal: rawSubtotal,
+        discount: discountAmount,
+        tax: taxAmount,
+        totalAmount,
+        paymentMethod: paymentMethod as any,
+        cashTendered: paymentMethod === 'CASH' ? numericCashTendered : undefined,
+        changeGiven: paymentMethod === 'CASH' ? changeGiven : undefined,
+        notes: orderNotes.trim() || undefined,
+      });
+    } catch (err) {
+      console.warn('[RetailSalesPOS] dbExecuteSaleTransaction notice:', err);
+    }
 
     triggerCheckoutSuccess();
     setLastCompletedSale(sale);
