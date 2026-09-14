@@ -4,6 +4,10 @@ var __getOwnPropDesc = Object.getOwnPropertyDescriptor;
 var __getOwnPropNames = Object.getOwnPropertyNames;
 var __getProtoOf = Object.getPrototypeOf;
 var __hasOwnProp = Object.prototype.hasOwnProperty;
+var __export = (target, all) => {
+  for (var name in all)
+    __defProp(target, name, { get: all[name], enumerable: true });
+};
 var __copyProps = (to, from, except, desc) => {
   if (from && typeof from === "object" || typeof from === "function") {
     for (let key of __getOwnPropNames(from))
@@ -24,12 +28,209 @@ var __toESM = (mod, isNodeMode, target) => (target = mod != null ? __create(__ge
 // server.ts
 var import_express = __toESM(require("express"), 1);
 var import_path = __toESM(require("path"), 1);
-var import_vite = require("vite");
 var import_genai = require("@google/genai");
+
+// src/lib/firebase-admin.ts
+var import_app = require("firebase-admin/app");
+var import_auth = require("firebase-admin/auth");
+
+// firebase-applet-config.json
+var firebase_applet_config_default = {
+  projectId: "hazel-embassy-j1ttq",
+  appId: "1:273405214175:web:20b318d98e84512bd9186a",
+  apiKey: "AIzaSyDYCbkkkCURo61YFON86qWIVAgPjZYRALY",
+  authDomain: "hazel-embassy-j1ttq.firebaseapp.com",
+  firestoreDatabaseId: "ai-studio-ptisserdlice-925017ff-3005-449d-8b7d-6e984ca85fd4",
+  storageBucket: "hazel-embassy-j1ttq.firebasestorage.app",
+  messagingSenderId: "273405214175",
+  measurementId: "",
+  oAuthClientId: "273405214175-2m2bb4doo2rv7fmkhf6359e08k585e5g.apps.googleusercontent.com",
+  recaptchaSiteKey: ""
+};
+
+// src/lib/firebase-admin.ts
+if (!(0, import_app.getApps)().length) {
+  (0, import_app.initializeApp)({
+    projectId: firebase_applet_config_default.projectId
+  });
+}
+var adminAuth = (0, import_auth.getAuth)();
+
+// src/middleware/auth.ts
+var requireAuth = async (req, res, next) => {
+  const authHeader = req.headers.authorization;
+  if (!authHeader || !authHeader.startsWith("Bearer ")) {
+    return res.status(401).json({ error: "Unauthorized: Missing token" });
+  }
+  const token = authHeader.split("Bearer ")[1];
+  try {
+    const decodedToken = await adminAuth.verifyIdToken(token);
+    req.user = decodedToken;
+    next();
+  } catch (error) {
+    console.error("Error verifying Firebase ID token:", error);
+    return res.status(401).json({ error: "Unauthorized: Invalid token" });
+  }
+};
+
+// src/db/index.ts
+var import_node_postgres = require("drizzle-orm/node-postgres");
+var import_pg = require("pg");
+
+// src/db/schema.ts
+var schema_exports = {};
+__export(schema_exports, {
+  activityLogs: () => activityLogs,
+  inventoryAdjustments: () => inventoryAdjustments,
+  packagingMaterials: () => packagingMaterials,
+  rawMaterials: () => rawMaterials,
+  users: () => users
+});
+var import_pg_core = require("drizzle-orm/pg-core");
+var users = (0, import_pg_core.pgTable)("users", {
+  id: (0, import_pg_core.serial)("id").primaryKey(),
+  uid: (0, import_pg_core.text)("uid").notNull().unique(),
+  // Firebase Auth UID
+  email: (0, import_pg_core.text)("email").notNull(),
+  displayName: (0, import_pg_core.text)("display_name"),
+  role: (0, import_pg_core.text)("role").default("STORE_MANAGER"),
+  createdAt: (0, import_pg_core.timestamp)("created_at").defaultNow(),
+  updatedAt: (0, import_pg_core.timestamp)("updated_at").defaultNow()
+});
+var rawMaterials = (0, import_pg_core.pgTable)("raw_materials", {
+  id: (0, import_pg_core.text)("id").primaryKey(),
+  sku: (0, import_pg_core.text)("sku").notNull(),
+  name: (0, import_pg_core.text)("name").notNull(),
+  category: (0, import_pg_core.text)("category").notNull(),
+  unit: (0, import_pg_core.text)("unit").notNull(),
+  currentStock: (0, import_pg_core.integer)("current_stock").default(0),
+  currentAvgCost: (0, import_pg_core.integer)("current_avg_cost").default(0),
+  minReorderLevel: (0, import_pg_core.integer)("min_reorder_level").default(10),
+  barcode: (0, import_pg_core.text)("barcode"),
+  lastUpdated: (0, import_pg_core.timestamp)("last_updated").defaultNow()
+});
+var packagingMaterials = (0, import_pg_core.pgTable)("packaging_materials", {
+  id: (0, import_pg_core.text)("id").primaryKey(),
+  code: (0, import_pg_core.text)("code").notNull(),
+  name: (0, import_pg_core.text)("name").notNull(),
+  category: (0, import_pg_core.text)("category").notNull(),
+  unitType: (0, import_pg_core.text)("unit_type").notNull(),
+  centralStockQty: (0, import_pg_core.integer)("central_stock_qty").default(0),
+  minAlertQty: (0, import_pg_core.integer)("min_alert_qty").default(100),
+  unitCost: (0, import_pg_core.integer)("unit_cost").default(0),
+  updatedAt: (0, import_pg_core.timestamp)("updated_at").defaultNow()
+});
+var inventoryAdjustments = (0, import_pg_core.pgTable)("inventory_adjustments", {
+  id: (0, import_pg_core.text)("id").primaryKey(),
+  rawMaterialId: (0, import_pg_core.text)("raw_material_id"),
+  rawMaterialName: (0, import_pg_core.text)("raw_material_name"),
+  unit: (0, import_pg_core.text)("unit"),
+  quantityRemoved: (0, import_pg_core.integer)("quantity_removed").default(0),
+  unitCostAtTime: (0, import_pg_core.integer)("unit_cost_at_time").default(0),
+  totalLossValue: (0, import_pg_core.integer)("total_loss_value").default(0),
+  reasonCategory: (0, import_pg_core.text)("reason_category").notNull(),
+  notes: (0, import_pg_core.text)("notes"),
+  createdBy: (0, import_pg_core.text)("created_by"),
+  createdAt: (0, import_pg_core.timestamp)("created_at").defaultNow()
+});
+var activityLogs = (0, import_pg_core.pgTable)("activity_logs", {
+  id: (0, import_pg_core.text)("id").primaryKey(),
+  type: (0, import_pg_core.text)("type").notNull(),
+  title: (0, import_pg_core.text)("title").notNull(),
+  description: (0, import_pg_core.text)("description"),
+  actor: (0, import_pg_core.text)("actor"),
+  severity: (0, import_pg_core.text)("severity").default("info"),
+  metadata: (0, import_pg_core.text)("metadata"),
+  createdAt: (0, import_pg_core.timestamp)("created_at").defaultNow()
+});
+
+// src/db/index.ts
+var createPool = () => {
+  if (!global._postgresPool) {
+    global._postgresPool = new import_pg.Pool({
+      host: process.env.SQL_HOST,
+      user: process.env.SQL_USER,
+      password: process.env.SQL_PASSWORD,
+      database: process.env.SQL_DB_NAME,
+      max: 10,
+      connectionTimeoutMillis: 15e3
+    });
+    global._postgresPool.on("error", (err) => {
+      console.error("Unexpected error on idle SQL pool client:", err);
+    });
+  }
+  return global._postgresPool;
+};
+var pool = createPool();
+var db = (0, import_node_postgres.drizzle)(pool, { schema: schema_exports });
+
+// src/db/users.ts
+async function getOrCreateUser(uid, email, displayName, role) {
+  try {
+    const result = await db.insert(users).values({
+      uid,
+      email,
+      displayName: displayName || null,
+      role: role || "STORE_MANAGER"
+    }).onConflictDoUpdate({
+      target: users.uid,
+      set: {
+        email,
+        displayName: displayName || null,
+        updatedAt: /* @__PURE__ */ new Date()
+      }
+    }).returning();
+    return result[0];
+  } catch (error) {
+    console.error("Database getOrCreateUser failed:", error);
+    throw new Error("Failed to synchronize user profile.", { cause: error });
+  }
+}
+async function getUsers() {
+  try {
+    return await db.select().from(users);
+  } catch (error) {
+    console.error("Database getUsers failed:", error);
+    throw new Error("Database query failed. Please try again later.", { cause: error });
+  }
+}
+
+// server.ts
 async function startServer() {
   const app = (0, import_express.default)();
   const PORT = 3e3;
   app.use(import_express.default.json({ limit: "10mb" }));
+  app.get("/api/health", (req, res) => {
+    res.json({ status: "ok", timestamp: (/* @__PURE__ */ new Date()).toISOString() });
+  });
+  app.get("/healthz", (req, res) => {
+    res.status(200).send("OK");
+  });
+  app.get("/api/users", requireAuth, async (req, res) => {
+    try {
+      const userList = await getUsers();
+      res.json(userList);
+    } catch (error) {
+      console.error("Failed to fetch users from Cloud SQL:", error);
+      res.status(500).json({ error: error.message || "Failed to fetch users" });
+    }
+  });
+  app.post("/api/users/sync", requireAuth, async (req, res) => {
+    try {
+      const uid = req.user?.uid;
+      const email = req.user?.email || req.body?.email;
+      const displayName = req.body?.displayName;
+      const role = req.body?.role;
+      if (!uid || !email) {
+        return res.status(400).json({ error: "Missing uid or email for user synchronization" });
+      }
+      const syncedUser = await getOrCreateUser(uid, email, displayName, role);
+      res.json(syncedUser);
+    } catch (error) {
+      console.error("Failed to sync user to Cloud SQL:", error);
+      res.status(500).json({ error: error.message || "Failed to sync user" });
+    }
+  });
   app.post("/api/chat", async (req, res) => {
     try {
       const { prompt, history, context } = req.body;
@@ -125,7 +326,8 @@ Contexte actuel fourni par l'utilisateur: ${context || "Utilisateur dans l'inter
     }
   });
   if (process.env.NODE_ENV !== "production") {
-    const vite = await (0, import_vite.createServer)({
+    const { createServer: createViteServer } = await import("vite");
+    const vite = await createViteServer({
       server: { middlewareMode: true },
       appType: "spa"
     });

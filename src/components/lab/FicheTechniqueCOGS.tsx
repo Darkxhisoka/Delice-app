@@ -5,9 +5,9 @@ import {
   DexieProduct,
   DexieRawMaterial,
   DexieProductIngredient,
-  migrateLegacyFichesAndFinishedGoodsToProducts,
-  validateRecipeIngredients
+  migrateLegacyFichesAndFinishedGoodsToProducts
 } from '../../db/database';
+import { validateRecipeIngredients } from '../../db/recipeMigrationService';
 import { SAMPLE_SEMI_FINISHED_GOODS } from '../../db/dbSeeder';
 import {
   ChefHat,

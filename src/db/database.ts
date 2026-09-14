@@ -735,10 +735,6 @@ export async function dbRecalculateProductCOGS(productId: string): Promise<Dexie
   return updatedProduct;
 }
 
-// Recipe migration and integrity synchronization
-export { cleanAndSyncRecipeIngredients, validateRecipeIngredients } from './recipeMigrationService';
-export type { CleanAndSyncResult } from './recipeMigrationService';
-
 // App Settings & Flags
 export async function dbSetSetting(key: string, value: any): Promise<string> {
   return await db.settings.put({

@@ -16,10 +16,12 @@ import {
   db,
   Product,
   DexieRawMaterial,
-  DexieProductIngredient,
+  DexieProductIngredient
+} from '../../db/database';
+import {
   cleanAndSyncRecipeIngredients,
   validateRecipeIngredients
-} from '../../db/database';
+} from '../../db/recipeMigrationService';
 import { resetAndSeedRawMaterials } from '../../db/dbSeeder';
 import { IngredientsDiagnosticView } from './IngredientsDiagnosticView';
 

@@ -93,3 +93,50 @@ self.addEventListener('fetch', (event) => {
     })
   );
 });
+
+// Background Sync Event: Triggers when connectivity is restored in background
+self.addEventListener('sync', (event) => {
+  console.log('[SW] Background sync event triggered with tag:', event.tag);
+  if (event.tag === 'delice-sync-offline-queue' || event.tag === 'sync-offline-queue') {
+    event.waitUntil(
+      self.clients.matchAll({ includeUncontrolled: true, type: 'window' }).then((clients) => {
+        if (clients && clients.length > 0) {
+          clients.forEach((client) => {
+            client.postMessage({
+              type: 'BACKGROUND_SYNC_TRIGGER',
+              tag: event.tag,
+              timestamp: new Date().toISOString()
+            });
+          });
+        }
+      })
+    );
+  }
+});
+
+// Periodic Background Sync Event
+self.addEventListener('periodicsync', (event) => {
+  console.log('[SW] Periodic sync event triggered with tag:', event.tag);
+  if (event.tag === 'delice-periodic-queue-sync') {
+    event.waitUntil(
+      self.clients.matchAll({ includeUncontrolled: true, type: 'window' }).then((clients) => {
+        if (clients && clients.length > 0) {
+          clients.forEach((client) => {
+            client.postMessage({
+              type: 'BACKGROUND_SYNC_TRIGGER',
+              tag: event.tag,
+              timestamp: new Date().toISOString()
+            });
+          });
+        }
+      })
+    );
+  }
+});
+
+// Message listener from foreground clients
+self.addEventListener('message', (event) => {
+  if (event.data && event.data.type === 'SKIP_WAITING') {
+    self.skipWaiting();
+  }
+});
