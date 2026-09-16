@@ -160,8 +160,7 @@ export const ReceiptForm: React.FC<ReceiptFormProps> = ({ onSuccess }) => {
     const updatedMats = getRawMaterials();
     setRawMaterials(updatedMats);
 
-    const targetIndex = pendingMaterialRowIndexRef.current;
-    if (targetIndex !== null && updatedMats.length > 0) {
+    if (updatedMats.length > 0) {
       // Find the most recently updated/created material
       const newestMat = [...updatedMats].sort((a, b) => {
         const timeA = new Date(a.lastUpdated || 0).getTime();
@@ -170,20 +169,33 @@ export const ReceiptForm: React.FC<ReceiptFormProps> = ({ onSuccess }) => {
       })[0];
 
       if (newestMat) {
-        setLineItems((prev) => {
-          const updated = [...prev];
-          if (updated[targetIndex]) {
-            updated[targetIndex] = {
-              ...updated[targetIndex],
+        const targetIndex = pendingMaterialRowIndexRef.current;
+        if (targetIndex !== null) {
+          setLineItems((prev) => {
+            const updated = [...prev];
+            if (updated[targetIndex]) {
+              updated[targetIndex] = {
+                ...updated[targetIndex],
+                rawMaterialId: newestMat.id,
+                unitPrice: newestMat.currentAvgCost || 1.0,
+              };
+            }
+            return updated;
+          });
+        } else {
+          setLineItems((prev) => [
+            ...prev,
+            {
               rawMaterialId: newestMat.id,
+              quantity: 1,
               unitPrice: newestMat.currentAvgCost || 1.0,
-            };
-          }
-          return updated;
-        });
+            },
+          ]);
+        }
       }
     }
     pendingMaterialRowIndexRef.current = null;
+    setIsAddMaterialModalOpen(false);
   };
 
   const handleQuantityChange = (index: number, qty: number) => {
@@ -429,6 +441,19 @@ export const ReceiptForm: React.FC<ReceiptFormProps> = ({ onSuccess }) => {
             <div className="flex items-center gap-2">
               <button
                 type="button"
+                onClick={() => {
+                  pendingMaterialRowIndexRef.current = null;
+                  setIsAddMaterialModalOpen(true);
+                }}
+                className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-bold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-300 rounded-xl shadow-xs transition-all touch-manipulation min-h-[40px]"
+                title="Créer une nouvelle matière première dans le stock"
+              >
+                <PackagePlus className="w-4 h-4 text-emerald-600" />
+                + Nouveau Produit
+              </button>
+
+              <button
+                type="button"
                 onClick={() => setIsScannerOpen(true)}
                 className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-700 active:bg-indigo-800 rounded-xl shadow-xs transition-all touch-manipulation min-h-[40px]"
               >
@@ -480,17 +505,33 @@ export const ReceiptForm: React.FC<ReceiptFormProps> = ({ onSuccess }) => {
                       <tr key={index} className="hover:bg-slate-50/80 transition-colors">
                         <td className="p-3 font-semibold text-slate-400">{index + 1}</td>
                         <td className="p-3">
-                          <select
-                            value={item.rawMaterialId}
-                            onChange={(e) => handleMaterialChange(index, e.target.value)}
-                            className="w-full text-xs font-medium text-slate-900 bg-white border border-slate-300 rounded-lg p-2 focus:ring-2 focus:ring-indigo-500"
-                          >
-                            {rawMaterials.map((m) => (
-                              <option key={m.id} value={m.id}>
-                                {m.name} ({m.sku})
+                          <div className="flex items-center gap-1.5">
+                            <select
+                              value={item.rawMaterialId}
+                              onChange={(e) => handleMaterialChange(index, e.target.value)}
+                              className="flex-1 min-w-[180px] text-xs font-medium text-slate-900 bg-white border border-slate-300 rounded-lg p-2 focus:ring-2 focus:ring-indigo-500"
+                            >
+                              {rawMaterials.map((m) => (
+                                <option key={m.id} value={m.id}>
+                                  {m.name} ({m.sku})
+                                </option>
+                              ))}
+                              <option value="CREATE_NEW" className="text-emerald-700 font-bold bg-emerald-50">
+                                ➕ + Nouveau Produit / Matière...
                               </option>
-                            ))}
-                          </select>
+                            </select>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                pendingMaterialRowIndexRef.current = index;
+                                setIsAddMaterialModalOpen(true);
+                              }}
+                              className="p-2 text-slate-500 hover:text-emerald-700 hover:bg-emerald-50 border border-slate-200 rounded-lg transition-colors shrink-0"
+                              title="Créer une nouvelle matière première pour cette ligne"
+                            >
+                              <PackagePlus className="w-4 h-4 text-emerald-600" />
+                            </button>
+                          </div>
                         </td>
                         <td className="p-3">
                           <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-slate-100 text-slate-700 border border-slate-200">
@@ -596,6 +637,13 @@ export const ReceiptForm: React.FC<ReceiptFormProps> = ({ onSuccess }) => {
         onClose={() => setIsScannerOpen(false)}
         rawMaterials={rawMaterials}
         onDetected={handleBarcodeDetected}
+      />
+
+      {/* Add Raw Material Modal */}
+      <AddRawMaterialModal
+        isOpen={isAddMaterialModalOpen}
+        onClose={() => setIsAddMaterialModalOpen(false)}
+        onSuccess={handleMaterialCreated}
       />
     </div>
   );

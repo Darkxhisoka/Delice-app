@@ -2562,6 +2562,22 @@ export function savePurchaseOrder(po: PurchaseOrder): PurchaseOrder {
   return po;
 }
 
+export function deletePurchaseOrder(id: string): void {
+  const list = getPurchaseOrders().filter(p => p.id !== id);
+  localStorage.setItem(KEYS.PURCHASE_ORDERS, JSON.stringify(list));
+  notifyListeners();
+}
+
+export function updatePurchaseOrderStatus(id: string, status: PurchaseOrder['status']): void {
+  const list = getPurchaseOrders();
+  const po = list.find(p => p.id === id);
+  if (po) {
+    po.status = status;
+    localStorage.setItem(KEYS.PURCHASE_ORDERS, JSON.stringify(list));
+    notifyListeners();
+  }
+}
+
 // ==========================================
 // 2. PRODUCTION BATCHES & SHEETS (FICHES DE PRODUCTION)
 // ==========================================
