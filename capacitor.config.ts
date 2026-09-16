@@ -5,6 +5,8 @@ const config: CapacitorConfig = {
   appName: 'Délice Pâtisserie',
   webDir: 'dist',
   plugins: {
+    // Temporarily disabled Capgo to resolve blank screen / stale bundle issues
+    /*
     CapacitorUpdater: {
       autoUpdate: 'onLaunch',
       resetWhenUpdate: true,
@@ -12,6 +14,7 @@ const config: CapacitorConfig = {
       statsUrl: 'https://stats.capgo.app/api/stats',
       defaultChannel: 'production'
     }
+    */
   }
 };
 
