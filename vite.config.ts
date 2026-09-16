@@ -6,7 +6,7 @@ import {defineConfig} from 'vite';
 
 export default defineConfig(() => {
   return {
-    base: '/',
+    base: './',
     plugins: [
       react(),
       tailwindcss(),
@@ -22,8 +22,8 @@ export default defineConfig(() => {
       },
     },
     build: {
-      target: 'es2020',
-      minify: false,
+      target: 'es2015',
+      minify: 'terser',
       cssTarget: 'chrome61',
     },
     server: {
