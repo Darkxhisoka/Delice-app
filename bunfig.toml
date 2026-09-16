@@ -1,0 +1,2 @@
+[install]
+dns-result-order = "ipv4first"
