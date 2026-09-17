@@ -106,6 +106,34 @@ export async function cleanAndSyncRecipeIngredients(): Promise<CleanAndSyncResul
       const rawName = (ing.name || '').trim();
       const normName = normalizeString(rawName);
 
+      // Check if this ingredient is a semi-finished component (from db.products where type is semi_finished)
+      const matchedSf = allProducts.find(
+        (p) =>
+          (p.type === 'semi_finished' || p.type === 'semi_fini') &&
+          (p.id === rawId || (normName && normalizeString(p.name) === normName))
+      );
+
+      if (matchedSf || ing.type === 'SEMI_FINISHED' || ing.type === 'semi_fini') {
+        const sfCost = matchedSf?.cogsUnitCost || matchedSf?.costPrice || matchedSf?.unitCost || ing.unitCost || 0;
+        const sfUnit = matchedSf?.batchUnit || matchedSf?.unit || ing.unit || 'kg';
+        const quantity = Math.max(0, ing.quantityPerBatch || 0);
+        const lineCost = Number((quantity * sfCost).toFixed(2));
+        totalBatchCost += lineCost;
+
+        synchronizedIngredients.push({
+          rawMaterialId: matchedSf?.id || rawId,
+          name: matchedSf?.name || ing.name,
+          quantityPerBatch: quantity,
+          unit: sfUnit,
+          category: matchedSf?.category || ing.category || 'Bases & Semi-Finis',
+          unitCost: sfCost,
+          totalCost: lineCost,
+          type: 'SEMI_FINISHED',
+        });
+        result.ingredientsAlreadyValid++;
+        continue;
+      }
+
       // Check direct ID match
       let matched = rawById.get(rawId);
 
@@ -287,12 +315,13 @@ export async function cleanAndSyncRecipeIngredients(): Promise<CleanAndSyncResul
 }
 
 /**
- * Validates a recipe ingredients array against live raw materials table.
+ * Validates a recipe ingredients array against live raw materials table and semi-finished products.
  * Returns valid status and any validation error messages.
  */
 export function validateRecipeIngredients(
   ingredients: DexieProductIngredient[],
-  liveRawMaterials: DexieRawMaterial[]
+  liveRawMaterials: DexieRawMaterial[],
+  liveSemiFinished: DexieProduct[] = []
 ): { isValid: boolean; errors: string[]; invalidIndexes: number[] } {
   const errors: string[] = [];
   const invalidIndexes: number[] = [];
@@ -306,18 +335,27 @@ export function validateRecipeIngredients(
   }
 
   const rawIdSet = new Set(liveRawMaterials.map((rm) => rm.id));
+  const sfIdSet = new Set((liveSemiFinished || []).map((sf) => sf.id));
+  const sfNameSet = new Set((liveSemiFinished || []).map((sf) => normalizeString(sf.name)));
 
   ingredients.forEach((ing, index) => {
     const rawId = (ing.rawMaterialId || '').toString().trim();
     if (!rawId) {
-      errors.push(`Ligne #${index + 1}: Aucun identifiant de matière première spécifié.`);
+      errors.push(`Ligne #${index + 1}: Aucun identifiant d'ingrédient spécifié.`);
       invalidIndexes.push(index);
       return;
     }
 
-    if (!rawIdSet.has(rawId)) {
+    const isRaw = rawIdSet.has(rawId);
+    const isSf =
+      sfIdSet.has(rawId) ||
+      ing.type === 'SEMI_FINISHED' ||
+      ing.type === 'semi_fini' ||
+      sfNameSet.has(normalizeString(ing.name || ''));
+
+    if (!isRaw && !isSf) {
       errors.push(
-        `Ligne #${index + 1} ("${ing.name || 'Sans nom'}"): L'ID "${rawId}" n'existe pas dans le stock des matières premières (db.raw_materials).`
+        `Ligne #${index + 1} ("${ing.name || 'Sans nom'}"): L'ID "${rawId}" n'existe ni dans le stock des matières premières ni dans les produits semi-finis.`
       );
       invalidIndexes.push(index);
       return;

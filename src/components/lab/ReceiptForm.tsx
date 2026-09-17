@@ -511,8 +511,8 @@ export const ReceiptForm: React.FC<ReceiptFormProps> = ({ onSuccess }) => {
                               onChange={(e) => handleMaterialChange(index, e.target.value)}
                               className="flex-1 min-w-[180px] text-xs font-medium text-slate-900 bg-white border border-slate-300 rounded-lg p-2 focus:ring-2 focus:ring-indigo-500"
                             >
-                              {rawMaterials.map((m) => (
-                                <option key={m.id} value={m.id}>
+                              {rawMaterials.map((m, mIdx) => (
+                                <option key={`${m.id || 'rm'}-${mIdx}`} value={m.id}>
                                   {m.name} ({m.sku})
                                 </option>
                               ))}

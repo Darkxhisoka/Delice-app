@@ -1,24 +1,37 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useLiveQuery } from 'dexie-react-hooks';
-import { db } from '../../db/database';
+import { db, DexieProductIngredient } from '../../db/database';
 import { resetAndSeedRawMaterials } from '../../db/dbSeeder';
+import {
+  syncAllSemiFinishedStockAndProducts,
+  syncSingleSemiFinishedToDexie,
+  syncDeleteSemiFinishedFromDexie,
+  syncUpdateSemiFinishedStockInDexie,
+} from '../../services/semiFinishedSyncService';
 import {
   getRawMaterials,
   saveRawMaterials,
   getSemiFinishedStock,
   updateSemiFinishedStockQuantity,
+  updateSemiFinishedStockItem,
+  deleteSemiFinishedStockItem,
+  addSemiFinishedStockItem,
   produceSemiFinishedBatch,
   getRecipes,
+  saveRecipe,
   getRecipeUnitCost,
   subscribeToStoreChanges,
-  notifyToast
+  notifyToast,
+  deduplicateById,
+  addActivityLog
 } from '../../services/storage';
 import {
   fetchRawMaterialsFromSupabase,
   upsertRawMaterialToSupabase,
   deleteRawMaterialFromSupabase
 } from '../../services/supabaseService';
+import { supabase } from '../../lib/supabaseClient';
 import { RawMaterial, SemiFinishedStockItem, Recipe } from '../../types';
 import { BarcodeScannerModal } from '../common/BarcodeScannerModal';
 import { RawMaterialImporter } from './RawMaterialImporter';
@@ -52,9 +65,20 @@ import {
   FileText,
   Scale,
   ShoppingCart,
-  Wrench
+  Wrench,
+  Calculator,
+  RotateCcw
 } from 'lucide-react';
 import { IngredientsDiagnosticView } from './IngredientsDiagnosticView';
+
+export interface SfRecipeIngredientDraft {
+  rawMaterialId: string;
+  name: string;
+  category?: string;
+  quantity: number;
+  unit: string;
+  unitCost: number;
+}
 
 export const InventoryList: React.FC = () => {
   const { t } = useTranslation();
@@ -77,9 +101,32 @@ export const InventoryList: React.FC = () => {
   const [adjustedStock, setAdjustedStock] = useState<number>(0);
   const [adjustedCost, setAdjustedCost] = useState<number>(0);
 
-  // Semi-Finished manual stock adjustment state
+  // Semi-Finished manual stock adjustment and full edit/delete state
   const [editingSfStock, setEditingSfStock] = useState<SemiFinishedStockItem | null>(null);
-  const [adjustedSfStock, setAdjustedSfStock] = useState<number>(0);
+  const [editSfName, setEditSfName] = useState<string>('');
+  const [editSfCategory, setEditSfCategory] = useState<string>('');
+  const [editSfUnit, setEditSfUnit] = useState<string>('kg');
+  const [editSfStock, setEditSfStock] = useState<number>(0);
+  const [editSfMinStock, setEditSfMinStock] = useState<number>(0);
+  const [deletingSfStock, setDeletingSfStock] = useState<SemiFinishedStockItem | null>(null);
+
+  // New Semi-Finished creation modal state (Recipe & Ingredients)
+  const [showAddSfModal, setShowAddSfModal] = useState<boolean>(false);
+  const [newSfName, setNewSfName] = useState<string>('');
+  const [newSfCategory, setNewSfCategory] = useState<string>('Pâtes de base');
+  const [newSfUnit, setNewSfUnit] = useState<string>('kg');
+  const [newSfYield, setNewSfYield] = useState<number>(1);
+  const [newSfStock, setNewSfStock] = useState<number>(10);
+  const [newSfMinStock, setNewSfMinStock] = useState<number>(5);
+  const [newSfIngredients, setNewSfIngredients] = useState<SfRecipeIngredientDraft[]>([]);
+  const [selectedNewMatId, setSelectedNewMatId] = useState<string>('');
+  const [newMatQty, setNewMatQty] = useState<number>(1);
+
+  // Edit Semi-Finished recipe & ingredients state
+  const [editSfYield, setEditSfYield] = useState<number>(1);
+  const [editSfIngredients, setEditSfIngredients] = useState<SfRecipeIngredientDraft[]>([]);
+  const [selectedEditMatId, setSelectedEditMatId] = useState<string>('');
+  const [editMatQty, setEditMatQty] = useState<number>(1);
 
   // Batch Production Modal State
   const [showProduceModal, setShowProduceModal] = useState<boolean>(false);
@@ -100,12 +147,22 @@ export const InventoryList: React.FC = () => {
   // Diagnostic Ingredients vs Stock Modal State
   const [isDiagnosticOpen, setIsDiagnosticOpen] = useState<boolean>(false);
 
+  // Reset all stock to 0 state
+  const [showResetStockModal, setShowResetStockModal] = useState<boolean>(false);
+  const [isResettingStock, setIsResettingStock] = useState<boolean>(false);
+
   // Live Query from Dexie db.raw_materials (Single reactive source of truth)
   const liveDexieRawMaterials = useLiveQuery(() => db.raw_materials.toArray(), []);
 
+  // Live Query from Dexie db.products for Semi-Finished goods (Single reactive source of truth)
+  const liveDexieSemiFinished = useLiveQuery(
+    () => db.products.filter((p) => p.type === 'semi_finished' || p.type === 'semi_fini').toArray(),
+    []
+  );
+
   useEffect(() => {
     if (liveDexieRawMaterials && liveDexieRawMaterials.length > 0) {
-      const converted: RawMaterial[] = liveDexieRawMaterials.map((m) => ({
+      const converted: RawMaterial[] = deduplicateById(liveDexieRawMaterials.map((m) => ({
         id: m.id,
         name: m.name,
         sku: m.code || `MP-${m.id}`,
@@ -117,15 +174,34 @@ export const InventoryList: React.FC = () => {
         min_reorder_level: m.minStockAlert ?? 10,
         totalPurchasedQty: m.currentStock ?? m.stockQuantity ?? 0,
         lastUpdated: m.updatedAt || new Date().toISOString()
-      }));
+      })));
       setMaterials(converted);
       setLoading(false);
     }
   }, [liveDexieRawMaterials]);
 
+  useEffect(() => {
+    if (liveDexieSemiFinished && liveDexieSemiFinished.length > 0) {
+      const convertedSf: SemiFinishedStockItem[] = liveDexieSemiFinished.map((p) => ({
+        id: p.id,
+        recipeId: p.id,
+        recipeName: p.name,
+        category: p.category || 'Bases & Semi-Finis',
+        currentStock: p.currentStock ?? 0,
+        unit: p.unit || p.batchUnit || 'kg',
+        minStockLevel: p.minStockAlert ?? 5,
+        lastUpdated: p.updatedAt ? p.updatedAt.slice(0, 10) : new Date().toISOString().slice(0, 10),
+      }));
+      setSfStockItems(convertedSf);
+    }
+  }, [liveDexieSemiFinished]);
+
   const loadData = async () => {
     setLoading(true);
     try {
+      // Synchronize semi-finished stock with Dexie db.products bidirectionally
+      await syncAllSemiFinishedStockAndProducts();
+
       const supaMats = await fetchRawMaterialsFromSupabase();
       if (supaMats && supaMats.length > 0) {
         setMaterials(supaMats);
@@ -251,6 +327,76 @@ export const InventoryList: React.FC = () => {
     }
   };
 
+  const handleConfirmResetAllRawStock = async () => {
+    setIsResettingStock(true);
+    try {
+      const now = new Date().toISOString();
+
+      // 1. Bulk update directly in Dexie db.raw_materials to trigger reactive useLiveQuery
+      await db.raw_materials.toCollection().modify({
+        currentStock: 0,
+        stockQuantity: 0,
+        updatedAt: now
+      });
+
+      // 2. Prepare updated materials list
+      const currentList = materials.length > 0 ? materials : getRawMaterials();
+      const updated = currentList.map((m) => ({
+        ...m,
+        currentStock: 0,
+        totalPurchasedQty: 0,
+        lastUpdated: now
+      }));
+
+      // 3. Persist to localStorage, notify reactive listeners, and sync to Firestore
+      saveRawMaterials(updated);
+      setMaterials(updated);
+
+      // 4. Update Supabase if available
+      try {
+        await supabase
+          .from('raw_materials')
+          .update({ current_stock: 0, last_updated: now })
+          .neq('id', '__none__');
+      } catch (supaErr) {
+        console.warn('[InventoryList] Supabase raw_materials stock reset note:', supaErr);
+      }
+
+      // 5. Add audit log
+      addActivityLog({
+        type: 'STOCK_ADJUSTED',
+        title: 'Remise à zéro des stocks matières premières',
+        description: `Le stock actuel de l'ensemble des ${updated.length} matières premières a été réinitialisé à 0.`,
+        actor: 'Laboratoire Central',
+        sourceInterface: 'LAB',
+        badgeText: 'STOCK 0',
+        severity: 'warning',
+        metadata: {
+          itemCount: updated.length,
+          sourceInterface: 'LAB',
+          notes: 'Remise à zéro globale de tous les stocks actuels'
+        }
+      });
+
+      notifyToast({
+        type: 'success',
+        title: 'Stock Réinitialisé à 0',
+        message: `Le stock actuel de l'ensemble des ${updated.length} matières premières a été remis à 0.`
+      });
+
+      setShowResetStockModal(false);
+    } catch (error: any) {
+      console.error('Failed to reset raw materials stock:', error);
+      notifyToast({
+        type: 'error',
+        title: 'Erreur Réinitialisation',
+        message: error?.message || 'Une erreur est survenue lors de la remise à zéro des stocks.'
+      });
+    } finally {
+      setIsResettingStock(false);
+    }
+  };
+
   const semiFinishedRecipes = useMemo(
     () => recipes.filter((r) => r.recipeType === 'SEMI_FINISHED'),
     [recipes]
@@ -312,21 +458,433 @@ export const InventoryList: React.FC = () => {
     return { totalSfValue: val, lowStockSfCount: lowCount };
   }, [sfStockItems, recipes, materials]);
 
-  // Handlers for Semi-Finished edit
-  const handleOpenEditSf = (sf: SemiFinishedStockItem) => {
-    setEditingSfStock(sf);
-    setAdjustedSfStock(sf.currentStock);
+  // Ingredient handling for New Semi-Finished
+  const handleAddIngredientToNew = () => {
+    if (!selectedNewMatId) {
+      notifyToast({
+        type: 'error',
+        title: 'Matière première requise',
+        message: 'Veuillez sélectionner une matière première à ajouter.',
+      });
+      return;
+    }
+    const mat = materials.find((m) => m.id === selectedNewMatId);
+    if (!mat) return;
+
+    const qty = Math.max(0.001, Number(newMatQty) || 1);
+    setNewSfIngredients((prev) => {
+      const existing = prev.find((item) => item.rawMaterialId === mat.id);
+      if (existing) {
+        return prev.map((item) =>
+          item.rawMaterialId === mat.id
+            ? { ...item, quantity: Number((item.quantity + qty).toFixed(3)) }
+            : item
+        );
+      }
+      return [
+        ...prev,
+        {
+          rawMaterialId: mat.id,
+          name: mat.name,
+          category: mat.category,
+          quantity: qty,
+          unit: mat.unit || 'kg',
+          unitCost: mat.currentAvgCost || 0,
+        },
+      ];
+    });
+
+    setSelectedNewMatId('');
+    setNewMatQty(1);
   };
 
-  const handleSaveSfAdjustment = () => {
+  const handleRemoveIngredientFromNew = (rawMaterialId: string) => {
+    setNewSfIngredients((prev) => prev.filter((i) => i.rawMaterialId !== rawMaterialId));
+  };
+
+  const handleUpdateIngredientQtyInNew = (rawMaterialId: string, quantity: number) => {
+    setNewSfIngredients((prev) =>
+      prev.map((i) =>
+        i.rawMaterialId === rawMaterialId
+          ? { ...i, quantity: Math.max(0, quantity) }
+          : i
+      )
+    );
+  };
+
+  // Ingredient handling for Edit Semi-Finished
+  const handleAddIngredientToEdit = () => {
+    if (!selectedEditMatId) {
+      notifyToast({
+        type: 'error',
+        title: 'Matière première requise',
+        message: 'Veuillez sélectionner une matière première à ajouter.',
+      });
+      return;
+    }
+    const mat = materials.find((m) => m.id === selectedEditMatId);
+    if (!mat) return;
+
+    const qty = Math.max(0.001, Number(editMatQty) || 1);
+    setEditSfIngredients((prev) => {
+      const existing = prev.find((item) => item.rawMaterialId === mat.id);
+      if (existing) {
+        return prev.map((item) =>
+          item.rawMaterialId === mat.id
+            ? { ...item, quantity: Number((item.quantity + qty).toFixed(3)) }
+            : item
+        );
+      }
+      return [
+        ...prev,
+        {
+          rawMaterialId: mat.id,
+          name: mat.name,
+          category: mat.category,
+          quantity: qty,
+          unit: mat.unit || 'kg',
+          unitCost: mat.currentAvgCost || 0,
+        },
+      ];
+    });
+
+    setSelectedEditMatId('');
+    setEditMatQty(1);
+  };
+
+  const handleRemoveIngredientFromEdit = (rawMaterialId: string) => {
+    setEditSfIngredients((prev) => prev.filter((i) => i.rawMaterialId !== rawMaterialId));
+  };
+
+  const handleUpdateIngredientQtyInEdit = (rawMaterialId: string, quantity: number) => {
+    setEditSfIngredients((prev) =>
+      prev.map((i) =>
+        i.rawMaterialId === rawMaterialId
+          ? { ...i, quantity: Math.max(0, quantity) }
+          : i
+      )
+    );
+  };
+
+  // Handlers for Semi-Finished edit & delete
+  const handleOpenEditSf = async (sf: SemiFinishedStockItem) => {
+    setEditingSfStock(sf);
+    setEditSfName(sf.recipeName);
+    setEditSfCategory(sf.category);
+    setEditSfUnit(sf.unit || 'kg');
+    setEditSfStock(sf.currentStock);
+    setEditSfMinStock(sf.minStockLevel);
+
+    // Look for existing recipe in recipes state
+    const r = recipes.find(
+      (rec) => rec.id === sf.recipeId || rec.name.toLowerCase() === sf.recipeName.toLowerCase()
+    );
+    let draftIngs: SfRecipeIngredientDraft[] = [];
+    let yieldVal = 1;
+
+    if (r) {
+      yieldVal = r.yieldUnits || 1;
+      draftIngs = (r.ingredients || []).map((ing) => {
+        const mat = materials.find((m) => m.id === ing.rawMaterialId);
+        return {
+          rawMaterialId: ing.rawMaterialId || `mat-${Date.now()}`,
+          name: mat ? mat.name : 'Matière Première',
+          category: mat?.category,
+          quantity: ing.quantity || 0,
+          unit: ing.unit || mat?.unit || 'kg',
+          unitCost: mat?.currentAvgCost || 0,
+        };
+      });
+    }
+
+    // Also check Dexie db.products if draftIngs is empty
+    if (draftIngs.length === 0) {
+      try {
+        const p = await db.products
+          .filter(
+            (prod) =>
+              (prod.type === 'semi_finished' || prod.type === 'semi_fini') &&
+              (prod.id === sf.id ||
+                prod.id === sf.recipeId ||
+                prod.name.toLowerCase() === sf.recipeName.toLowerCase())
+          )
+          .first();
+
+        if (p) {
+          yieldVal = p.yieldPerBatch || 1;
+          const pIngs = p.ingredients || p.ficheTechnique || [];
+          if (pIngs.length > 0) {
+            draftIngs = pIngs.map((ing) => {
+              const mat = materials.find(
+                (m) =>
+                  m.id === ing.rawMaterialId ||
+                  m.name.toLowerCase() === ing.name.toLowerCase()
+              );
+              return {
+                rawMaterialId: ing.rawMaterialId,
+                name: ing.name,
+                category: ing.category || mat?.category,
+                quantity: ing.quantityPerBatch || 0,
+                unit: ing.unit || mat?.unit || 'kg',
+                unitCost: ing.unitCost ?? mat?.currentAvgCost ?? 0,
+              };
+            });
+          }
+        }
+      } catch (err) {
+        console.warn('[InventoryList] Error loading SF ingredients from Dexie:', err);
+      }
+    }
+
+    setEditSfYield(yieldVal);
+    setEditSfIngredients(draftIngs);
+  };
+
+  const handleSaveSfEdit = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
     if (!editingSfStock) return;
-    updateSemiFinishedStockQuantity(editingSfStock.id, adjustedSfStock);
+    if (!editSfName.trim()) {
+      notifyToast({
+        type: 'error',
+        title: 'Champ requis',
+        message: 'Veuillez renseigner le nom du composant semi-fini.',
+      });
+      return;
+    }
+
+    const totalBatchCost = editSfIngredients.reduce(
+      (sum, ing) => sum + ing.quantity * ing.unitCost,
+      0
+    );
+    const yieldUnits = Math.max(0.001, Number(editSfYield) || 1);
+    const calculatedUnitCost = totalBatchCost / yieldUnits;
+
+    // 1. Update stock item
+    updateSemiFinishedStockItem(editingSfStock.id, {
+      recipeName: editSfName.trim(),
+      category: editSfCategory.trim() || 'Composants & Bases',
+      unit: editSfUnit.trim() || 'kg',
+      currentStock: Math.max(0, editSfStock),
+      minStockLevel: Math.max(0, editSfMinStock),
+    });
+
+    // 2. Update linked recipe
+    const recipeId = editingSfStock.recipeId || `sf-rec-${editingSfStock.id}`;
+    const updatedRecipe: Recipe = {
+      id: recipeId,
+      name: editSfName.trim(),
+      category: editSfCategory.trim() || 'Composants & Bases',
+      recipeType: 'SEMI_FINISHED',
+      yieldUnits: yieldUnits,
+      unitName: editSfUnit.trim() || 'kg',
+      prepTimeMinutes: 30,
+      ingredients: editSfIngredients.map((ing) => ({
+        type: 'RAW_MATERIAL',
+        rawMaterialId: ing.rawMaterialId,
+        quantity: ing.quantity,
+        unit: ing.unit,
+      })),
+    };
+    saveRecipe(updatedRecipe);
+
+    // 3. Sync with Dexie db.products
+    const dexieIngredients: DexieProductIngredient[] = editSfIngredients.map((ing) => ({
+      rawMaterialId: ing.rawMaterialId,
+      name: ing.name,
+      quantityPerBatch: ing.quantity,
+      unit: ing.unit,
+      category: ing.category,
+      unitCost: ing.unitCost,
+      totalCost: Number((ing.quantity * ing.unitCost).toFixed(2)),
+      type: 'RAW_MATERIAL',
+    }));
+
+    try {
+      const match = await db.products
+        .filter(
+          (p) =>
+            (p.type === 'semi_finished' || p.type === 'semi_fini') &&
+            (p.id === editingSfStock.id ||
+              p.id === editingSfStock.recipeId ||
+              p.name.toLowerCase() === editingSfStock.recipeName.toLowerCase())
+        )
+        .first();
+
+      if (match) {
+        await db.products.update(match.id, {
+          name: editSfName.trim(),
+          category: editSfCategory.trim() || match.category,
+          unit: editSfUnit.trim() || match.unit,
+          batchUnit: editSfUnit.trim() || match.batchUnit,
+          currentStock: Math.max(0, editSfStock),
+          minStockAlert: Math.max(0, editSfMinStock),
+          yieldPerBatch: yieldUnits,
+          cogsUnitCost: Number(calculatedUnitCost.toFixed(2)),
+          unitCost: Number(calculatedUnitCost.toFixed(2)),
+          costPrice: Number(calculatedUnitCost.toFixed(2)),
+          totalBatchCost: Number(totalBatchCost.toFixed(2)),
+          ingredients: dexieIngredients,
+          ficheTechnique: dexieIngredients,
+          updatedAt: new Date().toISOString(),
+        });
+      }
+    } catch (err) {
+      console.warn('[InventoryList] Sync db.products on sf edit:', err);
+    }
+
+    setSfStockItems(getSemiFinishedStock());
+    setRecipes(getRecipes());
     notifyToast({
       type: 'success',
-      title: 'Semi-Finished Stock Adjusted',
-      message: `${editingSfStock.recipeName} stock updated to ${adjustedSfStock} ${editingSfStock.unit}`,
+      title: 'Recette Semi-Finie Modifiée',
+      message: `« ${editSfName.trim()} » mise à jour avec ${editSfIngredients.length} ingrédient(s).`,
     });
     setEditingSfStock(null);
+  };
+
+  const handleDeleteSf = async () => {
+    if (!deletingSfStock) return;
+    const targetName = deletingSfStock.recipeName;
+    const targetId = deletingSfStock.id;
+    const recipeId = deletingSfStock.recipeId;
+
+    deleteSemiFinishedStockItem(targetId);
+
+    // Also remove from Dexie db.products if exists
+    try {
+      const matches = await db.products
+        .filter(
+          (p) =>
+            (p.type === 'semi_finished' || p.type === 'semi_fini') &&
+            (p.id === targetId ||
+              p.id === recipeId ||
+              p.name.toLowerCase() === targetName.toLowerCase())
+        )
+        .toArray();
+
+      for (const m of matches) {
+        await db.products.delete(m.id);
+      }
+    } catch (err) {
+      console.warn('[InventoryList] Error deleting from db.products:', err);
+    }
+
+    setSfStockItems(getSemiFinishedStock());
+    notifyToast({
+      type: 'success',
+      title: 'Composant Semi-Fini Supprimé',
+      message: `« ${targetName} » a été supprimé du stock avec succès.`,
+    });
+    setDeletingSfStock(null);
+  };
+
+  const handleCreateNewSf = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newSfName.trim()) {
+      notifyToast({
+        type: 'error',
+        title: 'Nom requis',
+        message: 'Veuillez saisir un nom pour le nouveau produit semi-fini.',
+      });
+      return;
+    }
+
+    if (newSfIngredients.length === 0) {
+      const confirmNoIngredients = window.confirm(
+        "Vous n'avez ajouté aucun ingrédient à cette recette semi-finie. Voulez-vous continuer et l'enregistrer sans ingrédients ?"
+      );
+      if (!confirmNoIngredients) return;
+    }
+
+    const recipeId = `sf-rec-${Date.now()}`;
+    const totalBatchCost = newSfIngredients.reduce(
+      (sum, ing) => sum + ing.quantity * ing.unitCost,
+      0
+    );
+    const yieldUnits = Math.max(0.001, Number(newSfYield) || 1);
+    const calculatedUnitCost = totalBatchCost / yieldUnits;
+
+    // 1. Create standard Recipe
+    const newRecipe: Recipe = {
+      id: recipeId,
+      name: newSfName.trim(),
+      category: newSfCategory.trim() || 'Composants & Bases',
+      recipeType: 'SEMI_FINISHED',
+      yieldUnits: yieldUnits,
+      unitName: newSfUnit.trim() || 'kg',
+      prepTimeMinutes: 30,
+      ingredients: newSfIngredients.map((ing) => ({
+        type: 'RAW_MATERIAL',
+        rawMaterialId: ing.rawMaterialId,
+        quantity: ing.quantity,
+        unit: ing.unit,
+      })),
+    };
+    saveRecipe(newRecipe);
+
+    // 2. Add to SemiFinishedStock
+    const newItem = addSemiFinishedStockItem({
+      recipeId: newRecipe.id,
+      recipeName: newRecipe.name,
+      category: newRecipe.category,
+      unit: newRecipe.unitName,
+      currentStock: Math.max(0, newSfStock),
+      minStockLevel: Math.max(0, newSfMinStock),
+    });
+
+    // 3. Save to Dexie db.products
+    const dexieIngredients: DexieProductIngredient[] = newSfIngredients.map((ing) => ({
+      rawMaterialId: ing.rawMaterialId,
+      name: ing.name,
+      quantityPerBatch: ing.quantity,
+      unit: ing.unit,
+      category: ing.category,
+      unitCost: ing.unitCost,
+      totalCost: Number((ing.quantity * ing.unitCost).toFixed(2)),
+      type: 'RAW_MATERIAL',
+    }));
+
+    try {
+      await db.products.put({
+        id: newItem.id,
+        code: `SF-${Math.floor(100 + Math.random() * 900)}`,
+        name: newItem.recipeName,
+        category: newItem.category,
+        unit: newItem.unit,
+        batchUnit: newItem.unit,
+        price: 0,
+        costPrice: Number(calculatedUnitCost.toFixed(2)),
+        cogsUnitCost: Number(calculatedUnitCost.toFixed(2)),
+        unitCost: Number(calculatedUnitCost.toFixed(2)),
+        totalBatchCost: Number(totalBatchCost.toFixed(2)),
+        currentStock: newItem.currentStock,
+        minStockAlert: newItem.minStockLevel,
+        storeId: 'lab_central',
+        storeName: 'Laboratoire Central',
+        isActive: true,
+        updatedAt: new Date().toISOString(),
+        type: 'semi_finished',
+        yieldPerBatch: yieldUnits,
+        ingredients: dexieIngredients,
+        ficheTechnique: dexieIngredients,
+      });
+    } catch (err) {
+      console.warn('[InventoryList] Error registering new SF in db.products:', err);
+    }
+
+    setSfStockItems(getSemiFinishedStock());
+    setRecipes(getRecipes());
+    notifyToast({
+      type: 'success',
+      title: 'Recette Semi-Finie Enregistrée',
+      message: `« ${newItem.recipeName} » créée avec ${newSfIngredients.length} ingrédient(s) (Coût de revient : ${calculatedUnitCost.toFixed(2)} DZD/${newItem.unit}).`,
+    });
+
+    setNewSfName('');
+    setNewSfIngredients([]);
+    setNewSfYield(1);
+    setSelectedNewMatId('');
+    setShowAddSfModal(false);
   };
 
   // Handlers for Batch Production
@@ -344,6 +902,10 @@ export const InventoryList: React.FC = () => {
 
     const success = produceSemiFinishedBatch(selectedProduceRecipeId, batchesToProduce);
     if (success) {
+      const updatedSf = getSemiFinishedStock().find((s) => s.recipeId === selectedProduceRecipeId);
+      if (updatedSf) {
+        syncUpdateSemiFinishedStockInDexie(updatedSf.id, updatedSf.currentStock);
+      }
       setShowProduceModal(false);
     }
   };
@@ -489,11 +1051,29 @@ export const InventoryList: React.FC = () => {
               <Wrench className="w-4 h-4 text-amber-700" />
               <span>Diagnostic Ingrédients</span>
             </button>
+            <button
+              id="btn-reset-all-raw-stock"
+              onClick={() => setShowResetStockModal(true)}
+              disabled={materials.length === 0}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-rose-800 bg-rose-50 hover:bg-rose-100 active:bg-rose-200 border border-rose-200 rounded-lg shadow-xs transition-colors cursor-pointer disabled:opacity-50"
+              title="Remettre tout le stock actuel des matières premières à 0"
+            >
+              <RotateCcw className="w-4 h-4 text-rose-600" />
+              <span>Remettre tout le stock à 0</span>
+            </button>
           </div>
         )}
 
         {stockType === 'SEMI_FINISHED' && (
-          <div className="pr-2">
+          <div className="pr-2 flex items-center gap-2">
+            <button
+              onClick={() => setShowAddSfModal(true)}
+              className="inline-flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-bold text-indigo-700 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 rounded-lg shadow-xs transition-colors cursor-pointer"
+              title="Ajouter manuellement un nouveau produit semi-fini"
+            >
+              <Plus className="w-4 h-4" />
+              <span>Nouveau Semi-Fini</span>
+            </button>
             <button
               onClick={handleOpenProduceModal}
               className="inline-flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg shadow-xs transition-colors cursor-pointer"
@@ -611,6 +1191,18 @@ export const InventoryList: React.FC = () => {
                 <FileSpreadsheet className="w-3.5 h-3.5 text-amber-700" />
                 <span>{t('inventory.importCSV', 'Importer MP (CSV/Excel)')}</span>
               </button>
+
+              <button
+                id="btn-quick-reset-raw-stock"
+                type="button"
+                onClick={() => setShowResetStockModal(true)}
+                disabled={materials.length === 0}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-rose-800 bg-rose-50 hover:bg-rose-100 active:bg-rose-200 border border-rose-200 rounded-lg shadow-2xs transition-colors shrink-0 cursor-pointer disabled:opacity-50"
+                title="Remettre tout le stock actuel des matières premières à 0"
+              >
+                <RotateCcw className="w-3.5 h-3.5 text-rose-600" />
+                <span>Stock à 0</span>
+              </button>
             </>
           )}
 
@@ -672,13 +1264,13 @@ export const InventoryList: React.FC = () => {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-200 bg-white">
-                {filteredMaterials.map((mat) => {
+                {filteredMaterials.map((mat, idx) => {
                   const totalVal = mat.currentStock * mat.currentAvgCost;
                   const isLowStock = mat.currentStock <= mat.reorderLevel;
                   const isOutOfStock = mat.currentStock <= 0;
 
                   return (
-                    <tr key={mat.id} className="hover:bg-slate-50/80 transition-colors">
+                    <tr key={`${mat.id || 'mat'}-${idx}`} className="hover:bg-slate-50/80 transition-colors">
                       <td className="p-3">
                         <div className="font-bold text-slate-900">{mat.name}</div>
                         <span className="text-[10px] font-mono text-slate-400">{mat.sku}</span>
@@ -804,7 +1396,7 @@ export const InventoryList: React.FC = () => {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-200 bg-white">
-                {filteredSfStock.map((sf) => {
+                {filteredSfStock.map((sf, idx) => {
                   const recipe = recipes.find((r) => r.id === sf.recipeId);
                   const unitCost = recipe ? getRecipeUnitCost(recipe, recipes, materials) : 0;
                   const totalVal = sf.currentStock * unitCost;
@@ -812,13 +1404,21 @@ export const InventoryList: React.FC = () => {
                   const isOutOfStock = sf.currentStock <= 0;
 
                   return (
-                    <tr key={sf.id} className="hover:bg-slate-50/80 transition-colors">
+                    <tr key={`${sf.id || 'sf'}-${idx}`} className="hover:bg-slate-50/80 transition-colors">
                       <td className="p-3">
                         <div className="font-bold text-slate-900 flex items-center gap-1.5">
                           <Layers className="w-3.5 h-3.5 text-indigo-600 shrink-0" />
                           {sf.recipeName}
                         </div>
-                        <span className="text-[10px] text-slate-400 font-medium">{t('inventory.lastPrepared', { date: sf.lastUpdated, defaultValue: `Dernière préparation: ${sf.lastUpdated}` })}</span>
+                        <div className="flex items-center gap-2 text-[10px] text-slate-400 font-medium mt-0.5">
+                          {recipe && (
+                            <span className="inline-flex items-center gap-1 text-indigo-600 font-semibold bg-indigo-50 px-1.5 py-0.5 rounded border border-indigo-100">
+                              <ChefHat className="w-3 h-3" />
+                              {recipe.ingredients.length} ingrédient(s)
+                            </span>
+                          )}
+                          <span>{t('inventory.lastPrepared', { date: sf.lastUpdated, defaultValue: `Dernière préparation: ${sf.lastUpdated}` })}</span>
+                        </div>
                       </td>
                       <td className="p-3">
                         <span className="px-2.5 py-0.5 rounded-full text-[10px] font-semibold bg-indigo-50 text-indigo-700 border border-indigo-200">
@@ -852,13 +1452,22 @@ export const InventoryList: React.FC = () => {
                         {sf.minStockLevel} {sf.unit}
                       </td>
                       <td className="p-3 text-center">
-                        <button
-                          onClick={() => handleOpenEditSf(sf)}
-                          className="p-1.5 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors cursor-pointer"
-                          title={t('inventory.adjustSfModalTitle', 'Ajuster le stock semi-fini')}
-                        >
-                          <Edit2 className="w-4 h-4" />
-                        </button>
+                        <div className="flex items-center justify-center gap-1.5">
+                          <button
+                            onClick={() => handleOpenEditSf(sf)}
+                            className="p-1.5 text-slate-500 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors cursor-pointer"
+                            title="Modifier le produit semi-fini"
+                          >
+                            <Edit2 className="w-4 h-4" />
+                          </button>
+                          <button
+                            onClick={() => setDeletingSfStock(sf)}
+                            className="p-1.5 text-slate-500 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer"
+                            title="Supprimer le produit semi-fini du stock"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   );
@@ -926,47 +1535,627 @@ export const InventoryList: React.FC = () => {
         </div>
       )}
 
-      {/* Semi-Finished Stock Adjustment Modal */}
+      {/* Semi-Finished Stock Full Edit Modal (Recipe & Ingredients) */}
       {editingSfStock && (
-        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-xl border border-slate-200 space-y-4">
+        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto">
+          <div className="bg-white rounded-2xl max-w-2xl w-full p-6 shadow-2xl border border-slate-200 space-y-4 my-8 max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-              <h3 className="text-base font-bold text-slate-900">{t('inventory.adjustSfModalTitle', 'Ajuster Stock Produit Semi-Fini')}</h3>
-              <button onClick={() => setEditingSfStock(null)} className="text-slate-400 hover:text-slate-600 cursor-pointer">
+              <div className="flex items-center gap-2.5">
+                <div className="p-2.5 bg-indigo-50 text-indigo-600 rounded-xl">
+                  <ChefHat className="w-5 h-5" />
+                </div>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <h3 className="text-base font-bold text-slate-900">Modifier la Recette Semi-Finie</h3>
+                    <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-indigo-100 text-indigo-800">
+                      Recette & Ingrédients
+                    </span>
+                  </div>
+                  <p className="text-xs text-slate-500">Mettre à jour les ingrédients, le rendement et le stock du composant</p>
+                </div>
+              </div>
+              <button onClick={() => setEditingSfStock(null)} className="text-slate-400 hover:text-slate-600 cursor-pointer p-1 rounded-lg hover:bg-slate-100">
                 <X className="w-5 h-5" />
               </button>
             </div>
 
-            <p className="text-xs text-slate-600">
-              {t('inventory.adjustSfDesc', { name: editingSfStock.recipeName, defaultValue: `Mise à jour du niveau de stock pour ${editingSfStock.recipeName}.` })}
-            </p>
+            <form onSubmit={handleSaveSfEdit} className="space-y-4">
+              {/* Section 1: Informations Générales */}
+              <div className="bg-slate-50/70 p-3.5 rounded-xl border border-slate-200/80 space-y-3">
+                <h4 className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
+                  <Layers className="w-3.5 h-3.5 text-indigo-600" />
+                  Caractéristiques Générales
+                </h4>
 
-            <div>
-              <label className="block text-xs font-semibold text-slate-700 mb-1">{t('inventory.stock', 'Stock Actuel')} ({editingSfStock.unit})</label>
-              <input
-                type="number"
-                step="0.1"
-                min="0"
-                value={adjustedSfStock}
-                onChange={(e) => setAdjustedSfStock(parseFloat(e.target.value) || 0)}
-                className="w-full text-xs font-bold text-slate-900 bg-slate-50 rounded-lg p-2.5 border border-slate-300 focus:ring-2 focus:ring-indigo-500"
-              />
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">
+                    Nom du Composant Semi-Fini <span className="text-rose-500">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={editSfName}
+                    onChange={(e) => setEditSfName(e.target.value)}
+                    className="w-full text-xs font-semibold text-slate-900 bg-white rounded-lg p-2.5 border border-slate-300 focus:ring-2 focus:ring-indigo-500"
+                    placeholder="ex. Pâte Feuilletée Inversée, Crème Pâtissière..."
+                  />
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-700 mb-1">Catégorie</label>
+                    <input
+                      type="text"
+                      value={editSfCategory}
+                      onChange={(e) => setEditSfCategory(e.target.value)}
+                      className="w-full text-xs font-medium text-slate-900 bg-white rounded-lg p-2.5 border border-slate-300 focus:ring-2 focus:ring-indigo-500"
+                      placeholder="ex. Pâtes de base, Crèmes..."
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-700 mb-1">Unité</label>
+                    <select
+                      value={editSfUnit}
+                      onChange={(e) => setEditSfUnit(e.target.value)}
+                      className="w-full text-xs font-medium text-slate-900 bg-white rounded-lg p-2.5 border border-slate-300 focus:ring-2 focus:ring-indigo-500"
+                    >
+                      <option value="kg">kg (Kilogramme)</option>
+                      <option value="g">g (Gramme)</option>
+                      <option value="L">L (Litre)</option>
+                      <option value="ml">ml (Millilitre)</option>
+                      <option value="pièces">pièces (Unité)</option>
+                      <option value="plaques">plaques</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-700 mb-1">
+                      Rendement par lot ({editSfUnit})
+                    </label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      min="0.01"
+                      value={editSfYield}
+                      onChange={(e) => setEditSfYield(parseFloat(e.target.value) || 1)}
+                      className="w-full text-xs font-bold text-slate-900 bg-white rounded-lg p-2.5 border border-slate-300 focus:ring-2 focus:ring-indigo-500"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-700 mb-1">
+                      Stock Actuel ({editSfUnit})
+                    </label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      value={editSfStock}
+                      onChange={(e) => setEditSfStock(parseFloat(e.target.value) || 0)}
+                      className="w-full text-xs font-bold text-slate-900 bg-white rounded-lg p-2.5 border border-slate-300 focus:ring-2 focus:ring-indigo-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-700 mb-1">
+                      Seuil d'Alerte Min ({editSfUnit})
+                    </label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      value={editSfMinStock}
+                      onChange={(e) => setEditSfMinStock(parseFloat(e.target.value) || 0)}
+                      className="w-full text-xs font-bold text-slate-900 bg-white rounded-lg p-2.5 border border-slate-300 focus:ring-2 focus:ring-indigo-500"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Section 2: Ingrédients & Composition de la Recette */}
+              <div className="bg-slate-50/70 p-3.5 rounded-xl border border-slate-200/80 space-y-3">
+                <div className="flex items-center justify-between">
+                  <h4 className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
+                    <ChefHat className="w-3.5 h-3.5 text-indigo-600" />
+                    Composition de la Recette (Matières Premières)
+                  </h4>
+                  <span className="text-[11px] font-semibold text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded-full border border-indigo-200">
+                    {editSfIngredients.length} ingrédient(s)
+                  </span>
+                </div>
+
+                {/* Quick Add Ingredient Bar */}
+                <div className="p-3 bg-white rounded-xl border border-slate-200 shadow-xs flex flex-col sm:flex-row gap-2 items-stretch sm:items-end">
+                  <div className="flex-1">
+                    <label className="block text-[11px] font-semibold text-slate-600 mb-1">
+                      Sélectionner une Matière Première
+                    </label>
+                    <select
+                      value={selectedEditMatId}
+                      onChange={(e) => setSelectedEditMatId(e.target.value)}
+                      className="w-full text-xs font-medium text-slate-900 bg-slate-50 rounded-lg p-2 border border-slate-300 focus:ring-2 focus:ring-indigo-500"
+                    >
+                      <option value="">-- Choisir un ingrédient dans le stock --</option>
+                      {materials.map((m) => (
+                        <option key={m.id} value={m.id}>
+                          {m.name} ({m.unit}) — {m.currentAvgCost.toFixed(2)} DZD/{m.unit} (Stock: {m.currentStock} {m.unit})
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div className="w-full sm:w-28">
+                    <label className="block text-[11px] font-semibold text-slate-600 mb-1">
+                      Quantité {selectedEditMatId ? `(${materials.find((m) => m.id === selectedEditMatId)?.unit || 'u'})` : ''}
+                    </label>
+                    <input
+                      type="number"
+                      step="0.001"
+                      min="0.001"
+                      value={editMatQty}
+                      onChange={(e) => setEditMatQty(parseFloat(e.target.value) || 0)}
+                      className="w-full text-xs font-bold text-slate-900 bg-slate-50 rounded-lg p-2 border border-slate-300 focus:ring-2 focus:ring-indigo-500"
+                    />
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={handleAddIngredientToEdit}
+                    className="px-3 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-lg transition-colors cursor-pointer inline-flex items-center justify-center gap-1 shrink-0"
+                  >
+                    <Plus className="w-3.5 h-3.5" />
+                    <span>Ajouter</span>
+                  </button>
+                </div>
+
+                {/* Ingredients List Table */}
+                {editSfIngredients.length === 0 ? (
+                  <div className="p-4 text-center rounded-xl border border-dashed border-slate-300 bg-white/60 text-slate-500 text-xs">
+                    <p className="font-medium text-slate-700">Aucun ingrédient dans la recette</p>
+                    <p className="text-[11px] text-slate-400 mt-0.5">
+                      Sélectionnez une matière première ci-dessus pour ajouter des ingrédients à cette recette semi-finie.
+                    </p>
+                  </div>
+                ) : (
+                  <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white">
+                    <table className="w-full text-xs text-left">
+                      <thead className="bg-slate-100 text-slate-700 font-semibold border-b border-slate-200">
+                        <tr>
+                          <th className="p-2.5">Matière Première</th>
+                          <th className="p-2.5 w-28 text-center">Quantité</th>
+                          <th className="p-2.5 w-24 text-right">Coût Unitaire</th>
+                          <th className="p-2.5 w-24 text-right">Coût Ligne</th>
+                          <th className="p-2.5 w-12 text-center">Action</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100">
+                        {editSfIngredients.map((ing) => {
+                          const lineCost = ing.quantity * ing.unitCost;
+                          return (
+                            <tr key={ing.rawMaterialId} className="hover:bg-slate-50/80">
+                              <td className="p-2.5 font-semibold text-slate-900">
+                                <div>{ing.name}</div>
+                                {ing.category && (
+                                  <span className="text-[10px] text-slate-400 font-normal">{ing.category}</span>
+                                )}
+                              </td>
+                              <td className="p-2.5 text-center">
+                                <div className="inline-flex items-center gap-1">
+                                  <input
+                                    type="number"
+                                    step="0.001"
+                                    min="0.001"
+                                    value={ing.quantity}
+                                    onChange={(e) =>
+                                      handleUpdateIngredientQtyInEdit(ing.rawMaterialId, parseFloat(e.target.value) || 0)
+                                    }
+                                    className="w-16 p-1 text-xs font-bold text-center border border-slate-300 rounded bg-slate-50 focus:bg-white focus:ring-1 focus:ring-indigo-500"
+                                  />
+                                  <span className="text-slate-500 text-[11px]">{ing.unit}</span>
+                                </div>
+                              </td>
+                              <td className="p-2.5 text-right font-medium text-slate-600">
+                                {ing.unitCost.toFixed(2)} DZD
+                              </td>
+                              <td className="p-2.5 text-right font-bold text-indigo-700">
+                                {lineCost.toFixed(2)} DZD
+                              </td>
+                              <td className="p-2.5 text-center">
+                                <button
+                                  type="button"
+                                  onClick={() => handleRemoveIngredientFromEdit(ing.rawMaterialId)}
+                                  className="p-1 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded transition-colors cursor-pointer"
+                                  title="Retirer cet ingrédient"
+                                >
+                                  <Trash2 className="w-3.5 h-3.5" />
+                                </button>
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+
+                {/* Real-time Calculation Summary Card */}
+                {editSfIngredients.length > 0 && (
+                  <div className="p-3 bg-gradient-to-r from-indigo-50/80 to-blue-50/80 border border-indigo-200/80 rounded-xl flex flex-wrap items-center justify-between gap-3 text-xs">
+                    <div>
+                      <span className="text-slate-500 font-medium">Coût Total du Lot :</span>{' '}
+                      <span className="font-black text-slate-900 text-sm">
+                        {editSfIngredients.reduce((s, i) => s + i.quantity * i.unitCost, 0).toFixed(2)} DZD
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-1.5">
+                      <Calculator className="w-4 h-4 text-indigo-600" />
+                      <span className="text-slate-600 font-semibold">Coût de Revient Unitaire (COGS) :</span>
+                      <span className="px-2 py-0.5 bg-indigo-600 text-white font-black rounded-lg shadow-xs text-sm">
+                        {(
+                          editSfIngredients.reduce((s, i) => s + i.quantity * i.unitCost, 0) /
+                          Math.max(0.001, Number(editSfYield) || 1)
+                        ).toFixed(2)}{' '}
+                        DZD / {editSfUnit}
+                      </span>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-100">
+                <button
+                  type="button"
+                  onClick={() => setEditingSfStock(null)}
+                  className="px-4 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-100 rounded-lg cursor-pointer"
+                >
+                  {t('common.cancel', 'Annuler')}
+                </button>
+                <button
+                  type="submit"
+                  className="px-4 py-2 text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg shadow-sm cursor-pointer inline-flex items-center gap-1.5"
+                >
+                  <CheckCircle2 className="w-3.5 h-3.5" />
+                  <span>Enregistrer les modifications</span>
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Semi-Finished Delete Confirmation Modal */}
+      {deletingSfStock && (
+        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-xl border border-slate-200 space-y-4">
+            <div className="flex items-center gap-3">
+              <div className="p-3 bg-rose-50 text-rose-600 rounded-xl">
+                <Trash2 className="w-6 h-6" />
+              </div>
+              <div>
+                <h3 className="text-base font-bold text-slate-900">Supprimer le Produit Semi-Fini</h3>
+                <p className="text-xs text-slate-500">Cette action est irréversible</p>
+              </div>
             </div>
 
-            <div className="flex items-center justify-end gap-2 pt-3">
+            <div className="bg-slate-50 p-3.5 rounded-xl border border-slate-200 text-xs text-slate-700 space-y-1">
+              <p>
+                Êtes-vous sûr de vouloir supprimer définitivement le produit semi-fini{' '}
+                <span className="font-bold text-slate-900">« {deletingSfStock.recipeName} »</span> ?
+              </p>
+              <p className="text-slate-500 text-[11px]">
+                Stock actuel : <span className="font-semibold">{deletingSfStock.currentStock} {deletingSfStock.unit}</span> ({deletingSfStock.category})
+              </p>
+            </div>
+
+            <div className="flex items-center justify-end gap-2 pt-2">
               <button
-                onClick={() => setEditingSfStock(null)}
+                onClick={() => setDeletingSfStock(null)}
                 className="px-4 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-100 rounded-lg cursor-pointer"
               >
                 {t('common.cancel', 'Annuler')}
               </button>
               <button
-                onClick={handleSaveSfAdjustment}
-                className="px-4 py-2 text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg shadow-sm cursor-pointer"
+                onClick={handleDeleteSf}
+                className="px-4 py-2 text-xs font-bold text-white bg-rose-600 hover:bg-rose-700 rounded-lg shadow-sm cursor-pointer inline-flex items-center gap-1.5"
               >
-                {t('inventory.saveStock', 'Enregistrer le Stock')}
+                <Trash2 className="w-3.5 h-3.5" />
+                <span>Supprimer définitivement</span>
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* New Semi-Finished Creation Modal (Recipe & Ingredients) */}
+      {showAddSfModal && (
+        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto">
+          <div className="bg-white rounded-2xl max-w-2xl w-full p-6 shadow-2xl border border-slate-200 space-y-4 my-8 max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+              <div className="flex items-center gap-2.5">
+                <div className="p-2.5 bg-indigo-50 text-indigo-600 rounded-xl">
+                  <ChefHat className="w-5 h-5" />
+                </div>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <h3 className="text-base font-bold text-slate-900">Nouvelle Recette Semi-Finie</h3>
+                    <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-indigo-100 text-indigo-800">
+                      Base & Ingrédients
+                    </span>
+                  </div>
+                  <p className="text-xs text-slate-500">
+                    Définissez la composition, les ingrédients et les niveaux de stock pour cette base de laboratoire.
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => setShowAddSfModal(false)}
+                className="text-slate-400 hover:text-slate-600 cursor-pointer p-1 rounded-lg hover:bg-slate-100"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleCreateNewSf} className="space-y-4">
+              {/* Section 1: Informations Générales */}
+              <div className="bg-slate-50/70 p-3.5 rounded-xl border border-slate-200/80 space-y-3">
+                <h4 className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
+                  <Layers className="w-3.5 h-3.5 text-indigo-600" />
+                  Caractéristiques Générales
+                </h4>
+
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">
+                    Nom de la Recette / Base <span className="text-rose-500">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={newSfName}
+                    onChange={(e) => setNewSfName(e.target.value)}
+                    className="w-full text-xs font-semibold text-slate-900 bg-white rounded-lg p-2.5 border border-slate-300 focus:ring-2 focus:ring-indigo-500"
+                    placeholder="ex. Ganache Chocolat Noir 64%, Crème Pâtissière Vanille, Pâte Feuilletée Inversée..."
+                  />
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-700 mb-1">Catégorie</label>
+                    <input
+                      type="text"
+                      value={newSfCategory}
+                      onChange={(e) => setNewSfCategory(e.target.value)}
+                      className="w-full text-xs font-medium text-slate-900 bg-white rounded-lg p-2.5 border border-slate-300 focus:ring-2 focus:ring-indigo-500"
+                      placeholder="ex. Pâtes de base, Crèmes..."
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-700 mb-1">Unité de mesure</label>
+                    <select
+                      value={newSfUnit}
+                      onChange={(e) => setNewSfUnit(e.target.value)}
+                      className="w-full text-xs font-medium text-slate-900 bg-white rounded-lg p-2.5 border border-slate-300 focus:ring-2 focus:ring-indigo-500"
+                    >
+                      <option value="kg">kg (Kilogramme)</option>
+                      <option value="g">g (Gramme)</option>
+                      <option value="L">L (Litre)</option>
+                      <option value="ml">ml (Millilitre)</option>
+                      <option value="pièces">pièces (Unité)</option>
+                      <option value="plaques">plaques</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-700 mb-1">
+                      Rendement par lot ({newSfUnit})
+                    </label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      min="0.01"
+                      value={newSfYield}
+                      onChange={(e) => setNewSfYield(parseFloat(e.target.value) || 1)}
+                      className="w-full text-xs font-bold text-slate-900 bg-white rounded-lg p-2.5 border border-slate-300 focus:ring-2 focus:ring-indigo-500"
+                      placeholder="1"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-700 mb-1">
+                      Stock Initial en Labo ({newSfUnit})
+                    </label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      value={newSfStock}
+                      onChange={(e) => setNewSfStock(parseFloat(e.target.value) || 0)}
+                      className="w-full text-xs font-bold text-slate-900 bg-white rounded-lg p-2.5 border border-slate-300 focus:ring-2 focus:ring-indigo-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-700 mb-1">
+                      Seuil Alerte Min ({newSfUnit})
+                    </label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      value={newSfMinStock}
+                      onChange={(e) => setNewSfMinStock(parseFloat(e.target.value) || 0)}
+                      className="w-full text-xs font-bold text-slate-900 bg-white rounded-lg p-2.5 border border-slate-300 focus:ring-2 focus:ring-indigo-500"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Section 2: Ingrédients & Composition de la Recette */}
+              <div className="bg-slate-50/70 p-3.5 rounded-xl border border-slate-200/80 space-y-3">
+                <div className="flex items-center justify-between">
+                  <h4 className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
+                    <ChefHat className="w-3.5 h-3.5 text-indigo-600" />
+                    Composition de la Recette (Matières Premières)
+                  </h4>
+                  <span className="text-[11px] font-semibold text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded-full border border-indigo-200">
+                    {newSfIngredients.length} ingrédient(s)
+                  </span>
+                </div>
+
+                {/* Quick Add Ingredient Bar */}
+                <div className="p-3 bg-white rounded-xl border border-slate-200 shadow-xs flex flex-col sm:flex-row gap-2 items-stretch sm:items-end">
+                  <div className="flex-1">
+                    <label className="block text-[11px] font-semibold text-slate-600 mb-1">
+                      Sélectionner une Matière Première
+                    </label>
+                    <select
+                      value={selectedNewMatId}
+                      onChange={(e) => setSelectedNewMatId(e.target.value)}
+                      className="w-full text-xs font-medium text-slate-900 bg-slate-50 rounded-lg p-2 border border-slate-300 focus:ring-2 focus:ring-indigo-500"
+                    >
+                      <option value="">-- Choisir un ingrédient dans le stock --</option>
+                      {materials.map((m) => (
+                        <option key={m.id} value={m.id}>
+                          {m.name} ({m.unit}) — {m.currentAvgCost.toFixed(2)} DZD/{m.unit} (Stock: {m.currentStock} {m.unit})
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div className="w-full sm:w-28">
+                    <label className="block text-[11px] font-semibold text-slate-600 mb-1">
+                      Quantité {selectedNewMatId ? `(${materials.find((m) => m.id === selectedNewMatId)?.unit || 'u'})` : ''}
+                    </label>
+                    <input
+                      type="number"
+                      step="0.001"
+                      min="0.001"
+                      value={newMatQty}
+                      onChange={(e) => setNewMatQty(parseFloat(e.target.value) || 0)}
+                      className="w-full text-xs font-bold text-slate-900 bg-slate-50 rounded-lg p-2 border border-slate-300 focus:ring-2 focus:ring-indigo-500"
+                    />
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={handleAddIngredientToNew}
+                    className="px-3 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-lg transition-colors cursor-pointer inline-flex items-center justify-center gap-1 shrink-0"
+                  >
+                    <Plus className="w-3.5 h-3.5" />
+                    <span>Ajouter</span>
+                  </button>
+                </div>
+
+                {/* Ingredients List Table */}
+                {newSfIngredients.length === 0 ? (
+                  <div className="p-4 text-center rounded-xl border border-dashed border-slate-300 bg-white/60 text-slate-500 text-xs">
+                    <p className="font-medium text-slate-700">Aucun ingrédient dans la recette</p>
+                    <p className="text-[11px] text-slate-400 mt-0.5">
+                      Sélectionnez une matière première ci-dessus pour composer votre recette semi-finie.
+                    </p>
+                  </div>
+                ) : (
+                  <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white">
+                    <table className="w-full text-xs text-left">
+                      <thead className="bg-slate-100 text-slate-700 font-semibold border-b border-slate-200">
+                        <tr>
+                          <th className="p-2.5">Matière Première</th>
+                          <th className="p-2.5 w-28 text-center">Quantité</th>
+                          <th className="p-2.5 w-24 text-right">Coût Unitaire</th>
+                          <th className="p-2.5 w-24 text-right">Coût Ligne</th>
+                          <th className="p-2.5 w-12 text-center">Action</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100">
+                        {newSfIngredients.map((ing) => {
+                          const lineCost = ing.quantity * ing.unitCost;
+                          return (
+                            <tr key={ing.rawMaterialId} className="hover:bg-slate-50/80">
+                              <td className="p-2.5 font-semibold text-slate-900">
+                                <div>{ing.name}</div>
+                                {ing.category && (
+                                  <span className="text-[10px] text-slate-400 font-normal">{ing.category}</span>
+                                )}
+                              </td>
+                              <td className="p-2.5 text-center">
+                                <div className="inline-flex items-center gap-1">
+                                  <input
+                                    type="number"
+                                    step="0.001"
+                                    min="0.001"
+                                    value={ing.quantity}
+                                    onChange={(e) =>
+                                      handleUpdateIngredientQtyInNew(ing.rawMaterialId, parseFloat(e.target.value) || 0)
+                                    }
+                                    className="w-16 p-1 text-xs font-bold text-center border border-slate-300 rounded bg-slate-50 focus:bg-white focus:ring-1 focus:ring-indigo-500"
+                                  />
+                                  <span className="text-slate-500 text-[11px]">{ing.unit}</span>
+                                </div>
+                              </td>
+                              <td className="p-2.5 text-right font-medium text-slate-600">
+                                {ing.unitCost.toFixed(2)} DZD
+                              </td>
+                              <td className="p-2.5 text-right font-bold text-indigo-700">
+                                {lineCost.toFixed(2)} DZD
+                              </td>
+                              <td className="p-2.5 text-center">
+                                <button
+                                  type="button"
+                                  onClick={() => handleRemoveIngredientFromNew(ing.rawMaterialId)}
+                                  className="p-1 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded transition-colors cursor-pointer"
+                                  title="Retirer cet ingrédient"
+                                >
+                                  <Trash2 className="w-3.5 h-3.5" />
+                                </button>
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+
+                {/* Real-time Calculation Summary Card */}
+                {newSfIngredients.length > 0 && (
+                  <div className="p-3 bg-gradient-to-r from-indigo-50/80 to-blue-50/80 border border-indigo-200/80 rounded-xl flex flex-wrap items-center justify-between gap-3 text-xs">
+                    <div>
+                      <span className="text-slate-500 font-medium">Coût Total du Lot :</span>{' '}
+                      <span className="font-black text-slate-900 text-sm">
+                        {newSfIngredients.reduce((s, i) => s + i.quantity * i.unitCost, 0).toFixed(2)} DZD
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-1.5">
+                      <Calculator className="w-4 h-4 text-indigo-600" />
+                      <span className="text-slate-600 font-semibold">Coût de Revient Unitaire (COGS) :</span>
+                      <span className="px-2 py-0.5 bg-indigo-600 text-white font-black rounded-lg shadow-xs text-sm">
+                        {(
+                          newSfIngredients.reduce((s, i) => s + i.quantity * i.unitCost, 0) /
+                          Math.max(0.001, Number(newSfYield) || 1)
+                        ).toFixed(2)}{' '}
+                        DZD / {newSfUnit}
+                      </span>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-100">
+                <button
+                  type="button"
+                  onClick={() => setShowAddSfModal(false)}
+                  className="px-4 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-100 rounded-lg cursor-pointer"
+                >
+                  {t('common.cancel', 'Annuler')}
+                </button>
+                <button
+                  type="submit"
+                  className="px-4 py-2 text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg shadow-sm cursor-pointer inline-flex items-center gap-1.5"
+                >
+                  <Plus className="w-3.5 h-3.5" />
+                  <span>Créer la Recette & Enregistrer</span>
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}
@@ -1124,6 +2313,84 @@ export const InventoryList: React.FC = () => {
         <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-2 sm:p-4 overflow-y-auto">
           <div className="bg-stone-50 rounded-2xl max-w-7xl w-full max-h-[94vh] overflow-y-auto p-4 sm:p-6 shadow-2xl border border-stone-200">
             <IngredientsDiagnosticView onClose={() => setIsDiagnosticOpen(false)} />
+          </div>
+        </div>
+      )}
+
+      {/* Reset All Current Stock to 0 Confirmation Modal */}
+      {showResetStockModal && (
+        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl max-w-lg w-full p-6 shadow-2xl border border-slate-200 space-y-4 animate-in fade-in zoom-in-95 duration-150">
+            <div className="flex items-start gap-3.5">
+              <div className="p-3 bg-rose-100 text-rose-700 rounded-xl shrink-0">
+                <RotateCcw className="w-6 h-6" />
+              </div>
+              <div>
+                <h3 className="text-base font-bold text-slate-900">
+                  Remettre tout le stock actuel à 0
+                </h3>
+                <p className="text-xs text-slate-500 mt-0.5">
+                  Matières Premières — Laboratoire Central
+                </p>
+              </div>
+            </div>
+
+            <div className="bg-rose-50/80 p-4 rounded-xl border border-rose-200 text-xs text-rose-950 space-y-2.5">
+              <div className="flex items-center gap-2 font-bold text-rose-900 text-sm">
+                <AlertTriangle className="w-4 h-4 text-rose-600 shrink-0" />
+                <span>Confirmation : Réinitialisation globale des stocks</span>
+              </div>
+              <p className="leading-relaxed">
+                Cette action va réinitialiser le <span className="font-bold">Stock Actuel</span> de toutes les matières premières ({materials.length} références) à <span className="font-bold text-rose-700">0</span>.
+              </p>
+              <div className="bg-white/90 rounded-lg p-3 border border-rose-100 space-y-1.5 text-slate-700 text-[11px]">
+                <div className="flex justify-between">
+                  <span className="text-slate-500">Matières premières concernées :</span>
+                  <span className="font-bold text-slate-900">{materials.length} articles</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-slate-500">Valorisation actuelle du stock :</span>
+                  <span className="font-bold text-rose-700">{totalRawValue.toFixed(2)} DZD</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-slate-500">Nouvelle valorisation après remise à 0 :</span>
+                  <span className="font-bold text-slate-900">0.00 DZD</span>
+                </div>
+              </div>
+              <p className="text-[11px] text-slate-600 leading-relaxed">
+                ℹ️ <span className="font-medium text-slate-800">Données préservées :</span> Les fiches techniques, liaisons de recettes, prix moyens pondérés (PAMP), seuils d'alerte et références SKU restent inchangés.
+              </p>
+            </div>
+
+            <div className="flex items-center justify-end gap-2.5 pt-2">
+              <button
+                type="button"
+                disabled={isResettingStock}
+                onClick={() => setShowResetStockModal(false)}
+                className="px-4 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-100 rounded-lg transition-colors cursor-pointer disabled:opacity-50"
+              >
+                Annuler
+              </button>
+              <button
+                id="btn-confirm-reset-raw-stock"
+                type="button"
+                disabled={isResettingStock}
+                onClick={handleConfirmResetAllRawStock}
+                className="px-4 py-2 text-xs font-bold text-white bg-rose-600 hover:bg-rose-700 active:bg-rose-800 rounded-lg shadow-sm transition-colors cursor-pointer inline-flex items-center gap-2 disabled:opacity-60"
+              >
+                {isResettingStock ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    <span>Remise à zéro en cours...</span>
+                  </>
+                ) : (
+                  <>
+                    <RotateCcw className="w-4 h-4" />
+                    <span>Confirmer et remettre à 0</span>
+                  </>
+                )}
+              </button>
+            </div>
           </div>
         </div>
       )}

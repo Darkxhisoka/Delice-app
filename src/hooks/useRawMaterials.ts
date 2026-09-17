@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '../lib/supabaseClient';
 import { RawMaterial } from '../types';
-import { getRawMaterials, saveRawMaterials, notifyListeners } from '../services/storage';
+import { getRawMaterials, saveRawMaterials, notifyListeners, deduplicateById } from '../services/storage';
 
 export interface UseRawMaterialsReturn {
   rawMaterials: RawMaterial[];
@@ -31,7 +31,7 @@ function mapRawMaterial(row: any): RawMaterial {
 }
 
 export function useRawMaterials(): UseRawMaterialsReturn {
-  const [rawMaterials, setRawMaterials] = useState<RawMaterial[]>(() => getRawMaterials());
+  const [rawMaterials, setRawMaterials] = useState<RawMaterial[]>(() => deduplicateById(getRawMaterials()));
   const [loading, setLoading] = useState<boolean>(true);
   const [isRealtimeConnected, setIsRealtimeConnected] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
@@ -51,7 +51,7 @@ export function useRawMaterials(): UseRawMaterialsReturn {
       }
 
       if (data) {
-        const mapped = data.map(mapRawMaterial);
+        const mapped = deduplicateById(data.map(mapRawMaterial));
         setRawMaterials(mapped);
         saveRawMaterials(mapped);
         return mapped;
@@ -60,7 +60,7 @@ export function useRawMaterials(): UseRawMaterialsReturn {
     } catch (err: any) {
       console.warn('Supabase raw_materials fetch warning:', err);
       setError(err?.message || 'Erreur de chargement des matières premières');
-      const fallback = getRawMaterials();
+      const fallback = deduplicateById(getRawMaterials());
       setRawMaterials(fallback);
       return fallback;
     } finally {
@@ -123,7 +123,7 @@ export function useRawMaterials(): UseRawMaterialsReturn {
 
   const saveRawMaterial = useCallback(
     async (material: Partial<RawMaterial> & { name: string }): Promise<RawMaterial> => {
-      const id = material.id || `rm-${Date.now()}`;
+      const id = material.id || `rm-${Date.now()}-${Math.floor(100 + Math.random() * 900)}`;
       const sku = material.sku || `SKU-${Date.now().toString().slice(-6)}`;
       const unit = material.unit || 'kg';
       const category = material.category || 'Other';

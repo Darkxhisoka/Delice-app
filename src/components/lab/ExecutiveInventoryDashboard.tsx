@@ -21,7 +21,8 @@ import {
   addActivityLog,
   notifyToast,
   subscribeToStoreChanges,
-  getActiveStoreId
+  getActiveStoreId,
+  deduplicateById
 } from '../../services/storage';
 import {
   RawMaterial,
@@ -151,14 +152,14 @@ export const ExecutiveInventoryDashboard: React.FC = () => {
       if (!pkgList || pkgList.length === 0) {
         pkgList = getPackagingMaterials();
       }
-      setPackagingMaterials(pkgList);
+      setPackagingMaterials(deduplicateById(pkgList));
 
       // 3. Raw Materials
       let rawList = await fetchRawMaterialsFromSupabase();
       if (!rawList || rawList.length === 0) {
         rawList = getRawMaterials();
       }
-      setRawMaterials(rawList);
+      setRawMaterials(deduplicateById(rawList));
 
       // 4. Store Packaging Inventory
       let storePkgInv: StorePackagingInventory[] = [];
@@ -1083,7 +1084,7 @@ export const ExecutiveInventoryDashboard: React.FC = () => {
                       </td>
                     </tr>
                   ) : (
-                    filteredStockList.map((item: any) => {
+                    filteredStockList.map((item: any, idx: number) => {
                       const isPkg = stockType === 'PACKAGING';
                       const code = isPkg ? item.code || `PKG-${item.id.slice(-4)}` : item.sku || `SKU-${item.id.slice(-4)}`;
                       const name = item.name;
@@ -1096,7 +1097,7 @@ export const ExecutiveInventoryDashboard: React.FC = () => {
                       const isLow = stockQty <= minAlert;
 
                       return (
-                        <tr key={item.id} className="hover:bg-slate-50/80 transition-colors">
+                        <tr key={`${item.id || 'stock'}-${idx}`} className="hover:bg-slate-50/80 transition-colors">
                           <td className="p-4 font-mono font-bold text-slate-900">
                             {code}
                           </td>
@@ -1290,12 +1291,12 @@ export const ExecutiveInventoryDashboard: React.FC = () => {
                 <tbody className="divide-y divide-slate-100 font-medium">
                   {storePackagingInventory
                     .filter((item) => item.store_id === selectedStore.id)
-                    .map((item) => {
+                    .map((item, idx) => {
                       const isZero = item.quantity_on_hand <= 0;
                       const isLow = item.quantity_on_hand < 30;
 
                       return (
-                        <tr key={item.id} className="hover:bg-slate-50">
+                        <tr key={`${item.id || 'store-pkg'}-${idx}`} className="hover:bg-slate-50">
                           <td className="p-3 font-bold text-slate-900">
                             {item.packaging_name || `Article #${item.packaging_id}`}
                           </td>

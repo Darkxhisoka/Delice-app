@@ -7,6 +7,7 @@ import {
   getInventoryAdjustments,
   notifyListeners,
   getActiveStoreId,
+  deduplicateById,
 } from './storage';
 import {
   RawMaterial,
@@ -39,7 +40,7 @@ export async function fetchRawMaterialsFromSupabase(): Promise<RawMaterial[]> {
     console.warn('Supabase fetch raw_materials warning:', error.message);
     return [];
   }
-  return (data || []).map((row: any) => ({
+  const mapped = (data || []).map((row: any) => ({
     id: row.id,
     sku: row.sku || `SKU-${row.id}`,
     name: row.name,
@@ -53,10 +54,11 @@ export async function fetchRawMaterialsFromSupabase(): Promise<RawMaterial[]> {
     lastUpdated: row.last_updated || row.updated_at || new Date().toISOString(),
     barcode: row.barcode || '',
   }));
+  return deduplicateById(mapped);
 }
 
 export async function upsertRawMaterialToSupabase(material: Partial<RawMaterial> & { id?: string; name: string }): Promise<RawMaterial> {
-  const id = material.id || `rm-${Date.now()}`;
+  const id = material.id || `rm-${Date.now()}-${Math.floor(100 + Math.random() * 900)}`;
   const sku = material.sku || `SKU-${Date.now().toString().slice(-6)}`;
   const unit = material.unit || 'kg';
   const category = material.category || 'Other';

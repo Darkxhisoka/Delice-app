@@ -140,7 +140,7 @@ export const AddRawMaterialModal: React.FC<AddRawMaterialModalProps> = ({
       const trimmedName = name.trim();
 
       const newMaterialPayload: RawMaterial = {
-        id: `rm-${Date.now()}`,
+        id: `rm-${Date.now()}-${Math.floor(100 + Math.random() * 900)}`,
         name: trimmedName,
         sku: skuCode,
         barcode: barcode.trim() || undefined,
@@ -180,8 +180,9 @@ export const AddRawMaterialModal: React.FC<AddRawMaterialModalProps> = ({
         console.warn('Could not put new material into Dexie:', dexieErr);
       }
 
-      // Also sync to local storage cache
-      saveRawMaterials([savedMaterial, ...existingMaterials]);
+      // Also sync to local storage cache without duplicating
+      const freshMaterials = getRawMaterials().filter((m) => m.id !== savedMaterial.id);
+      saveRawMaterials([savedMaterial, ...freshMaterials]);
 
       // Add activity log entry
       addActivityLog({

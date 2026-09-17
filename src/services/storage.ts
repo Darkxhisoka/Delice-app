@@ -439,6 +439,22 @@ export function deleteStore(id: string): boolean {
   return true;
 }
 
+// Helper to eliminate duplicate items sharing the same ID
+export function deduplicateById<T extends { id?: string }>(items: T[]): T[] {
+  if (!Array.isArray(items)) return [];
+  const seen = new Set<string>();
+  const result: T[] = [];
+  for (const item of items) {
+    if (!item) continue;
+    const key = item.id ? String(item.id) : JSON.stringify(item);
+    if (!seen.has(key)) {
+      seen.add(key);
+      result.push(item);
+    }
+  }
+  return result;
+}
+
 // Raw Materials
 export function getRawMaterials(): RawMaterial[] {
   initStorage();
@@ -451,16 +467,21 @@ export function getRawMaterials(): RawMaterial[] {
       localStorage.removeItem(KEYS.RAW_MATERIALS);
       return [];
     }
-    return parsed;
+    const deduplicated = deduplicateById(parsed);
+    if (deduplicated.length !== parsed.length) {
+      localStorage.setItem(KEYS.RAW_MATERIALS, JSON.stringify(deduplicated));
+    }
+    return deduplicated;
   } catch {
     return [];
   }
 }
 
 export function saveRawMaterials(materials: RawMaterial[]) {
-  localStorage.setItem(KEYS.RAW_MATERIALS, JSON.stringify(materials));
+  const deduplicated = deduplicateById(materials);
+  localStorage.setItem(KEYS.RAW_MATERIALS, JSON.stringify(deduplicated));
   notifyListeners();
-  materials.forEach((mat) => {
+  deduplicated.forEach((mat) => {
     if (mat.id) {
       syncToFirestore('raw_materials', mat.id, mat);
     }
@@ -468,7 +489,7 @@ export function saveRawMaterials(materials: RawMaterial[]) {
 
   // Keep Dexie db.raw_materials 100% synchronized for real-time live queries
   try {
-    const dexieItems: DexieRawMaterial[] = materials.map((m) => {
+    const dexieItems: DexieRawMaterial[] = deduplicated.map((m) => {
       const cost = Number(m.currentAvgCost ?? 0);
       const stock = Number(m.currentStock ?? 0);
       return {
@@ -498,7 +519,7 @@ export function saveRawMaterials(materials: RawMaterial[]) {
     }
 
     // Clean up any deleted IDs from db.raw_materials
-    const activeIds = new Set(materials.map((m) => m.id));
+    const activeIds = new Set(deduplicated.map((m) => m.id));
     db.raw_materials.toArray().then((existingDexie) => {
       const idsToDelete = existingDexie.filter((d) => !activeIds.has(d.id)).map((d) => d.id);
       if (idsToDelete.length > 0) {
@@ -935,6 +956,19 @@ export function addRecipe(recipeData: Omit<Recipe, 'id'>): Recipe {
   return newRecipe;
 }
 
+export function saveRecipe(recipe: Recipe): Recipe {
+  const recipes = getRecipes();
+  const index = recipes.findIndex((r) => r.id === recipe.id);
+  if (index !== -1) {
+    recipes[index] = { ...recipes[index], ...recipe };
+  } else {
+    recipes.push(recipe);
+  }
+  localStorage.setItem(KEYS.RECIPES, JSON.stringify(recipes));
+  notifyListeners();
+  return recipe;
+}
+
 export function updateRecipe(id: string, updatedFields: Partial<Omit<Recipe, 'id'>>): Recipe | null {
   const recipes = getRecipes();
   const index = recipes.findIndex((r) => r.id === id);
@@ -956,6 +990,21 @@ export function deleteRecipe(id: string): boolean {
   if (filtered.length === recipes.length) return false;
 
   localStorage.setItem(KEYS.RECIPES, JSON.stringify(filtered));
+
+  // Also clean up from semi-finished stock if linked
+  try {
+    const rawSf = localStorage.getItem(KEYS.SEMI_FINISHED_STOCK);
+    if (rawSf) {
+      const sfList: SemiFinishedStockItem[] = JSON.parse(rawSf);
+      const filteredSf = sfList.filter((s) => s.recipeId !== id && s.id !== id);
+      if (filteredSf.length !== sfList.length) {
+        localStorage.setItem(KEYS.SEMI_FINISHED_STOCK, JSON.stringify(filteredSf));
+      }
+    }
+  } catch (e) {
+    console.warn('[storage] Error cleaning up semi-finished stock on deleteRecipe:', e);
+  }
+
   notifyListeners();
   return true;
 }
@@ -1053,7 +1102,180 @@ export function updateSemiFinishedStockQuantity(id: string, newStock: number) {
     stock[idx].currentStock = Math.max(0, newStock);
     stock[idx].lastUpdated = new Date().toISOString().slice(0, 10);
     saveSemiFinishedStock(stock);
+
+    // Sync to Dexie db.products
+    try {
+      db.products
+        .filter(
+          (p) =>
+            (p.type === 'semi_finished' || p.type === 'semi_fini') &&
+            (p.id === id || p.name.toLowerCase() === stock[idx].recipeName.toLowerCase())
+        )
+        .first()
+        .then((existing) => {
+          if (existing) {
+            db.products.update(existing.id, {
+              currentStock: Math.max(0, newStock),
+              updatedAt: new Date().toISOString(),
+            });
+          }
+        })
+        .catch((err) => console.warn('[storage] Error syncing SF stock to Dexie:', err));
+    } catch (e) {
+      // Ignore background sync error
+    }
   }
+}
+
+export function updateSemiFinishedStockItem(
+  id: string,
+  updates: Partial<Omit<SemiFinishedStockItem, 'id'>>
+): SemiFinishedStockItem | null {
+  const stock = getSemiFinishedStock();
+  const idx = stock.findIndex((s) => s.id === id);
+  if (idx === -1) return null;
+
+  const current = stock[idx];
+  const updated: SemiFinishedStockItem = {
+    ...current,
+    ...updates,
+    id: current.id,
+    lastUpdated: new Date().toISOString().slice(0, 10),
+  };
+  stock[idx] = updated;
+  saveSemiFinishedStock(stock);
+
+  // If this item is linked to a recipe, sync the recipe metadata as well
+  if (current.recipeId) {
+    const recipes = getRecipes();
+    const rIdx = recipes.findIndex((r) => r.id === current.recipeId);
+    if (rIdx !== -1) {
+      recipes[rIdx] = {
+        ...recipes[rIdx],
+        name: updated.recipeName || recipes[rIdx].name,
+        category: updated.category || recipes[rIdx].category,
+        unitName: updated.unit || recipes[rIdx].unitName,
+      };
+      localStorage.setItem(KEYS.RECIPES, JSON.stringify(recipes));
+    }
+  }
+
+  // Sync to Dexie db.products
+  try {
+    db.products
+      .filter(
+        (p) =>
+          (p.type === 'semi_finished' || p.type === 'semi_fini') &&
+          (p.id === id || (current.recipeId && p.id === current.recipeId) || p.name.toLowerCase() === current.recipeName.toLowerCase())
+      )
+      .first()
+      .then((existing) => {
+        if (existing) {
+          db.products.update(existing.id, {
+            name: updated.recipeName,
+            category: updated.category,
+            unit: updated.unit,
+            batchUnit: updated.unit,
+            currentStock: updated.currentStock,
+            minStockAlert: updated.minStockLevel,
+            updatedAt: new Date().toISOString(),
+          });
+        }
+      })
+      .catch((err) => console.warn('[storage] Error syncing SF item to Dexie:', err));
+  } catch (e) {
+    // Ignore background sync error
+  }
+
+  notifyListeners();
+  return updated;
+}
+
+export function deleteSemiFinishedStockItem(id: string): boolean {
+  const stock = getSemiFinishedStock();
+  const target = stock.find((s) => s.id === id);
+  if (!target) return false;
+
+  const filtered = stock.filter((s) => s.id !== id);
+  saveSemiFinishedStock(filtered);
+
+  // If this item was linked to a recipe, remove the recipe too so it won't auto-reseed
+  if (target.recipeId) {
+    const recipes = getRecipes();
+    const remainingRecipes = recipes.filter((r) => r.id !== target.recipeId);
+    if (remainingRecipes.length !== recipes.length) {
+      localStorage.setItem(KEYS.RECIPES, JSON.stringify(remainingRecipes));
+    }
+  }
+
+  // Sync delete to Dexie db.products
+  try {
+    db.products
+      .filter(
+        (p) =>
+          (p.type === 'semi_finished' || p.type === 'semi_fini') &&
+          (p.id === id || (target.recipeId && p.id === target.recipeId) || p.name.toLowerCase() === target.recipeName.toLowerCase())
+      )
+      .toArray()
+      .then((matches) => {
+        for (const m of matches) {
+          db.products.delete(m.id);
+        }
+      })
+      .catch((err) => console.warn('[storage] Error deleting SF from Dexie:', err));
+  } catch (e) {
+    // Ignore background sync error
+  }
+
+  notifyListeners();
+  return true;
+}
+
+export function addSemiFinishedStockItem(
+  item: Omit<SemiFinishedStockItem, 'id' | 'lastUpdated'>
+): SemiFinishedStockItem {
+  const stock = getSemiFinishedStock();
+  const newId = `sf-stock-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
+  const newItem: SemiFinishedStockItem = {
+    ...item,
+    id: newId,
+    lastUpdated: new Date().toISOString().slice(0, 10),
+  };
+  stock.push(newItem);
+  saveSemiFinishedStock(stock);
+
+  // Sync new SF to Dexie db.products so it immediately appears in Fiche Technique dropdowns
+  try {
+    db.products
+      .put({
+        id: newItem.id,
+        code: `SF-${Math.floor(100 + Math.random() * 900)}`,
+        name: newItem.recipeName,
+        category: newItem.category || 'Bases & Semi-Finis',
+        unit: newItem.unit || 'kg',
+        batchUnit: newItem.unit || 'kg',
+        price: 0,
+        costPrice: 0,
+        cogsUnitCost: 0,
+        unitCost: 0,
+        currentStock: newItem.currentStock,
+        minStockAlert: newItem.minStockLevel,
+        storeId: 'lab_central',
+        storeName: 'Laboratoire Central',
+        isActive: true,
+        updatedAt: new Date().toISOString(),
+        type: 'semi_finished',
+        yieldPerBatch: 1,
+        ingredients: [],
+        ficheTechnique: [],
+      })
+      .catch((err) => console.warn('[storage] Error putting SF in Dexie:', err));
+  } catch (e) {
+    // Ignore background sync error
+  }
+
+  notifyListeners();
+  return newItem;
 }
 
 export function produceSemiFinishedBatch(recipeId: string, batchesToProduce: number): boolean {
@@ -1148,6 +1370,31 @@ export function produceSemiFinishedBatch(recipeId: string, batchesToProduce: num
     });
   }
   saveSemiFinishedStock(sfStock);
+
+  // Sync updated stock to Dexie db.products
+  try {
+    const updatedSf = sfStock.find((s) => s.recipeId === recipeId);
+    if (updatedSf) {
+      db.products
+        .filter(
+          (p) =>
+            (p.type === 'semi_finished' || p.type === 'semi_fini') &&
+            (p.id === recipeId || p.id === updatedSf.id || p.name.toLowerCase() === recipe.name.toLowerCase())
+        )
+        .first()
+        .then((existing) => {
+          if (existing) {
+            db.products.update(existing.id, {
+              currentStock: updatedSf.currentStock,
+              updatedAt: new Date().toISOString(),
+            });
+          }
+        })
+        .catch((err) => console.warn('[storage] Error updating SF produce batch in Dexie:', err));
+    }
+  } catch (e) {
+    // Ignore background sync error
+  }
 
   addActivityLog({
     type: 'SEMI_FINISHED_PRODUCED',
@@ -2997,14 +3244,20 @@ export function getPackagingMaterials(): PackagingMaterial[] {
     return [];
   }
   try {
-    return JSON.parse(data);
+    const parsed = JSON.parse(data);
+    const deduplicated = deduplicateById<PackagingMaterial>(parsed);
+    if (deduplicated.length !== parsed.length) {
+      localStorage.setItem(KEYS.PACKAGING_MATERIALS, JSON.stringify(deduplicated));
+    }
+    return deduplicated;
   } catch {
     return [];
   }
 }
 
 export function savePackagingMaterials(materials: PackagingMaterial[]): void {
-  localStorage.setItem(KEYS.PACKAGING_MATERIALS, JSON.stringify(materials));
+  const deduplicated = deduplicateById<PackagingMaterial>(materials);
+  localStorage.setItem(KEYS.PACKAGING_MATERIALS, JSON.stringify(deduplicated));
   notifyListeners();
 }
 

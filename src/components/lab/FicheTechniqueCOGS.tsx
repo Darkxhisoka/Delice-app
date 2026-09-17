@@ -9,6 +9,7 @@ import {
 } from '../../db/database';
 import { validateRecipeIngredients } from '../../db/recipeMigrationService';
 import { SAMPLE_SEMI_FINISHED_GOODS } from '../../db/dbSeeder';
+import { syncAllSemiFinishedStockAndProducts } from '../../services/semiFinishedSyncService';
 import {
   ChefHat,
   Scale,
@@ -33,11 +34,13 @@ import {
   Check,
   X,
   SlidersHorizontal,
-  Wrench
+  Wrench,
+  Pencil
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { FicheTechniqueEditor } from './FicheTechniqueEditor';
 import { IngredientsDiagnosticView } from './IngredientsDiagnosticView';
+import { deleteRecipe } from '../../services/storage';
 
 interface FicheTechniqueCOGSProps {
   initialProductId?: string;
@@ -82,20 +85,9 @@ export const FicheTechniqueCOGS: React.FC<FicheTechniqueCOGSProps> = ({
     return all.filter((p) => p.type === 'semi_finished' || p.type === 'semi_fini');
   }, []);
 
-  // Ensure semi-finished products (bases) exist in db.products
+  // Ensure semi-finished products (bases) exist and are fully synced with Stock
   useEffect(() => {
-    const ensureSemiFinishedSeeded = async () => {
-      try {
-        const all = await db.products.toArray();
-        const sfCount = all.filter((p) => p.type === 'semi_finished' || p.type === 'semi_fini').length;
-        if (sfCount === 0) {
-          await db.products.bulkPut(SAMPLE_SEMI_FINISHED_GOODS);
-        }
-      } catch (e) {
-        console.warn('[FicheTechniqueCOGS] Auto-seed semi-finished warning:', e);
-      }
-    };
-    ensureSemiFinishedSeeded();
+    syncAllSemiFinishedStockAndProducts();
   }, []);
 
   // --------------------------------------------------------------------------
@@ -117,6 +109,21 @@ export const FicheTechniqueCOGS: React.FC<FicheTechniqueCOGSProps> = ({
   const [newProdYield, setNewProdYield] = useState<number>(50);
   const [newProdUnit, setNewProdUnit] = useState<string>('pièces');
   const [newProdSellingPrice, setNewProdSellingPrice] = useState<number>(350);
+
+  // Modal State for Editing Recipe Details
+  const [showEditProductModal, setShowEditProductModal] = useState<boolean>(false);
+  const [editProdName, setEditProdName] = useState<string>('');
+  const [editProdCode, setEditProdCode] = useState<string>('');
+  const [editProdRoom, setEditProdRoom] = useState<string>('patisserie_fine');
+  const [editProdCategory, setEditProdCategory] = useState<string>('Pâtisseries Fines');
+  const [editProdYield, setEditProdYield] = useState<number>(50);
+  const [editProdUnit, setEditProdUnit] = useState<string>('pièces');
+  const [editProdSellingPrice, setEditProdSellingPrice] = useState<number>(350);
+  const [editProdDescription, setEditProdDescription] = useState<string>('');
+  const [editProdInstructions, setEditProdInstructions] = useState<string>('');
+
+  // Modal State for Deleting Recipe Confirmation
+  const [productToDelete, setProductToDelete] = useState<DexieProduct | null>(null);
 
   // Active Working Draft State for Selected Product
   const [draftProduct, setDraftProduct] = useState<DexieProduct | null>(null);
@@ -401,14 +408,15 @@ export const FicheTechniqueCOGS: React.FC<FicheTechniqueCOGSProps> = ({
   const handleSaveToDatabase = async () => {
     if (!draftProduct) return;
 
-    // Strict UI validation against db.raw_materials
+    // Strict UI validation against db.raw_materials & db.products (semi-finished)
     const rawMaterialsList = await db.raw_materials.toArray();
-    const validation = validateRecipeIngredients(draftProduct.ingredients || [], rawMaterialsList);
+    const sfList = (await db.products.toArray()).filter((p) => p.type === 'semi_finished' || p.type === 'semi_fini');
+    const validation = validateRecipeIngredients(draftProduct.ingredients || [], rawMaterialsList, sfList);
     if (!validation.isValid) {
       alert(
         `🚨 Validation Fiche Technique Échouée :\n\n` +
         validation.errors.join('\n') +
-        `\n\nVeuillez sélectionner des matières premières valides depuis db.raw_materials.`
+        `\n\nVeuillez vérifier la composition de la fiche technique.`
       );
       return;
     }
@@ -519,6 +527,94 @@ export const FicheTechniqueCOGS: React.FC<FicheTechniqueCOGSProps> = ({
     setSelectedProductId(newId);
     setSaveSuccessNotice(`Fiche dupliquée avec succès : "${duplicatedName}"`);
     setTimeout(() => setSaveSuccessNotice(null), 4000);
+  };
+
+  const handleOpenEditProduct = (prod?: DexieProduct | null) => {
+    const target = prod || draftProduct;
+    if (!target) return;
+    setEditProdName(target.name || '');
+    setEditProdCode(target.code || '');
+    setEditProdRoom(target.roomId || 'patisserie_fine');
+    setEditProdCategory(target.category || 'Pâtisseries Fines');
+    setEditProdYield(target.yieldPerBatch || 50);
+    setEditProdUnit(target.batchUnit || target.unit || 'pièces');
+    setEditProdSellingPrice(target.sellingPrice || target.price || 0);
+    setEditProdDescription(target.description || '');
+    setEditProdInstructions(target.instructions || '');
+    setShowEditProductModal(true);
+  };
+
+  const handleSaveEditProduct = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!draftProduct) return;
+    if (!editProdName.trim()) {
+      alert('Veuillez renseigner un nom pour la recette.');
+      return;
+    }
+
+    const updated: DexieProduct = {
+      ...draftProduct,
+      name: editProdName.trim(),
+      code: editProdCode.trim() || draftProduct.code,
+      roomId: editProdRoom,
+      category: editProdCategory,
+      yieldPerBatch: Number(editProdYield) || 50,
+      batchUnit: editProdUnit,
+      unit: editProdUnit,
+      sellingPrice: Number(editProdSellingPrice) || 0,
+      price: Number(editProdSellingPrice) || 0,
+      description: editProdDescription,
+      instructions: editProdInstructions,
+      updatedAt: new Date().toISOString()
+    };
+
+    // Recompute margins
+    const totalCost = updated.totalBatchCost || 0;
+    const cogs = updated.yieldPerBatch > 0 ? totalCost / updated.yieldPerBatch : 0;
+    updated.cogsUnitCost = Number(cogs.toFixed(2));
+    updated.costPrice = updated.cogsUnitCost;
+    const margin = updated.sellingPrice - cogs;
+    updated.marginAmount = Number(margin.toFixed(2));
+    updated.marginPercentage = updated.sellingPrice > 0 ? Number(((margin / updated.sellingPrice) * 100).toFixed(2)) : 0;
+
+    await db.products.put(updated);
+    setDraftProduct(updated);
+    setShowEditProductModal(false);
+    setSaveSuccessNotice(`Fiche technique "${updated.name}" mise à jour avec succès.`);
+    setTimeout(() => setSaveSuccessNotice(null), 4000);
+  };
+
+  const handleConfirmDeleteProduct = async () => {
+    if (!productToDelete) return;
+    const targetId = productToDelete.id;
+    const targetName = productToDelete.name;
+
+    try {
+      await db.products.delete(targetId);
+      try {
+        deleteRecipe(targetId);
+      } catch (e) {
+        console.warn('[FicheTechniqueCOGS] deleteRecipe error on confirmed delete:', e);
+      }
+
+      setSaveSuccessNotice(`Fiche technique "${targetName}" supprimée avec succès.`);
+      setTimeout(() => setSaveSuccessNotice(null), 4000);
+
+      if (selectedProductId === targetId) {
+        const remaining = filteredProducts.filter((p) => p.id !== targetId);
+        if (remaining.length > 0) {
+          setSelectedProductId(remaining[0].id);
+        } else {
+          setSelectedProductId('');
+          setDraftProduct(null);
+        }
+      }
+    } catch (err) {
+      console.error('[FicheTechniqueCOGS] Erreur suppression recette:', err);
+      alert('Erreur lors de la suppression : ' + String(err));
+    } finally {
+      setProductToDelete(null);
+    }
   };
 
   const handleRunMigration = async () => {
@@ -774,17 +870,42 @@ export const FicheTechniqueCOGS: React.FC<FicheTechniqueCOGSProps> = ({
                       }`}
                     >
                       <div className="flex items-start justify-between gap-2">
-                        <div className="space-y-0.5">
+                        <div className="space-y-0.5 flex-1 min-w-0">
                           <span className="text-[11px] font-mono text-stone-500 font-semibold">
                             {prod.code || 'PF'}
                           </span>
-                          <h3 className={`text-sm font-bold leading-tight ${isSelected ? 'text-amber-950' : 'text-stone-900'}`}>
+                          <h3 className={`text-sm font-bold leading-tight truncate ${isSelected ? 'text-amber-950' : 'text-stone-900'}`}>
                             {prod.name}
                           </h3>
                         </div>
-                        <span className={`text-[10px] font-medium px-2 py-0.5 rounded-full border shrink-0 ${roomConfig.color}`}>
-                          {roomConfig.fr.split('&')[0].trim()}
-                        </span>
+                        <div className="flex items-center gap-1 shrink-0">
+                          <span className={`text-[10px] font-medium px-2 py-0.5 rounded-full border ${roomConfig.color}`}>
+                            {roomConfig.fr.split('&')[0].trim()}
+                          </span>
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setSelectedProductId(prod.id);
+                              handleOpenEditProduct(prod);
+                            }}
+                            className="p-1 text-stone-400 hover:text-indigo-600 hover:bg-stone-100 rounded transition-colors"
+                            title="Modifier les détails de la recette"
+                          >
+                            <Pencil className="w-3.5 h-3.5" />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setProductToDelete(prod);
+                            }}
+                            className="p-1 text-stone-400 hover:text-rose-600 hover:bg-rose-50 rounded transition-colors"
+                            title="Supprimer la fiche technique"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
                       </div>
 
                       <div className="mt-2.5 pt-2 border-t border-stone-100 flex items-center justify-between text-xs">
@@ -870,6 +991,24 @@ export const FicheTechniqueCOGS: React.FC<FicheTechniqueCOGSProps> = ({
                     >
                       <Copy className="w-3.5 h-3.5" />
                       Dupliquer
+                    </button>
+
+                    <button
+                      onClick={() => handleOpenEditProduct(draftProduct)}
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-amber-900 bg-amber-100 hover:bg-amber-200 border border-amber-300 rounded-lg transition-colors cursor-pointer"
+                      title="Modifier les détails de la recette (nom, code, catégorie, atelier, prix)"
+                    >
+                      <Pencil className="w-3.5 h-3.5" />
+                      Modifier Recette
+                    </button>
+
+                    <button
+                      onClick={() => setProductToDelete(draftProduct)}
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-rose-700 bg-rose-50 hover:bg-rose-100 border border-rose-200 rounded-lg transition-colors cursor-pointer"
+                      title="Supprimer cette fiche technique"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                      Supprimer
                     </button>
                   </div>
                 </div>
@@ -1571,6 +1710,222 @@ export const FicheTechniqueCOGS: React.FC<FicheTechniqueCOGSProps> = ({
                   className="px-5 py-2 text-xs font-bold text-white bg-amber-600 hover:bg-amber-700 rounded-lg shadow-sm transition-colors cursor-pointer"
                 >
                   Créer et Éditer la Fiche
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+
+        {/* Modal: Edit Recipe / Finished Good Info */}
+        {showEditProductModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-stone-900/60 backdrop-blur-xs overflow-y-auto">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="bg-white border border-stone-200 rounded-2xl p-6 max-w-lg w-full shadow-xl space-y-5 my-8"
+            >
+              <div className="flex items-center justify-between pb-3 border-b border-stone-100">
+                <div className="flex items-center gap-2.5">
+                  <div className="p-2 bg-amber-100 text-amber-800 rounded-lg">
+                    <Pencil className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-bold text-stone-900">
+                      Modifier la Fiche Technique
+                    </h3>
+                    <p className="text-xs text-stone-500">Mettre à jour les informations et spécifications de la recette</p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setShowEditProductModal(false)}
+                  className="text-stone-400 hover:text-stone-600 p-1"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              <form onSubmit={handleSaveEditProduct} className="space-y-4 text-sm">
+                <div>
+                  <label className="block text-xs font-semibold text-stone-700 mb-1">
+                    Nom du Produit Fini / Recette *
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={editProdName}
+                    onChange={(e) => setEditProdName(e.target.value)}
+                    className="w-full px-3 py-2 border border-stone-300 rounded-lg focus:ring-2 focus:ring-amber-500 font-semibold text-sm"
+                  />
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs font-semibold text-stone-700 mb-1">
+                      Code Référence
+                    </label>
+                    <input
+                      type="text"
+                      value={editProdCode}
+                      onChange={(e) => setEditProdCode(e.target.value)}
+                      className="w-full px-3 py-2 border border-stone-300 rounded-lg font-mono text-xs"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-semibold text-stone-700 mb-1">
+                      Atelier / Chambre Lab
+                    </label>
+                    <select
+                      value={editProdRoom}
+                      onChange={(e) => setEditProdRoom(e.target.value)}
+                      className="w-full px-3 py-2 border border-stone-300 rounded-lg text-xs font-medium"
+                    >
+                      {Object.entries(PRODUCTION_ROOM_LABELS).map(([k, v]) => (
+                        <option key={k} value={k}>{v.fr}</option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-3 gap-3">
+                  <div>
+                    <label className="block text-xs font-semibold text-stone-700 mb-1">
+                      Rendement / Tour
+                    </label>
+                    <input
+                      type="number"
+                      min="1"
+                      value={editProdYield}
+                      onChange={(e) => setEditProdYield(parseInt(e.target.value) || 1)}
+                      className="w-full px-3 py-2 border border-stone-300 rounded-lg text-center font-semibold text-xs"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-semibold text-stone-700 mb-1">
+                      Unité
+                    </label>
+                    <input
+                      type="text"
+                      value={editProdUnit}
+                      onChange={(e) => setEditProdUnit(e.target.value)}
+                      className="w-full px-3 py-2 border border-stone-300 rounded-lg text-center text-xs"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-semibold text-stone-700 mb-1">
+                      Prix Vente (DZD)
+                    </label>
+                    <input
+                      type="number"
+                      min="0"
+                      step="5"
+                      value={editProdSellingPrice}
+                      onChange={(e) => setEditProdSellingPrice(parseFloat(e.target.value) || 0)}
+                      className="w-full px-3 py-2 border border-stone-300 rounded-lg text-right font-bold text-xs"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-stone-700 mb-1">
+                    Catégorie
+                  </label>
+                  <input
+                    type="text"
+                    value={editProdCategory}
+                    onChange={(e) => setEditProdCategory(e.target.value)}
+                    className="w-full px-3 py-2 border border-stone-300 rounded-lg text-xs"
+                    placeholder="Ex: Pâtisseries Fines, Viennoiseries, Entremets..."
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-stone-700 mb-1">
+                    Description & Remarques (Optionnel)
+                  </label>
+                  <textarea
+                    rows={2}
+                    value={editProdDescription}
+                    onChange={(e) => setEditProdDescription(e.target.value)}
+                    className="w-full px-3 py-2 border border-stone-300 rounded-lg text-xs"
+                    placeholder="Notes de préparation, conditionnement, etc."
+                  />
+                </div>
+
+                <div className="flex items-center justify-end gap-3 pt-3 border-t border-stone-100">
+                  <button
+                    type="button"
+                    onClick={() => setShowEditProductModal(false)}
+                    className="px-4 py-2 text-xs font-semibold text-stone-600 hover:bg-stone-100 rounded-lg transition-colors cursor-pointer"
+                  >
+                    Annuler
+                  </button>
+                  <button
+                    type="submit"
+                    className="px-5 py-2 text-xs font-bold text-white bg-amber-600 hover:bg-amber-700 rounded-lg shadow-sm transition-colors cursor-pointer"
+                  >
+                    Enregistrer les modifications
+                  </button>
+                </div>
+              </form>
+            </motion.div>
+          </div>
+        )}
+
+        {/* Modal: Delete Recipe Confirmation */}
+        {productToDelete && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-stone-900/60 backdrop-blur-xs">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="bg-white border border-stone-200 rounded-2xl p-6 max-w-md w-full shadow-xl space-y-4"
+            >
+              <div className="flex items-center gap-3">
+                <div className="p-3 bg-rose-50 text-rose-600 rounded-xl">
+                  <Trash2 className="w-6 h-6" />
+                </div>
+                <div>
+                  <h3 className="text-base font-bold text-stone-900">
+                    Supprimer la Fiche Technique
+                  </h3>
+                  <p className="text-xs text-stone-500">Cette action est définitive et irréversible</p>
+                </div>
+              </div>
+
+              <div className="bg-stone-50 p-4 rounded-xl border border-stone-200 text-xs text-stone-700 space-y-2">
+                <p>
+                  Êtes-vous sûr de vouloir supprimer définitivement la fiche technique de{' '}
+                  <span className="font-bold text-stone-900">« {productToDelete.name} »</span> ?
+                </p>
+                <div className="flex items-center gap-2 text-stone-500 text-[11px]">
+                  <span className="font-mono bg-stone-200 px-1.5 py-0.5 rounded">{productToDelete.code || 'PF'}</span>
+                  <span>•</span>
+                  <span>{productToDelete.yieldPerBatch || 50} {productToDelete.batchUnit || 'pièces'}</span>
+                  <span>•</span>
+                  <span>{productToDelete.category || 'Pâtisserie'}</span>
+                </div>
+              </div>
+
+              <div className="flex items-center justify-end gap-2 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setProductToDelete(null)}
+                  className="px-4 py-2 text-xs font-semibold text-stone-600 hover:bg-stone-100 rounded-lg transition-colors cursor-pointer"
+                >
+                  Annuler
+                </button>
+                <button
+                  type="button"
+                  onClick={handleConfirmDeleteProduct}
+                  className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-bold text-white bg-rose-600 hover:bg-rose-700 rounded-lg shadow-sm transition-colors cursor-pointer"
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                  <span>Supprimer définitivement</span>
                 </button>
               </div>
             </motion.div>

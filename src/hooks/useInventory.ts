@@ -17,6 +17,7 @@ import {
   addActivityLog,
   notifyToast,
   notifyListeners,
+  deduplicateById,
 } from '../services/storage';
 
 export interface UseInventoryReturn {
@@ -101,8 +102,8 @@ function mapActivityLogRow(row: any): ActivityLogItem {
 }
 
 export function useInventory(): UseInventoryReturn {
-  const [rawMaterials, setRawMaterials] = useState<RawMaterial[]>(() => getRawMaterials());
-  const [packagingMaterials, setPackagingMaterials] = useState<PackagingMaterial[]>(() => getPackagingMaterials());
+  const [rawMaterials, setRawMaterials] = useState<RawMaterial[]>(() => deduplicateById(getRawMaterials()));
+  const [packagingMaterials, setPackagingMaterials] = useState<PackagingMaterial[]>(() => deduplicateById(getPackagingMaterials()));
   const [inventoryAdjustments, setInventoryAdjustments] = useState<InventoryAdjustment[]>(() => getInventoryAdjustments());
   const [activityLogs, setActivityLogs] = useState<ActivityLogItem[]>(() => getActivityLogs());
   const [loading, setLoading] = useState<boolean>(true);
@@ -123,7 +124,7 @@ export function useInventory(): UseInventoryReturn {
         .order('name');
 
       if (!rawError && rawData) {
-        const mappedRaw = rawData.map(mapRawMaterialRow);
+        const mappedRaw = deduplicateById(rawData.map(mapRawMaterialRow));
         setRawMaterials(mappedRaw);
         saveRawMaterials(mappedRaw);
       }
@@ -136,11 +137,11 @@ export function useInventory(): UseInventoryReturn {
         .order('name');
 
       if (!pkgError && pkgData) {
-        pkgMapped = pkgData.map(mapPackagingRow);
+        pkgMapped = deduplicateById(pkgData.map(mapPackagingRow));
       } else {
         const { data: emballageData } = await supabase.from('emballages').select('*').order('name');
         if (emballageData) {
-          pkgMapped = emballageData.map(mapPackagingRow);
+          pkgMapped = deduplicateById(emballageData.map(mapPackagingRow));
         }
       }
 
@@ -322,7 +323,7 @@ export function useInventory(): UseInventoryReturn {
   // Mutations
   const upsertRawMaterial = useCallback(
     async (material: Partial<RawMaterial> & { name: string }): Promise<RawMaterial> => {
-      const id = material.id || `rm-${Date.now()}`;
+      const id = material.id || `rm-${Date.now()}-${Math.floor(100 + Math.random() * 900)}`;
       const sku = material.sku || `SKU-${Date.now().toString().slice(-6)}`;
       const unit = material.unit || 'kg';
       const category = material.category || 'Other';

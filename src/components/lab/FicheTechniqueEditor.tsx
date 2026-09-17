@@ -24,6 +24,7 @@ import {
 } from '../../db/recipeMigrationService';
 import { resetAndSeedRawMaterials } from '../../db/dbSeeder';
 import { IngredientsDiagnosticView } from './IngredientsDiagnosticView';
+import { deleteRecipe } from '../../services/storage';
 
 // ============================================================================
 // Types & Interfaces
@@ -377,6 +378,39 @@ export function FicheTechniqueEditor({
     } catch (err) {
       console.error("Erreur lors de l'enregistrement de la fiche technique:", err);
       alert("Une erreur est survenue lors de l'enregistrement de la fiche technique.");
+    }
+  };
+
+  const handleDeleteCurrentRecipe = async () => {
+    if (!selectedProductId) return;
+    const prod = finishedProducts.find((p) => p.id?.toString() === selectedProductId);
+    const prodName = prod ? prod.name : name;
+
+    if (!window.confirm(`Êtes-vous sûr de vouloir supprimer définitivement la fiche technique de « ${prodName} » ? Cette action est irréversible.`)) {
+      return;
+    }
+
+    try {
+      await db.products.delete(selectedProductId);
+      try {
+        deleteRecipe(selectedProductId);
+      } catch (e) {
+        console.warn('[FicheTechniqueEditor] deleteRecipe error:', e);
+      }
+
+      setSaveFeedback(`Fiche technique "${prodName}" supprimée avec succès.`);
+      setSelectedProductId('');
+      setName('');
+      setCategory('Pâtisseries Fines');
+      setRoomId('patisserie_fine');
+      setYieldPerBatch(20);
+      setBatchUnit('pièces');
+      setSellingPrice(150);
+      setIngredients([]);
+      setValidationErrors([]);
+    } catch (err) {
+      console.error('[FicheTechniqueEditor] Erreur suppression recette:', err);
+      alert('Erreur lors de la suppression de la fiche technique: ' + String(err));
     }
   };
 
@@ -748,8 +782,8 @@ export function FicheTechniqueEditor({
 
                             {Object.entries(groupedRawMaterials).map(([catName, items]) => (
                               <optgroup key={catName} label={`📁 ${catName}`}>
-                                {items.map((rm) => (
-                                  <option key={rm.id} value={rm.id}>
+                                {items.map((rm, rmIdx) => (
+                                  <option key={`${rm.id || 'rm'}-${rmIdx}`} value={rm.id}>
                                     {formatRawMaterialOptionLabel(rm)}
                                   </option>
                                 ))}
@@ -929,14 +963,28 @@ export function FicheTechniqueEditor({
           </span>
         </div>
 
-        <button
-          type="button"
-          onClick={handleSave}
-          className="inline-flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white px-6 py-2.5 rounded-xl font-semibold shadow-md transition cursor-pointer text-sm"
-        >
-          <CheckCircle2 className="w-4 h-4" />
-          <span>Enregistrer la Fiche Technique & COGS</span>
-        </button>
+        <div className="flex items-center gap-2">
+          {selectedProductId && (
+            <button
+              type="button"
+              onClick={handleDeleteCurrentRecipe}
+              className="inline-flex items-center gap-1.5 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 px-4 py-2.5 rounded-xl font-semibold transition cursor-pointer text-sm"
+              title="Supprimer cette recette"
+            >
+              <Trash2 className="w-4 h-4" />
+              <span>Supprimer Recette</span>
+            </button>
+          )}
+
+          <button
+            type="button"
+            onClick={handleSave}
+            className="inline-flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white px-6 py-2.5 rounded-xl font-semibold shadow-md transition cursor-pointer text-sm"
+          >
+            <CheckCircle2 className="w-4 h-4" />
+            <span>Enregistrer la Fiche Technique & COGS</span>
+          </button>
+        </div>
       </div>
 
       {/* Modal: Diagnostic Ingrédients vs Matières Premières */}
