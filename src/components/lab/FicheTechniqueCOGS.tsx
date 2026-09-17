@@ -509,6 +509,22 @@ export const FicheTechniqueCOGS: React.FC<FicheTechniqueCOGSProps> = ({
     setNewProdSellingPrice(350);
   };
 
+  const handleDeleteProduct = async (productId: string) => {
+    if (!window.confirm('Êtes-vous sûr de vouloir supprimer définitivement cette fiche technique ? Cette action est irréversible.')) {
+      return;
+    }
+
+    try {
+      await db.products.delete(productId);
+      setSaveSuccessNotice('Fiche technique supprimée avec succès.');
+      setSelectedProductId('');
+      setTimeout(() => setSaveSuccessNotice(null), 4000);
+    } catch (err) {
+      console.error('[FicheTechniqueCOGS] Erreur lors de la suppression:', err);
+      alert('Erreur lors de la suppression : ' + String(err));
+    }
+  };
+
   const handleDuplicateProduct = async () => {
     if (!draftProduct) return;
     const duplicatedName = `${draftProduct.name} (Copie)`;
@@ -952,14 +968,37 @@ export const FicheTechniqueCOGS: React.FC<FicheTechniqueCOGSProps> = ({
               {/* Product Info & Specs Card */}
               <div className="bg-white border border-stone-200 rounded-xl p-6 shadow-sm space-y-5">
                 <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 pb-4 border-b border-stone-100">
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <span className="text-xs font-mono font-bold text-amber-700 bg-amber-50 px-2 py-0.5 rounded border border-amber-200">
-                        {draftProduct.code || 'PF'}
-                      </span>
-                      <h2 className="text-xl font-bold text-stone-900 tracking-tight">
-                        {draftProduct.name}
-                      </h2>
+                  <div className="flex-1 space-y-3">
+                    <div className="flex items-center gap-3">
+                      <div className="flex-1">
+                        <label className="block text-[10px] font-bold text-stone-400 uppercase tracking-widest mb-0.5 ml-1">
+                          Nom du Produit
+                        </label>
+                        <input
+                          type="text"
+                          value={draftProduct.name}
+                          onChange={(e) => {
+                            setDraftProduct({ ...draftProduct, name: e.target.value });
+                            setIsDirty(true);
+                          }}
+                          className="w-full text-xl font-bold text-stone-900 tracking-tight bg-stone-50/50 border-none focus:ring-2 focus:ring-amber-500 rounded-lg px-2 py-1 -ml-2"
+                        />
+                      </div>
+                      <div className="w-32">
+                        <label className="block text-[10px] font-bold text-stone-400 uppercase tracking-widest mb-0.5 ml-1">
+                          Code
+                        </label>
+                        <input
+                          type="text"
+                          value={draftProduct.code || ''}
+                          onChange={(e) => {
+                            setDraftProduct({ ...draftProduct, code: e.target.value });
+                            setIsDirty(true);
+                          }}
+                          placeholder="Code PF"
+                          className="w-full text-xs font-mono font-bold text-amber-700 bg-amber-50 px-2 py-1 rounded border border-amber-200 focus:ring-2 focus:ring-amber-500"
+                        />
+                      </div>
                     </div>
                     <p className="text-xs text-stone-500 mt-1">
                       Atelier : <span className="font-medium text-stone-700">{PRODUCTION_ROOM_LABELS[draftProduct.roomId || 'patisserie_fine']?.fr || draftProduct.category}</span>
@@ -983,6 +1022,14 @@ export const FicheTechniqueCOGS: React.FC<FicheTechniqueCOGSProps> = ({
                     >
                       <Printer className="w-3.5 h-3.5" />
                       Imprimer Fiche
+                    </button>
+
+                    <button
+                      onClick={() => handleDeleteProduct(draftProduct.id)}
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-rose-700 bg-rose-50 hover:bg-rose-100 border border-rose-200 rounded-lg transition-colors cursor-pointer"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                      Supprimer
                     </button>
 
                     <button

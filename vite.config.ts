@@ -14,4 +14,12 @@ export default defineConfig({
       '@': path.resolve(__dirname, '.'),
     },
   },
+  server: {
+    watch: {
+      ignored: ['**/src-tauri/**'],
+    },
+    hmr: {
+      port: 24679,
+    },
+  },
 });

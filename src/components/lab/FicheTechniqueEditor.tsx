@@ -414,6 +414,25 @@ export function FicheTechniqueEditor({
     }
   };
 
+  const handleDelete = async () => {
+    if (!selectedProductId) return;
+    if (!window.confirm(`Êtes-vous sûr de vouloir supprimer définitivement la fiche technique "${name}" ?`)) {
+      return;
+    }
+
+    try {
+      await db.products.delete(selectedProductId);
+      setSaveFeedback(`Fiche technique "${name}" supprimée.`);
+      setSelectedProductId('');
+      setName('');
+      setIngredients([]);
+      if (onClose) setTimeout(onClose, 2000);
+    } catch (err) {
+      console.error("Erreur lors de la suppression:", err);
+      alert("Une erreur est survenue lors de la suppression.");
+    }
+  };
+
   // Migration & Master Sync Utility: Runs cleanAndSyncRecipeIngredients across all products
   const handleRunFullMigration = async () => {
     const confirmRun = window.confirm(
@@ -508,6 +527,19 @@ export function FicheTechniqueEditor({
         </div>
 
         <div className="flex items-center flex-wrap gap-2">
+          {/* Delete Button */}
+          {selectedProductId && (
+            <button
+              type="button"
+              onClick={handleDelete}
+              className="inline-flex items-center space-x-1.5 px-3 py-2 text-xs font-bold text-white bg-rose-600 hover:bg-rose-700 border border-rose-700 rounded-lg shadow-2xs transition cursor-pointer"
+              title="Supprimer définitivement ce produit fini et sa fiche"
+            >
+              <Trash2 className="w-3.5 h-3.5" />
+              <span>Supprimer Fiche</span>
+            </button>
+          )}
+
           {/* Quick Migration & Cleanup Button */}
           <button
             type="button"
